@@ -556,29 +556,60 @@ function captureItemInventoryText(player) {
   );
 }
 
-function getMonsterImage(monster) {
-  const cleanName = cleanMonsterName(monster.name);
+function findImageFile(filename) {
+  if (!filename) return null;
 
-  const allMonsters = [...monsters, ...eventMonsters, ...ultraRareMonsters];
-
-  const match = allMonsters.find(
-    m =>
-      cleanMonsterName(m.name) === cleanName
-  );
-
-  if (!match || !match.image) return null;
-
-  const imagePath = path.join(
+  const searchFolders = [
     __dirname,
-    match.image
-  );
+    path.join(__dirname, "images"),
+    path.join(__dirname, "assets"),
+    path.join(__dirname, "assets", "images"),
+    path.join(__dirname, "public"),
+    path.join(__dirname, "public", "images"),
+    path.join(__dirname, "src"),
+    path.join(__dirname, "src", "images")
+  ];
 
-  if (!fs.existsSync(imagePath)) {
-    console.log(`Image not found: ${imagePath}`);
-    return null;
+  const wanted = path.basename(filename).toLowerCase();
+
+  for (const folder of searchFolders) {
+    if (!fs.existsSync(folder)) continue;
+
+    const exactPath = path.join(folder, filename);
+    if (fs.existsSync(exactPath) && fs.statSync(exactPath).isFile()) {
+      return exactPath;
+    }
+
+    try {
+      const matchingFile = fs.readdirSync(folder).find(file =>
+        file.toLowerCase() === wanted
+      );
+
+      if (matchingFile) {
+        const matchedPath = path.join(folder, matchingFile);
+        if (fs.statSync(matchedPath).isFile()) return matchedPath;
+      }
+    } catch (error) {
+      console.error(`Could not search image folder ${folder}:`, error.message);
+    }
   }
 
-  return imagePath;
+  console.log(
+    `Image not found for ${filename}. Checked: ${searchFolders.join(", ")}`
+  );
+  return null;
+}
+
+function getMonsterImage(monster) {
+  const cleanName = cleanMonsterName(monster?.name);
+  const allMonsters = [...monsters, ...eventMonsters, ...ultraRareMonsters];
+
+  const match = allMonsters.find(candidate =>
+    cleanMonsterName(candidate.name).toLowerCase() === cleanName.toLowerCase()
+  );
+
+  const filename = monster?.image || match?.image;
+  return findImageFile(filename);
 }
 
 function buildMonsterEmbed(
