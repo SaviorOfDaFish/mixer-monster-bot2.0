@@ -70,182 +70,147 @@ if (!fs.existsSync(DATA_FILE)) {
 
 const monsters = [
   // 🌲 FOREST
-  { name: "Mosscap Sproutling", habitat: "Forest", rarity: "Common", points: 1, chance: 85, image: "mosscap_sproutling.png" },
-  { name: "Bristlefox", habitat: "Forest", rarity: "Common", points: 1, chance: 82, image: "bristlefox.png" },
-  { name: "Thornhorn Stag", habitat: "Forest", rarity: "Rare", points: 3, chance: 55, image: "thornhorn_stag.png" },
-  { name: "Rootback Treant", habitat: "Forest", rarity: "Epic", points: 5, chance: 32, image: "rootback_treant.png" },
-  { name: "Elder Owlbeast", habitat: "Forest", rarity: "Legendary", points: 10, chance: 12, image: "elder_owlbeast.png" },
+  { name: "Bramble Creeper", habitat: "Forest", rarity: "Common", points: 1, chance: 85, image: "bramble_creeper.png", description: "A twisted mass of thorn-covered vines that drags itself silently across the forest floor. Its tangled body blends perfectly into thick undergrowth until jagged wooden jaws suddenly snap shut. Many hunters mistake it for an ordinary bush—only once." },
+  { name: "Hollow Stalker", habitat: "Forest", rarity: "Common", points: 1, chance: 82, image: "hollow_stalker.png", description: "A walking shell of ancient bark with glowing amber eyes burning deep inside its hollow chest. It wanders forgotten forests searching for lost travelers, leaving eerie wooden footprints that vanish by sunrise." },
+  { name: "Rotfang Beast", habitat: "Forest", rarity: "Rare", points: 3, chance: 55, image: "rotfang_beast.png", description: "A savage predator whose body is fused with twisted roots, sharpened bone, and jagged bark. Its terrifying roar causes birds to flee miles before the beast ever appears." },
+  { name: "Ancient Thornlord", habitat: "Forest", rarity: "Epic", points: 5, chance: 32, image: "ancient_thornlord.png", description: "A towering guardian born from cursed forests. Massive branches serve as its arms while razor-sharp thorns constantly grow across its body. Entire villages have vanished after disturbing one of these ancient protectors." },
+  { name: "Verdant Colossus", habitat: "Forest", rarity: "Legendary", points: 10, chance: 12, image: "verdant_colossus.png", description: "A mountain-sized forest titan said to awaken only when nature itself is threatened. Entire trees grow from its shoulders, and rivers change course beneath its thunderous footsteps." },
 
   // 🌊 OCEAN
-  { name: "Bubblefin Guppy", habitat: "Ocean", rarity: "Common", points: 1, chance: 85, image: "bubblefin_guppy.png" },
-  { name: "Coral Claw", habitat: "Ocean", rarity: "Common", points: 1, chance: 82, image: "coral_claw.png" },
-  { name: "Mistseal", habitat: "Ocean", rarity: "Rare", points: 3, chance: 55, image: "mistseal.png" },
-  { name: "Tide Serpent", habitat: "Ocean", rarity: "Epic", points: 5, chance: 32, image: "tide_serpent.png" },
-  { name: "Leviacrest", habitat: "Ocean", rarity: "Legendary", points: 10, chance: 12, image: "leviacrest.png" },
+  { name: "Reef Maw", habitat: "Ocean", rarity: "Common", points: 1, chance: 85, image: "reef_maw.png", description: "A living coral predator whose brightly colored shell disguises rows of razor-sharp teeth. Divers often mistake it for a harmless reef formation until the ocean floor suddenly lunges upward." },
+  { name: "Inkfiend", habitat: "Ocean", rarity: "Common", points: 1, chance: 82, image: "inkfiend.png", description: "A many-eyed abyssal horror that fills the surrounding waters with magical black ink. Entire schools of fish disappear whenever one drifts through the deep." },
+  { name: "Razorclaw Crusher", habitat: "Ocean", rarity: "Rare", points: 3, chance: 55, image: "razorclaw_crusher.png", description: "A hulking crustacean horror with obsidian claws powerful enough to shatter solid stone. Ancient shipwrecks often bear massive claw marks left behind by these relentless monsters." },
+  { name: "Abyss Serpent", habitat: "Ocean", rarity: "Epic", points: 5, chance: 32, image: "abyss_serpent.png", description: "A colossal sea serpent whose glowing scales illuminate the deepest trenches. Legends claim its body stretches for miles beneath the waves." },
+  { name: "Tidemaw Leviathan", habitat: "Ocean", rarity: "Legendary", points: 10, chance: 12, image: "tidemaw_leviathan.png", description: "A legendary ocean behemoth capable of swallowing entire ships whole. Violent tidal waves are often blamed on nothing more than the creature changing direction beneath the sea." },
 
   // 🏔️ MOUNTAIN
-  { name: "Pebblehoof", habitat: "Mountain", rarity: "Common", points: 1, chance: 85, image: "pebblehoof.png" },
-  { name: "Echo Bat", habitat: "Mountain", rarity: "Common", points: 1, chance: 82, image: "echo_bat.png" },
-  { name: "Granite Roc", habitat: "Mountain", rarity: "Rare", points: 3, chance: 55, image: "granite_roc.png" },
-  { name: "Ironfur Yeti", habitat: "Mountain", rarity: "Epic", points: 5, chance: 32, image: "ironfur_yeti.png" },
-  { name: "Skybreaker Colossus", habitat: "Mountain", rarity: "Legendary", points: 10, chance: 12, image: "skybreaker_colossus.png" },
+  { name: "Stone Maw", habitat: "Mountain", rarity: "Common", points: 1, chance: 85, image: "stone_maw.png", description: "A rock-covered ambush predator that remains perfectly motionless until prey wanders within striking distance. By then, escape is rarely possible." },
+  { name: "Crystal Burrower", habitat: "Mountain", rarity: "Common", points: 1, chance: 82, image: "crystal_burrower.png", description: "A heavily armored tunneling monster whose crystalline shell slices effortlessly through solid mountains. The tunnels it leaves behind glitter with razor-sharp gemstones." },
+  { name: "Cliff Reaper", habitat: "Mountain", rarity: "Rare", points: 3, chance: 55, image: "cliff_reaper.png", description: "A terrifying winged hunter that silently dives from towering cliffs. Victims often hear nothing more than rushing wind before it strikes." },
+  { name: "Ironhide Ravager", habitat: "Mountain", rarity: "Epic", points: 5, chance: 32, image: "ironhide_ravager.png", description: "A colossal beast covered in metallic scales harder than forged steel. Even seasoned hunters struggle to leave a scratch upon its armored hide." },
+  { name: "Titan of the Peaks", habitat: "Mountain", rarity: "Legendary", points: 10, chance: 12, image: "titan_of_the_peaks.png", description: "A living mountain awakened by forgotten magic. Every step triggers avalanches, while entire cliffs crumble from the sheer weight of its ancient body." },
 
   // 🌋 VOLCANO
-  { name: "Ember Skink", habitat: "Volcano", rarity: "Common", points: 1, chance: 85, image: "ember_skink.png" },
-  { name: "Ash Puff", habitat: "Volcano", rarity: "Common", points: 1, chance: 82, image: "ash_puff.png" },
-  { name: "Cinder Boar", habitat: "Volcano", rarity: "Rare", points: 3, chance: 55, image: "cinder_boar.png" },
-  { name: "Magma Drake", habitat: "Volcano", rarity: "Epic", points: 5, chance: 32, image: "magma_drake.png" },
-  { name: "Inferno Behemoth", habitat: "Volcano", rarity: "Legendary", points: 10, chance: 12, image: "inferno_behemoth.png" },
+  { name: "Cinderling", habitat: "Volcano", rarity: "Common", points: 1, chance: 85, image: "cinderling.png", description: "A lava-born horror with burning claws and molten cracks glowing across its rocky body. It scurries through volcanic tunnels and swarms anything that disturbs its nest." },
+  { name: "Magma Maw", habitat: "Volcano", rarity: "Common", points: 1, chance: 82, image: "magma_maw.png", description: "A molten predator that swims beneath rivers of lava as though they were water. Only its blazing eyes break the fiery surface before it attacks." },
+  { name: "Ashfang Brute", habitat: "Volcano", rarity: "Rare", points: 3, chance: 55, image: "ashfang_brute.png", description: "A heavily muscled monster with obsidian tusks and burning horns. Each furious charge scatters molten rock across the battlefield." },
+  { name: "Infernal Drake", habitat: "Volcano", rarity: "Epic", points: 5, chance: 32, image: "infernal_drake.png", description: "A volcanic dragon constantly dripping molten lava from its wings. Every beat of those wings fills the sky with burning ash." },
+  { name: "World Furnace", habitat: "Volcano", rarity: "Legendary", points: 10, chance: 12, image: "world_furnace.png", description: "A colossal magma titan believed to sleep beneath the world's largest volcanoes. Entire eruptions are thought to be nothing more than the beast turning in its endless slumber." },
 
   // ❄️ ARCTIC
-  { name: "Snow Hopper", habitat: "Arctic", rarity: "Common", points: 1, chance: 85, image: "snow_hopper.png" },
-  { name: "Frosttail Fox", habitat: "Arctic", rarity: "Common", points: 1, chance: 82, image: "frosttail_fox.png" },
-  { name: "Glacier Bear", habitat: "Arctic", rarity: "Rare", points: 3, chance: 55, image: "glacier_bear.png" },
-  { name: "Aurora Elk", habitat: "Arctic", rarity: "Epic", points: 5, chance: 32, image: "aurora_elk.png" },
-  { name: "Winter Sovereign", habitat: "Arctic", rarity: "Legendary", points: 10, chance: 12, image: "winter_sovereign.png" },
+  { name: "Ice Crawler", habitat: "Arctic", rarity: "Common", points: 1, chance: 85, image: "ice_crawler.png", description: "A six-legged predator perfectly adapted to frozen wastelands. Its icy shell reflects the snow, making it nearly invisible until it lunges." },
+  { name: "Frost Wretch", habitat: "Arctic", rarity: "Common", points: 1, chance: 82, image: "frost_wretch.png", description: "A frozen horror whose brittle body constantly sheds razor-sharp shards of enchanted ice. The air around it is painfully cold." },
+  { name: "Glacier Horror", habitat: "Arctic", rarity: "Rare", points: 3, chance: 55, image: "glacier_horror.png", description: "A massive beast imprisoned within ancient blue ice. Each movement causes enormous frozen spikes to erupt from the ground." },
+  { name: "Blizzard Reaper", habitat: "Arctic", rarity: "Epic", points: 5, chance: 32, image: "blizzard_reaper.png", description: "A towering monster hidden inside endless blizzards. Hunters often realize too late that the storm itself is alive." },
+  { name: "The White Tyrant", habitat: "Arctic", rarity: "Legendary", points: 10, chance: 12, image: "the_white_tyrant.png", description: "An ancient ruler of eternal winter whose frozen breath buries entire kingdoms beneath endless snow. Few have seen it and lived to tell the tale." },
 
   // 🌌 VOID
-  { name: "Blinkling", habitat: "Void", rarity: "Common", points: 1, chance: 85, image: "blinkling.png" },
-  { name: "Shadow Skitter", habitat: "Void", rarity: "Common", points: 1, chance: 82, image: "shadow_skitter.png" },
-  { name: "Null Hound", habitat: "Void", rarity: "Rare", points: 3, chance: 55, image: "null_hound.png" },
-  { name: "Void Phantom", habitat: "Void", rarity: "Epic", points: 5, chance: 32, image: "void_phantom.png" },
-  { name: "Star Devourer", habitat: "Void", rarity: "Legendary", points: 10, chance: 12, image: "star_devourer.png" },
+  { name: "Void Watcher", habitat: "Void", rarity: "Common", points: 1, chance: 85, image: "void_watcher.png", description: "A floating nightmare covered in blinking eyes that never seem to look in the same direction. Staring back for too long fills the mind with unsettling whispers." },
+  { name: "Night Skitter", habitat: "Void", rarity: "Common", points: 1, chance: 82, image: "night_skitter.png", description: "A spider-like horror capable of slipping between shadows. Victims often discover its presence only after glowing eyes appear behind them." },
+  { name: "Null Reaver", habitat: "Void", rarity: "Rare", points: 3, chance: 55, image: "null_reaver.png", description: "A terrifying predator that consumes light itself. Torches extinguish as it approaches, leaving only endless darkness behind." },
+  { name: "Cosmic Wraith", habitat: "Void", rarity: "Epic", points: 5, chance: 32, image: "cosmic_wraith.png", description: "A ghostly entity forged from shattered stars and endless darkness. Its haunting cries echo across the empty void between worlds." },
+  { name: "Star Devourer", habitat: "Void", rarity: "Legendary", points: 10, chance: 12, image: "star_devourer.png", description: "A celestial horror of unimaginable size said to consume dying stars. Entire civilizations blame vanished constellations upon its endless hunger." },
 
   // ☁️ SKY
-  { name: "Cloud Finch", habitat: "Sky", rarity: "Common", points: 1, chance: 85, image: "cloud_finch.png" },
-  { name: "Stormwing Butterfly", habitat: "Sky", rarity: "Common", points: 1, chance: 82, image: "stormwing_butterfly.png" },
-  { name: "Thunder Hawk", habitat: "Sky", rarity: "Rare", points: 3, chance: 55, image: "thunder_hawk.png" },
-  { name: "Tempest Wyvern", habitat: "Sky", rarity: "Epic", points: 5, chance: 32, image: "tempest_wyvern.png" },
-  { name: "Storm Emperor", habitat: "Sky", rarity: "Legendary", points: 10, chance: 12, image: "storm_emperor.png" },
+  { name: "Storm Imp", habitat: "Sky", rarity: "Common", points: 1, chance: 85, image: "storm_imp.png", description: "A crackling elemental born inside thunderclouds. Though smaller than most sky monsters, its wild bolts can scorch entire hunting parties." },
+  { name: "Cloud Ripper", habitat: "Sky", rarity: "Common", points: 1, chance: 82, image: "cloud_ripper.png", description: "A winged predator that slices through storm clouds with bladed wings. The skies grow strangely silent before one appears." },
+  { name: "Thunder Reaver", habitat: "Sky", rarity: "Rare", points: 3, chance: 55, image: "thunder_reaver.png", description: "A fearsome aerial hunter constantly surrounded by arcs of blue lightning. Every screech rolls across the heavens like thunder." },
+  { name: "Tempest Tyrant", habitat: "Sky", rarity: "Epic", points: 5, chance: 32, image: "tempest_tyrant.png", description: "A massive dragon that commands hurricanes with every beat of its wings. Entire fleets have disappeared beneath storms it created." },
+  { name: "Storm Sovereign", habitat: "Sky", rarity: "Legendary", points: 10, chance: 12, image: "storm_sovereign.png", description: "The ancient ruler of every storm ever born. It rides towering thunderheads while lightning dances endlessly across its colossal wings." },
 
   // 🪦 UNDEAD
-  { name: "Bone Mouse", habitat: "Undead", rarity: "Common", points: 1, chance: 85, image: "bone_mouse.png" },
-  { name: "Candle Wisp", habitat: "Undead", rarity: "Common", points: 1, chance: 82, image: "candle_wisp.png" },
-  { name: "Crypt Bat", habitat: "Undead", rarity: "Rare", points: 3, chance: 55, image: "crypt_bat.png" },
-  { name: "Forgotten Knight", habitat: "Undead", rarity: "Epic", points: 5, chance: 32, image: "forgotten_knight.png" },
-  { name: "The Hollow King", habitat: "Undead", rarity: "Legendary", points: 10, chance: 12, image: "the_hollow_king.png" }
+  { name: "Bone Gnawer", habitat: "Undead", rarity: "Common", points: 1, chance: 85, image: "bone_gnawer.png", description: "A relentless skeletal scavenger that searches forgotten battlefields for fresh bones to add to its ever-growing body." },
+  { name: "Grave Whisper", habitat: "Undead", rarity: "Common", points: 1, chance: 82, image: "grave_whisper.png", description: "A wandering spirit that lures unsuspecting travelers toward abandoned graveyards with distant whispers carried on the wind." },
+  { name: "Crypt Fiend", habitat: "Undead", rarity: "Rare", points: 3, chance: 55, image: "crypt_fiend.png", description: "A monstrous undead lurking beneath ancient tombs. It waits in absolute silence until intruders disturb its eternal resting place." },
+  { name: "Dread Sentinel", habitat: "Undead", rarity: "Epic", points: 5, chance: 32, image: "dread_sentinel.png", description: "A cursed knight bound forever to defend a kingdom that no longer exists. Its rusted armor echoes through forgotten ruins long after midnight." },
+  { name: "The Hollow King", habitat: "Undead", rarity: "Legendary", points: 10, chance: 12, image: "the_hollow_king.png", description: "An immortal monarch whose shattered throne commands an endless army of the dead. Though his kingdom has crumbled into dust, his reign is said to continue until the last living soul falls." }
 ];
 
 const ultraRareMonsters = [
   {
-    key: "voidkraken",
-    name: "🌌 Void Kraken",
+    key: "worldeater",
+    name: "🌑 The World Eater",
     rarity: "Ultra Rare",
-    image: "void_kraken.png",
-    relicKey: "abyssalInk",
-    relicName: "🌌 Abyssal Ink",
-    relicCommand: "abyssal ink",
-    relicDescription: "A swirling black ink that never dissolves. It whispers with the voice of the deep.",
-    catchChance: 20,
-    durationMinutes: 30,
-    personality: "flee",
-    spawnText: "The sea begins to boil...",
-    description: "It may disappear into the abyss every five minutes, so act quickly!"
-  },
-  {
-    key: "ancientdragon",
-    name: "🐉 Ancient Dragon",
-    rarity: "Ultra Rare",
-    image: "ancient_dragon.png",
-    relicKey: "ancientDragonScale",
-    relicName: "🐉 Ancient Dragon Scale",
-    relicCommand: "ancient dragon scale",
-    relicDescription: "A scale harder than steel, still warm from the breath of an Ancient Dragon.",
+    image: "the_world_eater.png",
+    relicKey: "fragmentOfOblivion",
+    relicName: "🌑 Fragment of Oblivion",
+    relicCommand: "fragment of oblivion",
+    relicDescription: "A piece of reality that should not exist. It absorbs light, warmth, and even sound.",
     catchChance: 5,
     durationMinutes: 30,
     personality: "steadfast",
-    spawnText: "A deafening roar echoes across the mountains...",
-    description: "It never flees, but it is the most difficult Ultra Rare to capture."
+    spawnText: "Reality trembles as the skies begin to darken...",
+    description: "An impossibly ancient creature that exists only to consume worlds. Wherever it travels, stars fade, forests wither, and even magic begins to unravel.",
+    secretAchievement: "The End Has Begun",
+    titleReward: "Worldbreaker"
   },
   {
-    key: "phoenixqueen",
-    name: "🔥 Phoenix Queen",
+    key: "thousandeyes",
+    name: "👁️ The Thousand Eyes",
     rarity: "Ultra Rare",
-    image: "phoenix_queen.png",
-    relicKey: "phoenixFeather",
-    relicName: "🔥 Phoenix Feather",
-    relicCommand: "phoenix feather",
-    relicDescription: "A brilliant feather that burns without ever turning to ash.",
+    image: "the_thousand_eyes.png",
+    relicKey: "livingEye",
+    relicName: "👁️ Living Eye",
+    relicCommand: "living eye",
+    relicDescription: "An enormous eye that never blinks. No matter where it is placed, it always seems to be watching someone.",
     catchChance: 12,
     durationMinutes: 30,
-    personality: "return",
-    spawnText: "Ash falls gently from a cloudless sky...",
-    description: "If she escapes uncaught, she may return later the same day."
+    personality: "watching",
+    spawnText: "You feel as though something is watching from every direction...",
+    description: "A nightmare formed from countless living eyes drifting around a massive floating core. It sees every hunt, every secret, and every movement made beneath its endless gaze.",
+    secretAchievement: "Nothing Escapes",
+    titleReward: "The All-Seeing"
   },
   {
-    key: "frosttitan",
-    name: "❄️ Frost Titan",
+    key: "chronovore",
+    name: "⏳ Chronovore",
     rarity: "Ultra Rare",
-    image: "frost_titan.png",
-    relicKey: "frozenCore",
-    relicName: "❄️ Frozen Core",
-    relicCommand: "frozen core",
-    relicDescription: "A crystal of eternal ice that never melts.",
-    catchChance: 8,
-    durationMinutes: 30,
-    personality: "weakening",
-    spawnText: "An unnatural chill sweeps across the land...",
-    description: "Every failed attempt weakens it and raises the server-wide catch chance by 2%."
-  },
-  {
-    key: "stormtitan",
-    name: "⚡ Storm Titan",
-    rarity: "Ultra Rare",
-    image: "storm_titan.png",
-    relicKey: "stormCrystal",
-    relicName: "⚡ Storm Crystal",
-    relicCommand: "storm crystal",
-    relicDescription: "Lightning dances endlessly inside this glowing crystal.",
+    image: "chronovore.png",
+    relicKey: "distortedHourglass",
+    relicName: "⌛ Distorted Hourglass",
+    relicCommand: "distorted hourglass",
+    relicDescription: "The sand inside flows upward one moment and sideways the next. Looking at it too long makes minutes disappear.",
     catchChance: 10,
     durationMinutes: 30,
     personality: "shifting",
-    spawnText: "Thunder cracks across a clear sky...",
-    description: "Its catch chance shifts between 5% and 20% every five minutes."
+    spawnText: "Time itself begins to twist and fracture...",
+    description: "A colossal beast that feeds upon time itself. Flowers bloom and decay in seconds wherever it walks, while ancient ruins become new before crumbling again.",
+    secretAchievement: "Master of Time",
+    titleReward: "Timewalker"
   },
   {
-    key: "shadowwraith",
-    name: "👻 Shadow Wraith",
+    key: "astralcolossus",
+    name: "🌠 Astral Colossus",
     rarity: "Ultra Rare",
-    image: "shadow_wraith.png",
-    relicKey: "shadowEssence",
-    relicName: "👻 Shadow Essence",
-    relicCommand: "shadow essence",
-    relicDescription: "A fragment of pure darkness that refuses to cast a shadow.",
-    catchChance: 15,
-    durationMinutes: 30,
-    personality: "night",
-    spawnText: "The shadows suddenly grow longer...",
-    description: "It appears only at night and has a greatly increased shiny chance."
-  },
-  {
-    key: "ancienttreant",
-    name: "🌳 Ancient Treant",
-    rarity: "Ultra Rare",
-    image: "ancient_treant.png",
-    relicKey: "heartwoodSeed",
-    relicName: "🌳 Heartwood Seed",
-    relicCommand: "heartwood seed",
-    relicDescription: "A seed older than kingdoms, pulsing with ancient life.",
-    catchChance: 10,
-    durationMinutes: 60,
-    personality: "patient",
-    spawnText: "The forest falls completely silent...",
-    description: "It never flees and remains for a full hour."
-  },
-  {
-    key: "celestialphoenix",
-    name: "🌠 Celestial Phoenix",
-    rarity: "Ultra Rare",
-    image: "celestial_phoenix.png",
-    relicKey: "starFeather",
-    relicName: "🌠 Star Feather",
-    relicCommand: "star feather",
-    relicDescription: "A feather said to have fallen from the heavens themselves.",
-    catchChance: 10,
+    image: "astral_colossus.png",
+    relicKey: "fallenStarCore",
+    relicName: "⭐ Fallen Star Core",
+    relicCommand: "fallen star core",
+    relicDescription: "A glowing fragment of a dead star that hums with cosmic energy.",
+    catchChance: 8,
     durationMinutes: 30,
     personality: "generous",
-    spawnText: "A brilliant star streaks across the heavens...",
-    description: "Every failed attempt increases the reward earned by the other participants."
+    spawnText: "A brilliant light tears across the sky as meteors begin to fall...",
+    description: "A titan forged from shattered stars and drifting constellations. Meteor showers follow in its wake while fragments of distant galaxies orbit its colossal body.",
+    secretAchievement: "Among the Stars",
+    titleReward: "Starforged"
+  },
+  {
+    key: "harbinger",
+    name: "💀 The Harbinger",
+    rarity: "Ultra Rare",
+    image: "the_harbinger.png",
+    relicKey: "soulEmber",
+    relicName: "🔥 Soul Ember",
+    relicCommand: "soul ember",
+    relicDescription: "A tiny blue flame that never burns out. Whispering voices can sometimes be heard within it.",
+    catchChance: 15,
+    durationMinutes: 30,
+    personality: "flee",
+    spawnText: "An unnatural silence falls across the world...",
+    description: "A mysterious figure wrapped in endless black robes, carrying a lantern filled with wandering souls. Entire kingdoms have vanished shortly after crossing its path.",
+    secretAchievement: "Death's Witness",
+    titleReward: "Soulkeeper"
   }
 ];
 
@@ -276,6 +241,13 @@ const achievements = [
   { name: "Event Hunter", check: p => p.caught.filter(m => m.rarity === "Event").length >= 1 },
   { name: "Habitat Explorer", check: p => new Set((p.caught || []).map(m => m.habitat).filter(Boolean)).size >= 8 }
 ];
+
+const ULTRA_META_ACHIEVEMENTS = {
+  allCaught: { achievement: "Masters of the Beyond", title: "Ultra Hunter" },
+  allRelics: { achievement: "Relic Master", title: "Relic Keeper" },
+  allSummoned: { achievement: "The Summoner", title: "World Summoner" },
+  veteran: { achievement: "Veteran Monster Hunter", title: "Legendary Hunter" }
+};
 function loadData() {
   const data = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
 
@@ -307,6 +279,11 @@ function getPlayer(data, userId) {
       currentMonster: null,
       lastHunt: 0,
       title: null,
+      unlockedTitles: [],
+      secretAchievements: [],
+      ultraCaughtKeys: [],
+      ultraSummonedKeys: [],
+      ultraParticipationCount: 0,
       dailyQuests: [],
       dailyClaimed: false,
       lastDaily: null,
@@ -344,6 +321,11 @@ function getPlayer(data, userId) {
 
   if (player.lastHunt === undefined) player.lastHunt = 0;
   if (player.title === undefined) player.title = null;
+  if (!Array.isArray(player.unlockedTitles)) player.unlockedTitles = [];
+  if (!Array.isArray(player.secretAchievements)) player.secretAchievements = [];
+  if (!Array.isArray(player.ultraCaughtKeys)) player.ultraCaughtKeys = [];
+  if (!Array.isArray(player.ultraSummonedKeys)) player.ultraSummonedKeys = [];
+  if (player.ultraParticipationCount === undefined) player.ultraParticipationCount = 0;
   if (player.dailyQuests === undefined) player.dailyQuests = [];
   if (player.dailyClaimed === undefined) player.dailyClaimed = false;
   if (player.lastDaily === undefined) player.lastDaily = null;
@@ -380,9 +362,9 @@ function getPlayer(data, userId) {
 
 
 function cleanMonsterName(name) {
-  return name
+  return String(name || "")
     .replace("✨ Shiny ", "")
-    .replace(/[🎆🇺🇸🦅🌌🐉🔥❄️⚡👻🌳🌠]/gu, "")
+    .replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s]+/gu, "")
     .trim();
 }
 
@@ -526,6 +508,11 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
     const bonusRewards = giveCatchBonusBait(player, monster);
     saveData(data);
 
+    if (monster.name.includes("Mixer Monster")) {
+      await message.channel.send(
+        `🌌🎉 **INCREDIBLE! ${message.author} has discovered the legendary MIXER MONSTER!** 🎉🌌`
+      );
+    }
 
     return message.reply(
       buildMonsterEmbed(
@@ -729,13 +716,13 @@ function getRandomMonster(player) {
     event?.habitatBoost &&
     Math.random() < 0.4
   ) {
-    const habitatMonsters = monsters.filter(
+    const habitatPool = monsters.filter(
       m => m.habitat === event.habitatBoost
     );
 
     return applyShiny({
-      ...habitatMonsters[
-        Math.floor(Math.random() * habitatMonsters.length)
+      ...habitatPool[
+        Math.floor(Math.random() * habitatPool.length)
       ]
     });
   }
@@ -930,12 +917,70 @@ function unlockedAchievements(player) {
   return achievements.filter(a => a.check(player)).map(a => a.name);
 }
 
+function getAvailableTitles(player) {
+  return [...new Set([
+    ...unlockedAchievements(player),
+    ...(player.unlockedTitles || [])
+  ])];
+}
+
+function unlockSecretReward(player, achievementName, titleName) {
+  const unlocked = [];
+
+  if (!player.secretAchievements.includes(achievementName)) {
+    player.secretAchievements.push(achievementName);
+  }
+
+  if (!player.unlockedTitles.includes(titleName)) {
+    player.unlockedTitles.push(titleName);
+    unlocked.push({ achievement: achievementName, title: titleName });
+  }
+
+  return unlocked;
+}
+
+function evaluateUltraSecretRewards(player) {
+  const unlocked = [];
+
+  if (RELIC_KEYS.every(key => (player.relics[key] || 0) > 0)) {
+    const reward = ULTRA_META_ACHIEVEMENTS.allRelics;
+    unlocked.push(...unlockSecretReward(player, reward.achievement, reward.title));
+  }
+
+  if (ultraRareMonsters.every(monster => player.ultraCaughtKeys.includes(monster.key))) {
+    const reward = ULTRA_META_ACHIEVEMENTS.allCaught;
+    unlocked.push(...unlockSecretReward(player, reward.achievement, reward.title));
+  }
+
+  if (ultraRareMonsters.every(monster => player.ultraSummonedKeys.includes(monster.key))) {
+    const reward = ULTRA_META_ACHIEVEMENTS.allSummoned;
+    unlocked.push(...unlockSecretReward(player, reward.achievement, reward.title));
+  }
+
+  if ((player.ultraParticipationCount || 0) >= 100) {
+    const reward = ULTRA_META_ACHIEVEMENTS.veteran;
+    unlocked.push(...unlockSecretReward(player, reward.achievement, reward.title));
+  }
+
+  return unlocked;
+}
+
+function formatSecretUnlocks(unlocks) {
+  if (!unlocks.length) return "";
+
+  return unlocks.map(unlock =>
+    `\n\n🏆 **SECRET ACHIEVEMENT UNLOCKED!**\n` +
+    `**${unlock.achievement}**\n` +
+    `✨ **New Equipable Title:** **${unlock.title}**\n` +
+    `Use \`!title ${unlock.title}\` to equip it.`
+  ).join("");
+}
+
 function getDexStats(data) {
   const stats = {};
 
   [...monsters, ...eventMonsters, ...ultraRareMonsters].forEach(m => {
     stats[m.name] = {
-      habitat: m.habitat || (m.rarity === "Ultra Rare" ? "World Event" : "Seasonal Event"),
       rarity: m.rarity,
       chance: m.chance ?? m.catchChance,
       caught: 0,
@@ -1060,7 +1105,7 @@ function getUltraMonster(keyOrName) {
     monster.key.toLowerCase() === wanted ||
     cleanMonsterName(monster.name).toLowerCase() === wanted ||
     monster.relicCommand.toLowerCase() === wanted ||
-    monster.relicName.replace(/[🌌🐉🔥❄️⚡👻🌳🌠]/gu, "").trim().toLowerCase() === wanted
+    cleanMonsterName(monster.relicName).toLowerCase() === wanted
   ) || null;
 }
 
@@ -1542,9 +1587,17 @@ async function finishUltraHunt(channel, reason = "expired") {
   state.resolved = true;
   const participantIds = Object.keys(state.participants || {});
 
+  const participationUnlockMessages = [];
+
   for (const userId of participantIds) {
     const participant = getPlayer(data, userId);
     participant.points += ULTRA_ESCAPE_REWARD;
+    participant.ultraParticipationCount = (participant.ultraParticipationCount || 0) + 1;
+
+    const newUnlocks = evaluateUltraSecretRewards(participant);
+    if (newUnlocks.length > 0) {
+      participationUnlockMessages.push({ userId, unlocks: newUnlocks });
+    }
   }
 
   saveData(data);
@@ -1560,6 +1613,12 @@ async function finishUltraHunt(channel, reason = "expired") {
       ? `Everyone who participated earned **${ULTRA_ESCAPE_REWARD} points** for the effort.`
       : "No hunters were able to attempt the event."}`
   );
+
+  for (const rewardMessage of participationUnlockMessages) {
+    await channel.send(
+      `<@${rewardMessage.userId}>${formatSecretUnlocks(rewardMessage.unlocks)}`
+    );
+  }
 
   if (monster.personality === "return" && !state.returnScheduled && Math.random() < 0.5) {
     const returnAt = Date.now() + (60 + Math.floor(Math.random() * 121)) * 60 * 1000;
@@ -1691,34 +1750,56 @@ function maybeAwardUltraRelic(data, player, monster) {
 async function resolveUltraCatch(message, monster, state, roll, chance, itemKey = null) {
   const data = loadData();
   const freshState = data.ultraRareState;
+
   if (!freshState || freshState.resolved || freshState.monsterKey !== monster.key) {
     return message.reply("That Ultra Rare Hunt has already ended.");
   }
 
   freshState.resolved = true;
+
   const catcher = getPlayer(data, message.author.id);
-  const shiny = monster.personality === "night" && Math.random() < 0.2;
   const caughtMonster = {
-    name: shiny ? `✨ Shiny ${monster.name}` : monster.name,
+    name: monster.name,
     rarity: "Ultra Rare",
     points: ULTRA_CATCHER_REWARD,
     chance,
     image: monster.image,
-    shiny
+    shiny: false
   };
 
   catcher.points += ULTRA_CATCHER_REWARD;
   catcher.caught.push(caughtMonster);
 
-  const participantReward = getUltraParticipantReward(monster, freshState);
-  const otherParticipants = Object.keys(freshState.participants || {})
-    .filter(userId => userId !== message.author.id);
+  if (!catcher.ultraCaughtKeys.includes(monster.key)) {
+    catcher.ultraCaughtKeys.push(monster.key);
+  }
 
-  for (const userId of otherParticipants) {
-    getPlayer(data, userId).points += participantReward;
+  const catcherUnlocks = [
+    ...unlockSecretReward(catcher, monster.secretAchievement, monster.titleReward)
+  ];
+
+  const participantReward = getUltraParticipantReward(monster, freshState);
+  const participantIds = Object.keys(freshState.participants || {});
+  const otherParticipants = participantIds.filter(userId => userId !== message.author.id);
+  const participantUnlockMessages = [];
+
+  for (const userId of participantIds) {
+    const participant = getPlayer(data, userId);
+    participant.ultraParticipationCount = (participant.ultraParticipationCount || 0) + 1;
+
+    if (userId !== message.author.id) {
+      participant.points += participantReward;
+    }
+
+    const newUnlocks = evaluateUltraSecretRewards(participant);
+    if (newUnlocks.length > 0) {
+      participantUnlockMessages.push({ userId, unlocks: newUnlocks });
+    }
   }
 
   const relicResult = maybeAwardUltraRelic(data, catcher, monster);
+  catcherUnlocks.push(...evaluateUltraSecretRewards(catcher));
+
   saveData(data);
 
   await message.channel.send(
@@ -1730,9 +1811,16 @@ async function resolveUltraCatch(message, monster, state, roll, chance, itemKey 
       `🏆 ${message.author} earned **${ULTRA_CATCHER_REWARD} points**!\n` +
       `${otherParticipants.length > 0
         ? `🎉 ${otherParticipants.length} other participant${otherParticipants.length === 1 ? "" : "s"} earned **${participantReward} points each**!`
-        : "You were the only participant in the hunt."}`
+        : "You were the only participant in the hunt."}` +
+      formatSecretUnlocks(catcherUnlocks)
     )
   );
+
+  for (const rewardMessage of participantUnlockMessages) {
+    await message.channel.send(
+      `<@${rewardMessage.userId}>${formatSecretUnlocks(rewardMessage.unlocks)}`
+    );
+  }
 
   if (relicResult) {
     await message.channel.send(
@@ -2084,9 +2172,18 @@ ${captureChoicesText(choices)}
       return message.reply("The summon could not begin, so your Relic was returned.");
     }
 
+    const summonData = loadData();
+    const summoner = getPlayer(summonData, message.author.id);
+    if (!summoner.ultraSummonedKeys.includes(monster.key)) {
+      summoner.ultraSummonedKeys.push(monster.key);
+    }
+    const summonUnlocks = evaluateUltraSecretRewards(summoner);
+    saveData(summonData);
+
     return message.reply(
       `💎 You sacrificed **${monster.relicName}**.\n` +
-      `${monster.name} will arrive in **5 minutes**!`
+      `${monster.name} will arrive in **5 minutes**!` +
+      formatSecretUnlocks(summonUnlocks)
     );
   }
 
@@ -2267,7 +2364,6 @@ ${captureChoicesText(choices)}
       buildMonsterEmbed(
         monster,
         `🐾 A wild ${monster.name} appeared!`,
-        `**Habitat:** ${monster.habitat || "Unknown"}\n` +
         `**Rarity:** ${monster.rarity}\n` +
         `**Base Capture Chance:** ${monster.chance}%\n` +
         `**Knowledge:** ${encounters} encounter${encounters === 1 ? "" : "s"} (${getKnowledgeRank(encounters)}, +${chanceInfo.knowledgeBonus}%)\n` +
@@ -2500,11 +2596,18 @@ ${captureChoicesText(choices)}
       text += `${unlocked.includes(a.name) ? "✅" : "🔒"} ${a.name}\n`;
     });
 
+    if (player.secretAchievements.length > 0) {
+      text += `\n🌌 **Discovered Secret Achievements**\n`;
+      text += player.secretAchievements.map(name => `✅ ${name}`).join("\n");
+    } else {
+      text += `\n🌌 **Secret Achievements:** None discovered yet.`;
+    }
+
     return message.reply(text);
   }
 
   if (command === "!title") {
-    const unlocked = unlockedAchievements(player);
+    const unlocked = getAvailableTitles(player);
     if (unlocked.length === 0) return message.reply("You haven't unlocked any titles yet!");
 
     return message.reply(
@@ -2516,7 +2619,7 @@ ${captureChoicesText(choices)}
 
   if (command.startsWith("!title ")) {
     const wantedTitle = content.slice(7).trim();
-    const unlocked = unlockedAchievements(player);
+    const unlocked = getAvailableTitles(player);
     const match = unlocked.find(t => t.toLowerCase() === wantedTitle.toLowerCase());
 
     if (!match) return message.reply("You haven't unlocked that title yet. Use `!achievements` to see your progress.");
@@ -2532,7 +2635,7 @@ ${captureChoicesText(choices)}
     let text = "📖 **Monster Dex**\n\n";
 
     for (const [name, info] of Object.entries(stats)) {
-      text += `**${name}** — ${info.habitat} | ${info.rarity} | Caught: ${info.caught}\n`;
+      text += `**${name}** — ${info.rarity} | Caught: ${info.caught}\n`;
     }
 
     text += `\nUse \`!dex monster name\` for details.`;
@@ -2551,7 +2654,6 @@ ${captureChoicesText(choices)}
 
     return message.reply(
       `📖 **${matchName}**\n\n` +
-      `Habitat: **${info.habitat}**\n` +
       `Rarity: **${info.rarity}**\n` +
       `Base Capture Chance: **${info.chance}%**\n` +
       `Your Encounters: **${getKnowledgeCount(player, matchName)}**\n` +
@@ -2657,7 +2759,7 @@ ${captureChoicesText(choices)}
 
     const target = message.mentions.users.first();
 
-    if (!target) return message.reply("Usage: `!givemonster @user Bristlefox`");
+    if (!target) return message.reply("Usage: `!givemonster @user Goblin`");
 
     const monsterName = content
       .replace(/!givemonster\s+<@!?\d+>\s*/i, "")
