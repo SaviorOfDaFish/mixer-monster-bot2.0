@@ -590,6 +590,14 @@ function findImageFile(filename) {
 
     if (fs.existsSync(exactPath) && fs.statSync(exactPath).isFile()) {
       console.log(`IMAGE DEBUG — FOUND exact image: ${exactPath}`);
+
+      const stats = fs.statSync(exactPath);
+      const header = fs.readFileSync(exactPath).subarray(0, 16);
+
+      console.log("IMAGE DEBUG — File size:", stats.size, "bytes");
+      console.log("IMAGE DEBUG — Header:", header.toString("hex"));
+      console.log("IMAGE DEBUG — Text:", header.toString("utf8"));
+
       return exactPath;
     }
 
@@ -603,6 +611,14 @@ function findImageFile(filename) {
         const matchedPath = path.join(folder, matchingFile);
         if (fs.statSync(matchedPath).isFile()) {
           console.log(`IMAGE DEBUG — FOUND case-insensitive image: ${matchedPath}`);
+
+          const stats = fs.statSync(matchedPath);
+          const header = fs.readFileSync(matchedPath).subarray(0, 16);
+
+          console.log("IMAGE DEBUG — File size:", stats.size, "bytes");
+          console.log("IMAGE DEBUG — Header:", header.toString("hex"));
+          console.log("IMAGE DEBUG — Text:", header.toString("utf8"));
+
           return matchedPath;
         }
       }
