@@ -1273,11 +1273,17 @@ function buildUltraCaptureChoices(player, monster, state) {
 
 function buildUltraMonsterEmbed(monster, title, description, { thumbnail = false } = {}) {
   const imagePath = getMonsterImage(monster);
-  const files = imagePath ? [new AttachmentBuilder(imagePath)] : [];
-  const embed = new EmbedBuilder().setTitle(title).setDescription(description);
+  const files = [];
+  const embed = new EmbedBuilder()
+    .setTitle(title)
+    .setDescription(description);
 
   if (imagePath) {
-    const attachmentUrl = `attachment://${path.basename(imagePath)}`;
+    const filename = path.basename(imagePath);
+    const attachment = new AttachmentBuilder(imagePath, { name: filename });
+    files.push(attachment);
+
+    const attachmentUrl = `attachment://${filename}`;
     if (thumbnail) embed.setThumbnail(attachmentUrl);
     else embed.setImage(attachmentUrl);
   }
@@ -1577,31 +1583,34 @@ async function announceUltraHunt(channel, monster, sourceUserId = null) {
   };
   saveData(data);
 
+  const ultraMessage = buildUltraMonsterEmbed(
+    monster,
+    `🚨 ULTRA RARE HUNT — ${monster.name} has appeared!`,
+    `*${monster.spawnText}*
+
+` +
+    `**Starting Catch Chance:** ${monster.catchChance}%
+` +
+    `**Event Length:** ${monster.durationMinutes} minutes
+` +
+    `**Ultra Hunt Cooldown:** 5 minutes
+
+` +
+    `${monster.description}
+
+` +
+    `Use \`!ultrahunt\` to view your available catch choices.
+
+` +
+    `🏆 Catcher Reward: **${ULTRA_CATCHER_REWARD} points**
+` +
+    `🎉 Other participants earn at least **${ULTRA_PARTICIPANT_REWARD} points** if it is caught.`
+  );
+
   await channel.send({
     content: `<@&${MONSTER_NOTIFY_ROLE}>`,
-    ...buildUltraMonsterEmbed(
-      monster,
-      `🚨 ULTRA RARE HUNT — ${monster.name} has appeared!`,
-      `*${monster.spawnText}*
-
-` +
-      `**Starting Catch Chance:** ${monster.catchChance}%
-` +
-      `**Event Length:** ${monster.durationMinutes} minutes
-` +
-      `**Ultra Hunt Cooldown:** 5 minutes
-
-` +
-      `${monster.description}
-
-` +
-      `Use \`!ultrahunt\` to view your available catch choices.
-
-` +
-      `🏆 Catcher Reward: **${ULTRA_CATCHER_REWARD} points**
-` +
-      `🎉 Other participants earn at least **${ULTRA_PARTICIPANT_REWARD} points** if it is caught.`
-    )
+    embeds: ultraMessage.embeds,
+    files: ultraMessage.files
   });
   return true;
 }
@@ -1750,26 +1759,29 @@ async function processUltraState(channel) {
     // Post the arrival first. Only mark it announced after Discord confirms
     // the message was sent, so a temporary send failure can retry next minute.
     try {
+      const ultraMessage = buildUltraMonsterEmbed(
+        monster,
+        `🚨 THE SUMMONED ULTRA RARE HAS ARRIVED — ${monster.name}`,
+        `*${monster.spawnText}*
+
+` +
+        `**Current Catch Chance:** ${getUltraCatchChance(monster, state)}%
+` +
+        `**Event Length:** ${monster.durationMinutes} minutes
+` +
+        `**Ultra Hunt Cooldown:** 5 minutes
+
+` +
+        `${monster.description}
+
+` +
+        `Use \`!ultrahunt\` to view your available catch choices.`
+      );
+
       await channel.send({
         content: `<@&${MONSTER_NOTIFY_ROLE}>`,
-        ...buildUltraMonsterEmbed(
-          monster,
-          `🚨 THE SUMMONED ULTRA RARE HAS ARRIVED — ${monster.name}`,
-          `*${monster.spawnText}*
-
-` +
-          `**Current Catch Chance:** ${getUltraCatchChance(monster, state)}%
-` +
-          `**Event Length:** ${monster.durationMinutes} minutes
-` +
-          `**Ultra Hunt Cooldown:** 5 minutes
-
-` +
-          `${monster.description}
-
-` +
-          `Use \`!ultrahunt\` to view your available catch choices.`
-        )
+        embeds: ultraMessage.embeds,
+        files: ultraMessage.files
       });
 
       const announcedData = loadData();
