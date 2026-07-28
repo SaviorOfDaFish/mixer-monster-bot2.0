@@ -179,10 +179,10 @@ const ultraRareMonsters = [
     titleReward: "Timewalker"
   },
   {
-  key: "astralcolossus",
-  name: "🌠 Astral Colossus",
-  rarity: "Ultra Rare",
-  image: "astral_colossus.jpg",
+    key: "astralcolossus",
+    name: "🌠 Astral Colossus",
+    rarity: "Ultra Rare",
+    image: "astral_colossus.png",
     relicKey: "fallenStarCore",
     relicName: "⭐ Fallen Star Core",
     relicCommand: "fallen star core",
