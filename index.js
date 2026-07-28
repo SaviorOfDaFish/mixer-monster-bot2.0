@@ -34,6 +34,44 @@ const ULTRA_ESCAPE_REWARD = 10;
 const ULTRA_RANDOM_EVENTS_PER_WEEK = 3;
 const ULTRA_SUMMON_DELAY = 5 * 60 * 1000;
 
+
+// ==================== PET & EGG SYSTEM ====================
+const BASE_EGG_DROP_CHANCE = 8;
+const PET_REACTION_CHANCE = 15;
+const PET_BOND_HUNTS_PER_LEVEL = 20;
+const MAX_PET_BOND_LEVEL = 5;
+
+const EGG_TYPES = {
+  Common: { icon: "🥚", incubationMs: 2 * 60 * 60 * 1000 },
+  Rare: { icon: "🔵", incubationMs: 4 * 60 * 60 * 1000 },
+  Epic: { icon: "🟣", incubationMs: 8 * 60 * 60 * 1000 },
+  Legendary: { icon: "🟡", incubationMs: 12 * 60 * 60 * 1000 }
+};
+
+const PET_PERSONALITIES = ["Cheerful", "Curious", "Loyal", "Mischievous", "Sleepy", "Brave"];
+
+const pets = [
+  { key: "sproutling", name: "Sproutling", icon: "🌱", rarity: "Common", ability: "itemFinder", baseBonus: 3, description: "Occasionally finds capture items after successful hunts." },
+  { key: "embercub", name: "Ember Cub", icon: "🔥", rarity: "Common", ability: "points", baseBonus: 2, description: "Earns bonus points from successful hunts." },
+  { key: "frostpup", name: "Frost Pup", icon: "❄️", rarity: "Common", ability: "capture", baseBonus: 1, description: "Slightly increases normal monster capture chance." },
+  { key: "tideotter", name: "Tide Otter", icon: "🦦", rarity: "Common", ability: "eggFinder", baseBonus: 1, description: "Slightly increases the chance to discover eggs." },
+
+  { key: "spiritfox", name: "Spirit Fox", icon: "🦊", rarity: "Rare", ability: "shiny", baseBonus: 1, description: "Slightly increases shiny monster odds." },
+  { key: "mysticowl", name: "Mystic Owl", icon: "🦉", rarity: "Rare", ability: "eggFinder", baseBonus: 2, description: "Increases the chance to discover eggs." },
+  { key: "direwolfpup", name: "Dire Wolf Pup", icon: "🐺", rarity: "Rare", ability: "cooldown", baseBonus: 2, description: "Reduces the normal hunt cooldown." },
+  { key: "tinygolem", name: "Tiny Golem", icon: "🪨", rarity: "Rare", ability: "itemFinder", baseBonus: 5, description: "Finds useful items after successful hunts." },
+
+  { key: "stormhatchling", name: "Storm Hatchling", icon: "🐲", rarity: "Epic", ability: "capture", baseBonus: 2, description: "Increases normal monster capture chance." },
+  { key: "ghostwisp", name: "Ghost Wisp", icon: "👻", rarity: "Epic", ability: "shiny", baseBonus: 2, description: "Increases shiny monster odds." },
+  { key: "reefdrake", name: "Reef Drake", icon: "🐉", rarity: "Epic", ability: "points", baseBonus: 4, description: "Earns additional points from successful hunts." },
+  { key: "voidling", name: "Voidling", icon: "🌌", rarity: "Epic", ability: "eggFinder", baseBonus: 3, description: "Greatly increases the chance to discover eggs." },
+
+  { key: "phoenixhatchling", name: "Phoenix Hatchling", icon: "🦅", rarity: "Legendary", ability: "shiny", baseBonus: 3, description: "Greatly increases shiny monster odds." },
+  { key: "celestialdragonling", name: "Celestial Dragonling", icon: "🌠", rarity: "Legendary", ability: "eggFinder", baseBonus: 4, description: "Greatly increases egg discovery and rare egg odds." },
+  { key: "ancientguardian", name: "Ancient Guardian", icon: "🌳", rarity: "Legendary", ability: "capture", baseBonus: 3, description: "Greatly increases normal monster capture chance." },
+  { key: "minileviathan", name: "Mini Leviathan", icon: "🐋", rarity: "Legendary", ability: "itemFinder", baseBonus: 8, description: "Frequently brings back valuable hunting supplies." }
+];
+
 const CAPTURE_ITEMS = {
   berry: {
     name: "🍓 Hunter Berry",
@@ -302,6 +340,11 @@ function getPlayer(data, userId) {
         net: 0,
         masterCharm: 0
       },
+      eggs: [],
+      incubatingEgg: null,
+      pets: [],
+      equippedPetId: null,
+      nextPetId: 1,
       relics: {
         abyssalInk: 0,
         ancientDragonScale: 0,
@@ -352,6 +395,18 @@ function getPlayer(data, userId) {
   if (player.captureItems.honey === undefined) player.captureItems.honey = 0;
   if (player.captureItems.net === undefined) player.captureItems.net = 0;
   if (player.captureItems.masterCharm === undefined) player.captureItems.masterCharm = 0;
+  if (!Array.isArray(player.eggs)) player.eggs = [];
+  if (player.incubatingEgg === undefined) player.incubatingEgg = null;
+  if (!Array.isArray(player.pets)) player.pets = [];
+  if (player.equippedPetId === undefined) player.equippedPetId = null;
+  if (!Number.isInteger(player.nextPetId) || player.nextPetId < 1) {
+    player.nextPetId = player.pets.reduce((max, pet) => Math.max(max, Number(pet.id) || 0), 0) + 1;
+  }
+  for (const ownedPet of player.pets) {
+    if (ownedPet.bondXp === undefined) ownedPet.bondXp = 0;
+    if (ownedPet.timesHelped === undefined) ownedPet.timesHelped = 0;
+    if (!ownedPet.personality) ownedPet.personality = "Curious";
+  }
   if (player.relics === undefined) player.relics = {};
   for (const relicKey of RELIC_KEYS) {
     if (player.relics[relicKey] === undefined) player.relics[relicKey] = 0;
@@ -360,6 +415,138 @@ function getPlayer(data, userId) {
   return player;
 }
 
+
+
+function getPetDefinition(keyOrName) {
+  const wanted = String(keyOrName || "").trim().toLowerCase();
+  return pets.find(pet => pet.key === wanted || pet.name.toLowerCase() === wanted) || null;
+}
+
+function getOwnedPetDefinition(ownedPet) {
+  return ownedPet ? getPetDefinition(ownedPet.key) : null;
+}
+
+function getEquippedPet(player) {
+  if (!player || player.equippedPetId === null || player.equippedPetId === undefined) return null;
+  return player.pets.find(pet => String(pet.id) === String(player.equippedPetId)) || null;
+}
+
+function getPetBondLevel(ownedPet) {
+  return Math.min(MAX_PET_BOND_LEVEL, 1 + Math.floor((ownedPet?.bondXp || 0) / PET_BOND_HUNTS_PER_LEVEL));
+}
+
+function getPetBonus(player, ability) {
+  const ownedPet = getEquippedPet(player);
+  const definition = getOwnedPetDefinition(ownedPet);
+  if (!ownedPet || !definition || definition.ability !== ability) return 0;
+  return definition.baseBonus + getPetBondLevel(ownedPet) - 1;
+}
+
+function getPlayerPetIcon(player) {
+  const ownedPet = getEquippedPet(player);
+  return getOwnedPetDefinition(ownedPet)?.icon || "";
+}
+
+function formatPlayerMention(data, userId) {
+  const icon = getPlayerPetIcon(getPlayer(data, userId));
+  return `${icon ? `${icon} ` : ""}<@${userId}>`;
+}
+
+function formatPlayerName(player, username) {
+  const icon = getPlayerPetIcon(player);
+  return `${icon ? `${icon} ` : ""}${username}`;
+}
+
+function getPlayerHuntCooldown(player) {
+  const reductionMinutes = getPetBonus(player, "cooldown") * 5;
+  return Math.max(30 * 60 * 1000, HUNT_COOLDOWN - reductionMinutes * 60 * 1000);
+}
+
+function petPassiveText(player) {
+  const ownedPet = getEquippedPet(player);
+  const definition = getOwnedPetDefinition(ownedPet);
+  if (!ownedPet || !definition) return "No pet equipped.";
+  const bonus = getPetBonus(player, definition.ability);
+  const labels = {
+    eggFinder: `+${bonus}% egg discovery chance`,
+    shiny: `+${bonus}% shiny chance`,
+    capture: `+${bonus}% normal capture chance`,
+    cooldown: `${bonus * 5} minute hunt cooldown reduction`,
+    points: `+${bonus} points on successful catches`,
+    itemFinder: `+${bonus}% companion item-find chance`
+  };
+  return labels[definition.ability] || definition.description;
+}
+
+function rollEggRarity(player) {
+  let roll = Math.random() * 100;
+  const legendaryBoost = getPetBonus(player, "eggFinder") >= 7 ? 0.5 : 0;
+  if (roll < 1 + legendaryBoost) return "Legendary";
+  if (roll < 6) return "Epic";
+  if (roll < 26) return "Rare";
+  return "Common";
+}
+
+function maybeFindEgg(player) {
+  const eggBonus = getPetBonus(player, "eggFinder");
+  if (Math.random() * 100 >= BASE_EGG_DROP_CHANCE + eggBonus) return null;
+  const rarity = rollEggRarity(player);
+  player.eggs.push({ rarity, foundAt: Date.now() });
+  return rarity;
+}
+
+function addPetBond(player) {
+  const ownedPet = getEquippedPet(player);
+  if (!ownedPet) return null;
+  const before = getPetBondLevel(ownedPet);
+  ownedPet.bondXp = (ownedPet.bondXp || 0) + 1;
+  const after = getPetBondLevel(ownedPet);
+  return after > before ? after : null;
+}
+
+function companionReaction(player, caughtMonster) {
+  const ownedPet = getEquippedPet(player);
+  const definition = getOwnedPetDefinition(ownedPet);
+  if (!ownedPet || !definition || Math.random() * 100 >= PET_REACTION_CHANCE) return { text: "", rewards: [] };
+
+  const reactions = {
+    Cheerful: `${definition.icon} **${definition.name}** cheers excitedly beside you!`,
+    Curious: `${definition.icon} **${definition.name}** carefully inspects the tracks left behind.`,
+    Loyal: `${definition.icon} **${definition.name}** stands proudly at your side.`,
+    Mischievous: `${definition.icon} **${definition.name}** darts around your new catch and causes a little chaos.`,
+    Sleepy: `${definition.icon} **${definition.name}** wakes up just long enough to celebrate.`,
+    Brave: `${definition.icon} **${definition.name}** lets out a fearless victory cry!`
+  };
+
+  const rewards = [];
+  const findChance = 3 + getPetBonus(player, "itemFinder");
+  if (Math.random() * 100 < findChance) {
+    const roll = Math.random() * 100;
+    if (roll < 55) {
+      player.captureItems.berry++;
+      rewards.push(`${definition.icon} ${definition.name} found a ${CAPTURE_ITEMS.berry.name}!`);
+    } else if (roll < 82) {
+      player.captureItems.honey++;
+      rewards.push(`${definition.icon} ${definition.name} found a ${CAPTURE_ITEMS.honey.name}!`);
+    } else if (roll < 96) {
+      player.captureItems.net++;
+      rewards.push(`${definition.icon} ${definition.name} found an ${CAPTURE_ITEMS.net.name}!`);
+    } else {
+      player.points += 10;
+      rewards.push(`${definition.icon} ${definition.name} found **10 Hunter Points**!`);
+    }
+    ownedPet.timesHelped = (ownedPet.timesHelped || 0) + 1;
+  }
+
+  return { text: reactions[ownedPet.personality] || reactions.Curious, rewards };
+}
+
+function resolveOwnedPet(player, input) {
+  const wanted = String(input || "").trim();
+  const numeric = Number(wanted);
+  if (Number.isInteger(numeric) && numeric > 0) return player.pets[numeric - 1] || null;
+  return player.pets.find(owned => getOwnedPetDefinition(owned)?.name.toLowerCase() === wanted.toLowerCase()) || null;
+}
 
 function cleanMonsterName(name) {
   return String(name || "")
@@ -413,6 +600,7 @@ function calculateCaptureChance(player, monster, itemKey = null) {
   const encounters = getKnowledgeCount(player, monster);
   const knowledgeBonus = getKnowledgeBonus(encounters);
   const eventBonus = event?.captureBoost ? 10 : 0;
+  const petBonus = getPetBonus(player, "capture");
   const item = itemKey ? CAPTURE_ITEMS[itemKey] : null;
 
   if (item?.guaranteed) {
@@ -422,13 +610,14 @@ function calculateCaptureChance(player, monster, itemKey = null) {
       knowledgeBonus,
       eventBonus,
       itemBonus: item.bonus,
+      petBonus,
       guaranteed: true
     };
   }
 
   const total = Math.min(
     MAX_CAPTURE_CHANCE,
-    monster.chance + knowledgeBonus + eventBonus + (item?.bonus || 0)
+    monster.chance + knowledgeBonus + eventBonus + petBonus + (item?.bonus || 0)
   );
 
   return {
@@ -437,6 +626,7 @@ function calculateCaptureChance(player, monster, itemKey = null) {
     knowledgeBonus,
     eventBonus,
     itemBonus: item?.bonus || 0,
+    petBonus,
     guaranteed: false
   };
 }
@@ -499,6 +689,7 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
   if (caught) {
     let pointsEarned = monster.points;
     if (event?.doublePoints) pointsEarned *= 2;
+    pointsEarned += getPetBonus(player, "points");
 
     player.points += pointsEarned;
     player.caught.push(monster);
@@ -506,6 +697,9 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
     updateQuestProgress(player, "catch", monster);
 
     const bonusRewards = giveCatchBonusBait(player, monster);
+    const eggFound = maybeFindEgg(player);
+    const reaction = companionReaction(player, monster);
+    const newBondLevel = addPetBond(player);
     saveData(data);
 
     if (monster.name.includes("Mixer Monster")) {
@@ -557,10 +751,7 @@ function captureItemInventoryText(player) {
 }
 
 function findImageFile(filename) {
-  if (!filename) {
-    console.log("IMAGE DEBUG — No filename was provided to findImageFile().");
-    return null;
-  }
+  if (!filename) return null;
 
   const searchFolders = [
     __dirname,
@@ -574,98 +765,32 @@ function findImageFile(filename) {
   ];
 
   const wanted = path.basename(filename).toLowerCase();
-  console.log(`IMAGE DEBUG — Looking for filename: ${filename}`);
-  console.log(`IMAGE DEBUG — Bot directory: ${__dirname}`);
-
   for (const folder of searchFolders) {
-    console.log(`IMAGE DEBUG — Checking folder: ${folder}`);
-
-    if (!fs.existsSync(folder)) {
-      console.log(`IMAGE DEBUG — Folder does not exist: ${folder}`);
-      continue;
-    }
-
+    if (!fs.existsSync(folder)) continue;
     const exactPath = path.join(folder, filename);
-    console.log(`IMAGE DEBUG — Checking exact path: ${exactPath}`);
-
-    if (fs.existsSync(exactPath) && fs.statSync(exactPath).isFile()) {
-      console.log(`IMAGE DEBUG — FOUND exact image: ${exactPath}`);
-
-      const stats = fs.statSync(exactPath);
-      const header = fs.readFileSync(exactPath).subarray(0, 16);
-
-      console.log("IMAGE DEBUG — File size:", stats.size, "bytes");
-      console.log("IMAGE DEBUG — Header:", header.toString("hex"));
-      console.log("IMAGE DEBUG — Text:", header.toString("utf8"));
-
-      return exactPath;
-    }
-
+    if (fs.existsSync(exactPath) && fs.statSync(exactPath).isFile()) return exactPath;
     try {
-      const filesInFolder = fs.readdirSync(folder);
-      const matchingFile = filesInFolder.find(file =>
-        file.toLowerCase() === wanted
-      );
-
+      const matchingFile = fs.readdirSync(folder).find(file => file.toLowerCase() === wanted);
       if (matchingFile) {
         const matchedPath = path.join(folder, matchingFile);
-        if (fs.statSync(matchedPath).isFile()) {
-          console.log(`IMAGE DEBUG — FOUND case-insensitive image: ${matchedPath}`);
-
-          const stats = fs.statSync(matchedPath);
-          const header = fs.readFileSync(matchedPath).subarray(0, 16);
-
-          console.log("IMAGE DEBUG — File size:", stats.size, "bytes");
-          console.log("IMAGE DEBUG — Header:", header.toString("hex"));
-          console.log("IMAGE DEBUG — Text:", header.toString("utf8"));
-
-          return matchedPath;
-        }
+        if (fs.statSync(matchedPath).isFile()) return matchedPath;
       }
     } catch (error) {
-      console.error(`IMAGE DEBUG — Could not search folder ${folder}:`, error.message);
+      console.error(`Could not search image folder ${folder}:`, error.message);
     }
   }
-
-  console.log(`IMAGE DEBUG — NOT FOUND: ${filename}`);
-  console.log(`IMAGE DEBUG — Checked folders: ${searchFolders.join(", ")}`);
   return null;
 }
 
 function getMonsterImage(monster) {
-  console.log("IMAGE DEBUG — Monster received:", {
-    key: monster?.key || null,
-    name: monster?.name || null,
-    rarity: monster?.rarity || null,
-    image: monster?.image || null
-  });
-
-  if (!monster) {
-    console.log("IMAGE DEBUG — No monster object was provided.");
-    return null;
-  }
-
+  if (!monster) return null;
   const cleanName = cleanMonsterName(monster.name || "");
   const allMonsters = [...monsters, ...eventMonsters, ...ultraRareMonsters];
-
   const match = allMonsters.find(candidate =>
     candidate.key === monster.key ||
     cleanMonsterName(candidate.name).toLowerCase() === cleanName.toLowerCase()
   );
-
-  console.log("IMAGE DEBUG — Matching stored monster:", match
-    ? { key: match.key || null, name: match.name, image: match.image || null }
-    : null
-  );
-
-  const filename = monster.image || match?.image;
-
-  if (!filename) {
-    console.log(`IMAGE DEBUG — No image filename found for ${monster.name || monster.key || "unknown monster"}.`);
-    return null;
-  }
-
-  return findImageFile(filename);
+  return findImageFile(monster.image || match?.image);
 }
 
 function buildMonsterEmbed(
@@ -737,12 +862,10 @@ function getActiveEvent() {
   return null;
 }
 
-function applyShiny(monster) {
+function applyShiny(monster, player = null) {
   const event = getActiveEvent();
 
-  const chance = event?.shinyBoost
-    ? SHINY_CHANCE * 3
-    : SHINY_CHANCE;
+  const chance = (event?.shinyBoost ? SHINY_CHANCE * 3 : SHINY_CHANCE) + getPetBonus(player, "shiny");
 
   const shinyRoll =
     Math.floor(Math.random() * 100) + 1;
@@ -796,7 +919,7 @@ function getRandomMonster(player) {
             legendaries.length
         )
       ]
-    });
+    }, player);
   }
 
   if (
@@ -811,7 +934,7 @@ function getRandomMonster(player) {
       ...habitatPool[
         Math.floor(Math.random() * habitatPool.length)
       ]
-    });
+    }, player);
   }
 
   if (
@@ -873,7 +996,7 @@ function getRandomMonster(player) {
     };
   }
 
-  return applyShiny(monster);
+  return applyShiny(monster, player);
 }
 
 function formatTime(ms) {
@@ -1712,7 +1835,7 @@ async function finishUltraHunt(channel, reason = "expired") {
 
   for (const rewardMessage of participationUnlockMessages) {
     await channel.send(
-      `<@${rewardMessage.userId}>${formatSecretUnlocks(rewardMessage.unlocks)}`
+      `${formatPlayerMention(data, rewardMessage.userId)}${formatSecretUnlocks(rewardMessage.unlocks)}`
     );
   }
 
@@ -1904,10 +2027,10 @@ async function resolveUltraCatch(message, monster, state, roll, chance, itemKey 
   await message.channel.send(
     buildMonsterEmbed(
       caughtMonster,
-      `🎉 ${message.author.username} captured ${caughtMonster.name}!`,
+      `🎉 ${formatPlayerName(catcher, message.author.username)} captured ${caughtMonster.name}!`,
       `**Catch Chance:** ${chance}%\n` +
       `**Roll:** ${roll}\n\n` +
-      `🏆 ${message.author} earned **${ULTRA_CATCHER_REWARD} points**!\n` +
+      `🏆 ${formatPlayerMention(data, message.author.id)} earned **${ULTRA_CATCHER_REWARD} points**!\n` +
       `${otherParticipants.length > 0
         ? `🎉 ${otherParticipants.length} other participant${otherParticipants.length === 1 ? "" : "s"} earned **${participantReward} points each**!`
         : "You were the only participant in the hunt."}` +
@@ -1917,14 +2040,14 @@ async function resolveUltraCatch(message, monster, state, roll, chance, itemKey 
 
   for (const rewardMessage of participantUnlockMessages) {
     await message.channel.send(
-      `<@${rewardMessage.userId}>${formatSecretUnlocks(rewardMessage.unlocks)}`
+      `${formatPlayerMention(data, rewardMessage.userId)}${formatSecretUnlocks(rewardMessage.unlocks)}`
     );
   }
 
   if (relicResult) {
     await message.channel.send(
       `💎 **RELIC FOUND!**\n\n` +
-      `${message.author} received **${monster.relicName}**!\n` +
+      `${formatPlayerMention(data, message.author.id)} received **${monster.relicName}**!\n` +
       `*${monster.relicDescription}*\n\n` +
       `Sacrifice it later with \`!summon ${monster.relicCommand}\`.`
     );
@@ -2228,7 +2351,7 @@ ${captureChoicesText(choices)}
 
   if (command === "!relics" || command === "!inventory") {
     return message.reply(
-      `🎒 **${message.author.username}'s Inventory**\n\n` +
+      `🎒 **${formatPlayerName(player, message.author.username)}'s Inventory**\n\n` +
       `## 🪤 Bait\n` +
       `Rare Bait: **${player.bait.rare}**\n` +
       `Epic Bait: **${player.bait.epic}**\n` +
@@ -2437,7 +2560,8 @@ ${captureChoicesText(choices)}
 
   if (command === "!hunt") {
     const now = Date.now();
-    const timeLeft = HUNT_COOLDOWN - (now - player.lastHunt);
+    const huntCooldown = getPlayerHuntCooldown(player);
+    const timeLeft = huntCooldown - (now - player.lastHunt);
 
     if (timeLeft > 0) {
       return message.reply(`⏳ You can hunt again in **${formatTime(timeLeft)}**.`);
@@ -2511,6 +2635,91 @@ ${captureChoicesText(choices)}
     }
   }
 
+
+  if (command === "!eggs" || command === "!egg") {
+    const inventory = player.eggs.length > 0
+      ? player.eggs.map((egg, index) => `${index + 1}. ${EGG_TYPES[egg.rarity]?.icon || "🥚"} **${egg.rarity} Egg**`).join("\n")
+      : "You do not currently own any eggs.";
+    const incubation = player.incubatingEgg
+      ? `${EGG_TYPES[player.incubatingEgg.rarity]?.icon || "🥚"} **${player.incubatingEgg.rarity} Egg** — ${Date.now() >= player.incubatingEgg.readyAt ? "Ready to hatch! Use `!hatch`." : `Ready <t:${Math.floor(player.incubatingEgg.readyAt / 1000)}:R>.`}`
+      : "No egg is currently incubating.";
+    return message.reply(`🥚 **${formatPlayerName(player, message.author.username)}'s Eggs**\n\n${inventory}\n\n⏳ **Incubator**\n${incubation}\n\nUse \`!incubate number\` to begin incubating an egg.`);
+  }
+
+  if (command.startsWith("!incubate")) {
+    if (player.incubatingEgg) return message.reply("You already have an egg incubating. Use `!eggs` to check its timer.");
+    const index = Number(content.slice("!incubate".length).trim() || "1") - 1;
+    if (!Number.isInteger(index) || !player.eggs[index]) return message.reply("Use `!incubate egg#`. Check your egg numbers with `!eggs`.");
+    const [egg] = player.eggs.splice(index, 1);
+    const duration = EGG_TYPES[egg.rarity]?.incubationMs || EGG_TYPES.Common.incubationMs;
+    player.incubatingEgg = { rarity: egg.rarity, startedAt: Date.now(), readyAt: Date.now() + duration };
+    saveData(data);
+    return message.reply(`${EGG_TYPES[egg.rarity]?.icon || "🥚"} Your **${egg.rarity} Egg** is now incubating!\nIt will be ready <t:${Math.floor(player.incubatingEgg.readyAt / 1000)}:R>.`);
+  }
+
+  if (command === "!hatch") {
+    if (!player.incubatingEgg) return message.reply("You do not have an egg incubating. Use `!eggs` to view your eggs.");
+    if (Date.now() < player.incubatingEgg.readyAt) return message.reply(`⏳ Your **${player.incubatingEgg.rarity} Egg** will be ready <t:${Math.floor(player.incubatingEgg.readyAt / 1000)}:R>.`);
+    const rarity = player.incubatingEgg.rarity;
+    const pool = pets.filter(pet => pet.rarity === rarity);
+    const definition = pool[Math.floor(Math.random() * pool.length)];
+    const ownedPet = { id: player.nextPetId++, key: definition.key, personality: PET_PERSONALITIES[Math.floor(Math.random() * PET_PERSONALITIES.length)], bondXp: 0, timesHelped: 0, hatchedAt: Date.now() };
+    player.pets.push(ownedPet);
+    player.incubatingEgg = null;
+    if (player.equippedPetId === null) player.equippedPetId = ownedPet.id;
+    saveData(data);
+    return message.reply(`${definition.icon} **YOUR EGG HATCHED!**\n\nYou received **${definition.name}**!\nRarity: **${definition.rarity}**\nPersonality: **${ownedPet.personality}**\nAbility: **${definition.description}**\n\n${player.equippedPetId === ownedPet.id ? "It has been equipped as your first companion!" : `Use \`!equippet ${player.pets.length}\` to equip it.`}`);
+  }
+
+  if (command === "!pets") {
+    if (player.pets.length === 0) return message.reply("🐾 You have not hatched any pets yet. Find eggs during successful hunts!");
+    const list = player.pets.map((owned, index) => {
+      const definition = getOwnedPetDefinition(owned);
+      return `${player.equippedPetId === owned.id ? "⭐" : `${index + 1}.`} ${definition?.icon || "🐾"} **${definition?.name || owned.key}** — ${definition?.rarity || "Unknown"} | Bond ${getPetBondLevel(owned)} | ${owned.personality}`;
+    }).join("\n");
+    return message.reply(`🐾 **${formatPlayerName(player, message.author.username)}'s Pets**\n\n${list}\n\n⭐ = Equipped\nUse \`!pet number\` for details or \`!equippet number\` to equip one.`);
+  }
+
+  if (command === "!petdex") {
+    const ownedKeys = new Set(player.pets.map(pet => pet.key));
+    const list = pets.map(definition => `${ownedKeys.has(definition.key) ? "✅" : "⬜"} ${definition.icon} **${definition.name}** — ${definition.rarity}`).join("\n");
+    return message.reply(`📖 **Pet Dex**\nCollected: **${ownedKeys.size}/${pets.length}**\n\n${list}`);
+  }
+
+  if (command.startsWith("!pet ")) {
+    const owned = resolveOwnedPet(player, content.slice(5));
+    if (!owned) return message.reply("Pet not found. Use `!pets` to view your pet numbers.");
+    const definition = getOwnedPetDefinition(owned);
+    return message.reply(`${definition.icon} **${definition.name}**\n\nRarity: **${definition.rarity}**\nPersonality: **${owned.personality}**\nBond Level: **${getPetBondLevel(owned)}/${MAX_PET_BOND_LEVEL}**\nBond Progress: **${owned.bondXp % PET_BOND_HUNTS_PER_LEVEL}/${PET_BOND_HUNTS_PER_LEVEL} hunts**\nAbility: **${definition.description}**\nCurrent Bonus: **${definition.ability === "cooldown" ? (definition.baseBonus + getPetBondLevel(owned) - 1) * 5 + " minute cooldown reduction" : "+" + (definition.baseBonus + getPetBondLevel(owned) - 1) + (definition.ability === "points" ? " points" : "%")}**\nTimes Helped: **${owned.timesHelped || 0}**\nEquipped: **${player.equippedPetId === owned.id ? "Yes" : "No"}**`);
+  }
+
+  if (command.startsWith("!equippet ")) {
+    const owned = resolveOwnedPet(player, content.slice(10));
+    if (!owned) return message.reply("Pet not found. Use `!pets` to view your pet numbers.");
+    player.equippedPetId = owned.id;
+    saveData(data);
+    const definition = getOwnedPetDefinition(owned);
+    return message.reply(`${definition.icon} You equipped **${definition.name}**!\nPassive: **${petPassiveText(player)}**\nIts icon will now appear beside your name in Monster Hunt messages.`);
+  }
+
+  if (command === "!unequippet") {
+    player.equippedPetId = null;
+    saveData(data);
+    return message.reply("🐾 Your companion has been unequipped.");
+  }
+
+  if (command.startsWith("!giveegg ")) {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return message.reply("Only admins can give eggs.");
+    const target = message.mentions.users.first();
+    const rarityInput = content.replace(/!giveegg\s+<@!?\d+>\s*/i, "").trim();
+    const rarity = Object.keys(EGG_TYPES).find(value => value.toLowerCase() === rarityInput.toLowerCase());
+    if (!target || !rarity) return message.reply("Usage: `!giveegg @user common/rare/epic/legendary`");
+    const targetPlayer = getPlayer(data, target.id);
+    targetPlayer.eggs.push({ rarity, foundAt: Date.now() });
+    saveData(data);
+    return message.reply(`🥚 Gave a **${rarity} Egg** to ${formatPlayerMention(data, target.id)}.`);
+  }
+
   if (command === "!catch" || command.startsWith("!catch ")) {
     return message.reply(
       "The `!catch` command has been retired. Use `!hunt`, then reply with one of the numbered choices shown by the bot."
@@ -2518,7 +2727,7 @@ ${captureChoicesText(choices)}
   }
 
   if (command === "!daily") {
-    let text = `🎯 **${message.author.username}'s Daily Quests**\n\n`;
+    let text = `🎯 **${formatPlayerName(player, message.author.username)}'s Daily Quests**\n\n`;
     let totalReward = 0;
 
     player.dailyQuests.forEach(q => {
@@ -2620,7 +2829,7 @@ ${captureChoicesText(choices)}
       .join("\n");
 
     return message.reply(
-      `📚 **${message.author.username}'s Monster Knowledge**\n\n${text}\n\n` +
+      `📚 **${formatPlayerName(player, message.author.username)}'s Monster Knowledge**\n\n${text}\n\n` +
       `Knowledge bonuses: 3 encounters = +5%, 5 = +10%, 10 = +15%, 20 = +20%.`
     );
   }
@@ -2689,7 +2898,7 @@ ${captureChoicesText(choices)}
   if (command === "!achievements") {
     const unlocked = unlockedAchievements(player);
 
-    let text = `🏆 **${message.author.username}'s Achievements**\n\n`;
+    let text = `🏆 **${formatPlayerName(player, message.author.username)}'s Achievements**\n\n`;
 
     achievements.forEach(a => {
       text += `${unlocked.includes(a.name) ? "✅" : "🔒"} ${a.name}\n`;
@@ -2758,7 +2967,7 @@ ${captureChoicesText(choices)}
       `Your Encounters: **${getKnowledgeCount(player, matchName)}**\n` +
       `Your Knowledge Bonus: **+${getKnowledgeBonus(getKnowledgeCount(player, matchName))}%**\n` +
       `Times Caught Server-Wide: **${info.caught}**\n` +
-      `First Caught By: ${info.firstCaughtBy ? `<@${info.firstCaughtBy}>` : "Nobody yet"}`
+      `First Caught By: ${info.firstCaughtBy ? formatPlayerMention(data, info.firstCaughtBy) : "Nobody yet"}`
     );
   }
 
@@ -2807,7 +3016,7 @@ ${captureChoicesText(choices)}
     saveData(data);
 
     return message.reply(
-      `🤝 Trade sent to ${target}!\n` +
+      `🤝 Trade sent to ${formatPlayerMention(data, target.id)}!\n` +
       `You offered **${player.caught[myIndex].name}** for **${otherPlayer.caught[theirIndex].name}**.\n` +
       `They can use \`!accepttrade\` or \`!declinetrade\`.`
     );
@@ -2879,7 +3088,7 @@ ${captureChoicesText(choices)}
 
     saveData(data);
 
-    return message.reply(`✅ Gave **${match.name}** to ${target}.`);
+    return message.reply(`✅ Gave **${match.name}** to ${formatPlayerMention(data, target.id)}.`);
   }
 
   if (command.startsWith("!removemonster ")) {
