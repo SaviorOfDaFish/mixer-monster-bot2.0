@@ -557,7 +557,10 @@ function captureItemInventoryText(player) {
 }
 
 function findImageFile(filename) {
-  if (!filename) return null;
+  if (!filename) {
+    console.log("IMAGE DEBUG — No filename was provided to findImageFile().");
+    return null;
+  }
 
   const searchFolders = [
     __dirname,
@@ -571,90 +574,81 @@ function findImageFile(filename) {
   ];
 
   const wanted = path.basename(filename).toLowerCase();
+  console.log(`IMAGE DEBUG — Looking for filename: ${filename}`);
+  console.log(`IMAGE DEBUG — Bot directory: ${__dirname}`);
 
   for (const folder of searchFolders) {
-    if (!fs.existsSync(folder)) continue;
+    console.log(`IMAGE DEBUG — Checking folder: ${folder}`);
+
+    if (!fs.existsSync(folder)) {
+      console.log(`IMAGE DEBUG — Folder does not exist: ${folder}`);
+      continue;
+    }
 
     const exactPath = path.join(folder, filename);
+    console.log(`IMAGE DEBUG — Checking exact path: ${exactPath}`);
+
     if (fs.existsSync(exactPath) && fs.statSync(exactPath).isFile()) {
+      console.log(`IMAGE DEBUG — FOUND exact image: ${exactPath}`);
       return exactPath;
     }
 
     try {
-      const matchingFile = fs.readdirSync(folder).find(file =>
+      const filesInFolder = fs.readdirSync(folder);
+      const matchingFile = filesInFolder.find(file =>
         file.toLowerCase() === wanted
       );
 
       if (matchingFile) {
         const matchedPath = path.join(folder, matchingFile);
-        if (fs.statSync(matchedPath).isFile()) return matchedPath;
+        if (fs.statSync(matchedPath).isFile()) {
+          console.log(`IMAGE DEBUG — FOUND case-insensitive image: ${matchedPath}`);
+          return matchedPath;
+        }
       }
     } catch (error) {
-      console.error(`Could not search image folder ${folder}:`, error.message);
+      console.error(`IMAGE DEBUG — Could not search folder ${folder}:`, error.message);
     }
   }
 
-  console.log(
-    `Image not found for ${filename}. Checked: ${searchFolders.join(", ")}`
-  );
+  console.log(`IMAGE DEBUG — NOT FOUND: ${filename}`);
+  console.log(`IMAGE DEBUG — Checked folders: ${searchFolders.join(", ")}`);
   return null;
 }
 
 function getMonsterImage(monster) {
-  console.log("IMAGE DEBUG — Monster object:", monster);
+  console.log("IMAGE DEBUG — Monster received:", {
+    key: monster?.key || null,
+    name: monster?.name || null,
+    rarity: monster?.rarity || null,
+    image: monster?.image || null
+  });
 
-  if (!monster?.image) {
-    console.log("IMAGE DEBUG — No image filename exists on this monster.");
+  if (!monster) {
+    console.log("IMAGE DEBUG — No monster object was provided.");
     return null;
   }
 
-  console.log(`IMAGE DEBUG — Looking for: ${monster.image}`);
-
-  const searchFolders = [
-    __dirname,
-    path.join(__dirname, "images"),
-    path.join(__dirname, "assets"),
-    path.join(__dirname, "assets", "images"),
-    path.join(__dirname, "public"),
-    path.join(__dirname, "public", "images"),
-    path.join(__dirname, "src"),
-    path.join(__dirname, "src", "images")
-  ];
-
-  for (const folder of searchFolders) {
-    const exactPath = path.join(folder, monster.image);
-
-    console.log(`IMAGE DEBUG — Checking: ${exactPath}`);
-
-    if (fs.existsSync(exactPath)) {
-      console.log(`IMAGE DEBUG — FOUND: ${exactPath}`);
-      return exactPath;
-    }
-
-    if (!fs.existsSync(folder)) continue;
-
-    const matchingFile = fs.readdirSync(folder).find(
-      file => file.toLowerCase() === monster.image.toLowerCase()
-    );
-
-    if (matchingFile) {
-      const matchedPath = path.join(folder, matchingFile);
-      console.log(`IMAGE DEBUG — FOUND CASE-INSENSITIVE: ${matchedPath}`);
-      return matchedPath;
-    }
-  }
-
-  console.log(`IMAGE DEBUG — NOT FOUND: ${monster.image}`);
-  return null;
-}
-  const cleanName = cleanMonsterName(monster?.name);
+  const cleanName = cleanMonsterName(monster.name || "");
   const allMonsters = [...monsters, ...eventMonsters, ...ultraRareMonsters];
 
   const match = allMonsters.find(candidate =>
+    candidate.key === monster.key ||
     cleanMonsterName(candidate.name).toLowerCase() === cleanName.toLowerCase()
   );
 
-  const filename = monster?.image || match?.image;
+  console.log("IMAGE DEBUG — Matching stored monster:", match
+    ? { key: match.key || null, name: match.name, image: match.image || null }
+    : null
+  );
+
+  const filename = monster.image || match?.image;
+
+  if (!filename) {
+    console.log(`IMAGE DEBUG — No image filename found for ${monster.name || monster.key || "unknown monster"}.`);
+    return null;
+  }
+
   return findImageFile(filename);
 }
 
