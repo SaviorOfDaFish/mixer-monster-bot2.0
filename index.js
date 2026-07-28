@@ -36,16 +36,21 @@ const ULTRA_SUMMON_DELAY = 5 * 60 * 1000;
 
 
 // ==================== PET & EGG SYSTEM ====================
-const BASE_EGG_DROP_CHANCE = 8;
+const EGG_DROP_CHANCES = {
+  Common: 50,
+  Rare: 30,
+  Epic: 20,
+  Legendary: 10
+};
 const PET_REACTION_CHANCE = 15;
 const PET_BOND_HUNTS_PER_LEVEL = 20;
 const MAX_PET_BOND_LEVEL = 5;
 
 const EGG_TYPES = {
-  Common: { icon: "🥚", incubationMs: 2 * 60 * 60 * 1000 },
-  Rare: { icon: "🔵", incubationMs: 4 * 60 * 60 * 1000 },
-  Epic: { icon: "🟣", incubationMs: 8 * 60 * 60 * 1000 },
-  Legendary: { icon: "🟡", incubationMs: 12 * 60 * 60 * 1000 }
+  Common: { icon: "🥚", incubationMs: 30 * 60 * 1000 },
+  Rare: { icon: "🔵", incubationMs: 1 * 60 * 60 * 1000 },
+  Epic: { icon: "🟣", incubationMs: 2 * 60 * 60 * 1000 },
+  Legendary: { icon: "🟡", incubationMs: 4 * 60 * 60 * 1000 }
 };
 
 const PET_PERSONALITIES = ["Cheerful", "Curious", "Loyal", "Mischievous", "Sleepy", "Brave"];
@@ -479,18 +484,17 @@ function petPassiveText(player) {
 }
 
 function rollEggRarity(player) {
-  let roll = Math.random() * 100;
-  const legendaryBoost = getPetBonus(player, "eggFinder") >= 7 ? 0.5 : 0;
-  if (roll < 1 + legendaryBoost) return "Legendary";
-  if (roll < 6) return "Epic";
-  if (roll < 26) return "Rare";
-  return "Common";
+  const bonus = getPetBonus(player, "eggFinder");
+  if (Math.random() * 100 < EGG_DROP_CHANCES.Legendary + Math.floor(bonus / 4)) return "Legendary";
+  if (Math.random() * 100 < EGG_DROP_CHANCES.Epic + Math.floor(bonus / 3)) return "Epic";
+  if (Math.random() * 100 < EGG_DROP_CHANCES.Rare + Math.floor(bonus / 2)) return "Rare";
+  if (Math.random() * 100 < EGG_DROP_CHANCES.Common + bonus) return "Common";
+  return null;
 }
 
 function maybeFindEgg(player) {
-  const eggBonus = getPetBonus(player, "eggFinder");
-  if (Math.random() * 100 >= BASE_EGG_DROP_CHANCE + eggBonus) return null;
   const rarity = rollEggRarity(player);
+  if (!rarity) return null;
   player.eggs.push({ rarity, foundAt: Date.now() });
   return rarity;
 }
