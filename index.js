@@ -69,42 +69,61 @@ if (!fs.existsSync(DATA_FILE)) {
 }
 
 const monsters = [
-  { name: "Goblin", rarity: "Common", points: 1, chance: 85, image: "goblin.png" },
-  { name: "Slime", rarity: "Common", points: 1, chance: 85, image: "slime.png" },
-  { name: "Skeleton", rarity: "Common", points: 1, chance: 80, image: "skeleton.png" },
-  { name: "Kobold", rarity: "Common", points: 1, chance: 80, image: "kobold.png" },
-  { name: "Bandit", rarity: "Common", points: 1, chance: 80, image: "bandit.png" },
-  { name: "Zombie", rarity: "Common", points: 1, chance: 80, image: "zombie.png" },
-  { name: "Giant Rat", rarity: "Common", points: 1, chance: 85, image: "giant_rat.png" },
-  { name: "Twig Blight", rarity: "Common", points: 1, chance: 80, image: "twig_blight.png" },
-  { name: "Stirge", rarity: "Common", points: 1, chance: 80, image: "stirge.png" },
-  { name: "Gnoll", rarity: "Common", points: 1, chance: 75, image: "gnoll.png" },
+  // 🌲 FOREST
+  { name: "Mosscap Sproutling", habitat: "Forest", rarity: "Common", points: 1, chance: 85, image: "mosscap_sproutling.png" },
+  { name: "Bristlefox", habitat: "Forest", rarity: "Common", points: 1, chance: 82, image: "bristlefox.png" },
+  { name: "Thornhorn Stag", habitat: "Forest", rarity: "Rare", points: 3, chance: 55, image: "thornhorn_stag.png" },
+  { name: "Rootback Treant", habitat: "Forest", rarity: "Epic", points: 5, chance: 32, image: "rootback_treant.png" },
+  { name: "Elder Owlbeast", habitat: "Forest", rarity: "Legendary", points: 10, chance: 12, image: "elder_owlbeast.png" },
 
-  { name: "Mimic", rarity: "Rare", points: 3, chance: 60, image: "mimic.png" },
-  { name: "Owlbear", rarity: "Rare", points: 3, chance: 55, image: "owlbear.png" },
-  { name: "Basilisk", rarity: "Rare", points: 3, chance: 50, image: "basilisk.png" },
-  { name: "Gelatinous Cube", rarity: "Rare", points: 3, chance: 50, image: "gelatinous_cube.png" },
-  { name: "Minotaur", rarity: "Rare", points: 3, chance: 50, image: "minotaur.png" },
-  { name: "Harpy", rarity: "Rare", points: 3, chance: 55, image: "harpy.png" },
-  { name: "Werewolf", rarity: "Rare", points: 3, chance: 45, image: "werewolf.png" },
-  { name: "Yeti", rarity: "Rare", points: 3, chance: 45, image: "yeti.png" },
+  // 🌊 OCEAN
+  { name: "Bubblefin Guppy", habitat: "Ocean", rarity: "Common", points: 1, chance: 85, image: "bubblefin_guppy.png" },
+  { name: "Coral Claw", habitat: "Ocean", rarity: "Common", points: 1, chance: 82, image: "coral_claw.png" },
+  { name: "Mistseal", habitat: "Ocean", rarity: "Rare", points: 3, chance: 55, image: "mistseal.png" },
+  { name: "Tide Serpent", habitat: "Ocean", rarity: "Epic", points: 5, chance: 32, image: "tide_serpent.png" },
+  { name: "Leviacrest", habitat: "Ocean", rarity: "Legendary", points: 10, chance: 12, image: "leviacrest.png" },
 
-  { name: "Beholder", rarity: "Epic", points: 5, chance: 35, image: "beholder.png" },
-  { name: "Displacer Beast", rarity: "Epic", points: 5, chance: 35, image: "displacer_beast.png" },
-  { name: "Mind Flayer", rarity: "Epic", points: 5, chance: 30, image: "mind_flayer.png" },
-  { name: "Hydra", rarity: "Epic", points: 5, chance: 30, image: "hydra.png" },
-  { name: "Aboleth", rarity: "Epic", points: 5, chance: 25, image: "aboleth.png" },
-  { name: "Death Knight", rarity: "Epic", points: 5, chance: 25, image: "death_knight.png" },
+  // 🏔️ MOUNTAIN
+  { name: "Pebblehoof", habitat: "Mountain", rarity: "Common", points: 1, chance: 85, image: "pebblehoof.png" },
+  { name: "Echo Bat", habitat: "Mountain", rarity: "Common", points: 1, chance: 82, image: "echo_bat.png" },
+  { name: "Granite Roc", habitat: "Mountain", rarity: "Rare", points: 3, chance: 55, image: "granite_roc.png" },
+  { name: "Ironfur Yeti", habitat: "Mountain", rarity: "Epic", points: 5, chance: 32, image: "ironfur_yeti.png" },
+  { name: "Skybreaker Colossus", habitat: "Mountain", rarity: "Legendary", points: 10, chance: 12, image: "skybreaker_colossus.png" },
 
-  { name: "Ancient Dragon", rarity: "Legendary", points: 10, chance: 15, image: "ancient_dragon.png" },
-  { name: "Tarrasque", rarity: "Legendary", points: 10, chance: 10, image: "tarrasque.png" },
-  { name: "Lich", rarity: "Legendary", points: 10, chance: 12, image: "lich.png" },
-  { name: "Balor", rarity: "Legendary", points: 10, chance: 12, image: "balor.png" },
+  // 🌋 VOLCANO
+  { name: "Ember Skink", habitat: "Volcano", rarity: "Common", points: 1, chance: 85, image: "ember_skink.png" },
+  { name: "Ash Puff", habitat: "Volcano", rarity: "Common", points: 1, chance: 82, image: "ash_puff.png" },
+  { name: "Cinder Boar", habitat: "Volcano", rarity: "Rare", points: 3, chance: 55, image: "cinder_boar.png" },
+  { name: "Magma Drake", habitat: "Volcano", rarity: "Epic", points: 5, chance: 32, image: "magma_drake.png" },
+  { name: "Inferno Behemoth", habitat: "Volcano", rarity: "Legendary", points: 10, chance: 12, image: "inferno_behemoth.png" },
 
-  { name: "Tiamat", rarity: "Mythic", points: 25, chance: 1, image: "tiamat.png" },
-  { name: "Vecna", rarity: "Mythic", points: 25, chance: 1, image: "vecna.png" },
-  { name: "Bahamut", rarity: "Mythic", points: 25, chance: 1, image: "bahamut.png" },
-  { name: "🌌 Mixer Monster", rarity: "Secret", points: 100, chance: 5, image: "mixer_monster.png" }
+  // ❄️ ARCTIC
+  { name: "Snow Hopper", habitat: "Arctic", rarity: "Common", points: 1, chance: 85, image: "snow_hopper.png" },
+  { name: "Frosttail Fox", habitat: "Arctic", rarity: "Common", points: 1, chance: 82, image: "frosttail_fox.png" },
+  { name: "Glacier Bear", habitat: "Arctic", rarity: "Rare", points: 3, chance: 55, image: "glacier_bear.png" },
+  { name: "Aurora Elk", habitat: "Arctic", rarity: "Epic", points: 5, chance: 32, image: "aurora_elk.png" },
+  { name: "Winter Sovereign", habitat: "Arctic", rarity: "Legendary", points: 10, chance: 12, image: "winter_sovereign.png" },
+
+  // 🌌 VOID
+  { name: "Blinkling", habitat: "Void", rarity: "Common", points: 1, chance: 85, image: "blinkling.png" },
+  { name: "Shadow Skitter", habitat: "Void", rarity: "Common", points: 1, chance: 82, image: "shadow_skitter.png" },
+  { name: "Null Hound", habitat: "Void", rarity: "Rare", points: 3, chance: 55, image: "null_hound.png" },
+  { name: "Void Phantom", habitat: "Void", rarity: "Epic", points: 5, chance: 32, image: "void_phantom.png" },
+  { name: "Star Devourer", habitat: "Void", rarity: "Legendary", points: 10, chance: 12, image: "star_devourer.png" },
+
+  // ☁️ SKY
+  { name: "Cloud Finch", habitat: "Sky", rarity: "Common", points: 1, chance: 85, image: "cloud_finch.png" },
+  { name: "Stormwing Butterfly", habitat: "Sky", rarity: "Common", points: 1, chance: 82, image: "stormwing_butterfly.png" },
+  { name: "Thunder Hawk", habitat: "Sky", rarity: "Rare", points: 3, chance: 55, image: "thunder_hawk.png" },
+  { name: "Tempest Wyvern", habitat: "Sky", rarity: "Epic", points: 5, chance: 32, image: "tempest_wyvern.png" },
+  { name: "Storm Emperor", habitat: "Sky", rarity: "Legendary", points: 10, chance: 12, image: "storm_emperor.png" },
+
+  // 🪦 UNDEAD
+  { name: "Bone Mouse", habitat: "Undead", rarity: "Common", points: 1, chance: 85, image: "bone_mouse.png" },
+  { name: "Candle Wisp", habitat: "Undead", rarity: "Common", points: 1, chance: 82, image: "candle_wisp.png" },
+  { name: "Crypt Bat", habitat: "Undead", rarity: "Rare", points: 3, chance: 55, image: "crypt_bat.png" },
+  { name: "Forgotten Knight", habitat: "Undead", rarity: "Epic", points: 5, chance: 32, image: "forgotten_knight.png" },
+  { name: "The Hollow King", habitat: "Undead", rarity: "Legendary", points: 10, chance: 12, image: "the_hollow_king.png" }
 ];
 
 const ultraRareMonsters = [
@@ -255,7 +274,7 @@ const achievements = [
   { name: "Legend Seeker", check: p => p.caught.filter(m => m.rarity === "Legendary").length >= 1 },
   { name: "Shiny Hunter", check: p => p.caught.filter(m => m.shiny).length >= 1 },
   { name: "Event Hunter", check: p => p.caught.filter(m => m.rarity === "Event").length >= 1 },
-  { name: "Mixed Legend", check: p => p.caught.some(m => m.name.includes("Mixer Monster")) }
+  { name: "Habitat Explorer", check: p => new Set((p.caught || []).map(m => m.habitat).filter(Boolean)).size >= 8 }
 ];
 function loadData() {
   const data = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
@@ -507,11 +526,6 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
     const bonusRewards = giveCatchBonusBait(player, monster);
     saveData(data);
 
-    if (monster.name.includes("Mixer Monster")) {
-      await message.channel.send(
-        `🌌🎉 **INCREDIBLE! ${message.author} has discovered the legendary MIXER MONSTER!** 🎉🌌`
-      );
-    }
 
     return message.reply(
       buildMonsterEmbed(
@@ -641,7 +655,7 @@ function getActiveEvent() {
   if (roll < 10) return { id: "shinyStorm", name: "✨ Shiny Storm Day", description: "Shiny odds are boosted today!", shinyBoost: true };
   if (roll < 18) return { id: "legendaryRift", name: "🐉 Legendary Rift Day", description: "Legendary monsters are easier to find today!", legendaryBoost: true };
   if (roll < 26) return { id: "doublePoints", name: "💰 Double Points Day", description: "Caught monsters give double points today!", doublePoints: true };
-  if (roll < 34) return { id: "mimicMayhem", name: "🎁 Mimic Mayhem Day", description: "Mimics are much more common today!", mimicBoost: true };
+  if (roll < 34) return { id: "forestFrenzy", name: "🌲 Forest Frenzy Day", description: "Forest monsters are much more common today!", habitatBoost: "Forest" };
   if (roll < 42) return { id: "baitBonanza", name: "🪤 Bait Bonanza", description: "All bait rewards are doubled today!", doubleBait: true };
   if (roll < 50) return { id: "treasureDay", name: "💎 Treasure Hunter Day", description: "Treasure drops are three times more likely today!", treasureBoost: true };
   if (roll < 58) return { id: "hunterLuck", name: "🍀 Lucky Hunter Day", description: "All capture chances are increased by 10% today!", captureBoost: true };
@@ -712,13 +726,17 @@ function getRandomMonster(player) {
   }
 
   if (
-    event?.mimicBoost &&
+    event?.habitatBoost &&
     Math.random() < 0.4
   ) {
+    const habitatMonsters = monsters.filter(
+      m => m.habitat === event.habitatBoost
+    );
+
     return applyShiny({
-      ...monsters.find(
-        m => m.name === "Mimic"
-      )
+      ...habitatMonsters[
+        Math.floor(Math.random() * habitatMonsters.length)
+      ]
     });
   }
 
@@ -917,6 +935,7 @@ function getDexStats(data) {
 
   [...monsters, ...eventMonsters, ...ultraRareMonsters].forEach(m => {
     stats[m.name] = {
+      habitat: m.habitat || (m.rarity === "Ultra Rare" ? "World Event" : "Seasonal Event"),
       rarity: m.rarity,
       chance: m.chance ?? m.catchChance,
       caught: 0,
@@ -2248,6 +2267,7 @@ ${captureChoicesText(choices)}
       buildMonsterEmbed(
         monster,
         `🐾 A wild ${monster.name} appeared!`,
+        `**Habitat:** ${monster.habitat || "Unknown"}\n` +
         `**Rarity:** ${monster.rarity}\n` +
         `**Base Capture Chance:** ${monster.chance}%\n` +
         `**Knowledge:** ${encounters} encounter${encounters === 1 ? "" : "s"} (${getKnowledgeRank(encounters)}, +${chanceInfo.knowledgeBonus}%)\n` +
@@ -2512,7 +2532,7 @@ ${captureChoicesText(choices)}
     let text = "📖 **Monster Dex**\n\n";
 
     for (const [name, info] of Object.entries(stats)) {
-      text += `**${name}** — ${info.rarity} | Caught: ${info.caught}\n`;
+      text += `**${name}** — ${info.habitat} | ${info.rarity} | Caught: ${info.caught}\n`;
     }
 
     text += `\nUse \`!dex monster name\` for details.`;
@@ -2531,6 +2551,7 @@ ${captureChoicesText(choices)}
 
     return message.reply(
       `📖 **${matchName}**\n\n` +
+      `Habitat: **${info.habitat}**\n` +
       `Rarity: **${info.rarity}**\n` +
       `Base Capture Chance: **${info.chance}%**\n` +
       `Your Encounters: **${getKnowledgeCount(player, matchName)}**\n` +
@@ -2636,7 +2657,7 @@ ${captureChoicesText(choices)}
 
     const target = message.mentions.users.first();
 
-    if (!target) return message.reply("Usage: `!givemonster @user Goblin`");
+    if (!target) return message.reply("Usage: `!givemonster @user Bristlefox`");
 
     const monsterName = content
       .replace(/!givemonster\s+<@!?\d+>\s*/i, "")
