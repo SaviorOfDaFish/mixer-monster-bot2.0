@@ -1,0 +1,1757 @@
+{
+  "players": {
+    "1447777327525265478": {
+      "points": 172,
+      "caught": [
+        {
+          "name": "Skeleton",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Giant Rat",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Goblin",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Werewolf",
+          "rarity": "Rare",
+          "points": 13,
+          "shiny": true
+        },
+        {
+          "name": "Death Knight",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Giant Rat",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Slime",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Stirge",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Yeti",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Skeleton",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Bandit",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Zombie",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Owlbear",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Gnoll",
+          "rarity": "Common",
+          "points": 11,
+          "shiny": true
+        },
+        {
+          "name": "Gelatinous Cube",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Zombie",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Yeti",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Zombie",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Owlbear",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Displacer Beast",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Bandit",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Hydra",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Yeti",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Basilisk",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Giant Rat",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Gelatinous Cube",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Owlbear",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Bandit",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        }
+      ],
+      "currentMonster": null,
+      "lastHunt": 1783833017375,
+      "title": "Shiny Hunter",
+      "dailyQuests": [
+        {
+          "id": "catchEpic",
+          "text": "Catch 1 Epic monster",
+          "goal": 1,
+          "reward": 15,
+          "progress": 0
+        },
+        {
+          "id": "catchRare",
+          "text": "Catch 1 Rare monster",
+          "goal": 1,
+          "reward": 10,
+          "progress": 0
+        },
+        {
+          "id": "catchLegendary",
+          "text": "Catch 1 Legendary monster",
+          "goal": 1,
+          "reward": 25,
+          "progress": 0
+        }
+      ],
+      "dailyClaimed": false,
+      "lastDaily": "Sat Jul 11 2026",
+      "huntCount": 1,
+      "dailyReward": 1783834261237,
+      "bait": {
+        "rare": 2,
+        "epic": 0,
+        "legendary": 1
+      },
+      "activeBait": null,
+      "knowledge": {
+        "Basilisk": 1
+      },
+      "captureItems": {
+        "berry": 2,
+        "honey": 0,
+        "net": 0,
+        "masterCharm": 0
+      }
+    },
+    "350287377195073538": {
+      "points": 141,
+      "caught": [
+        {
+          "name": "Werewolf",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Goblin",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Yeti",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "🌌 Mixer Monster",
+          "rarity": "Secret",
+          "points": 100,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Stirge",
+          "rarity": "Common",
+          "points": 11,
+          "shiny": true
+        },
+        {
+          "name": "Twig Blight",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Death Knight",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Stirge",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Displacer Beast",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Skeleton",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Twig Blight",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Skeleton",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Harpy",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Stirge",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Goblin",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Harpy",
+          "rarity": "Rare",
+          "points": 3,
+          "chance": 55,
+          "image": "harpy.png",
+          "shiny": false
+        }
+      ],
+      "currentMonster": null,
+      "lastHunt": 1783834412133,
+      "title": "Mixed Legend",
+      "dailyQuests": [
+        {
+          "id": "hunt3",
+          "text": "Hunt 3 times",
+          "goal": 3,
+          "reward": 5,
+          "progress": 1
+        },
+        {
+          "id": "catch2",
+          "text": "Catch 2 monsters",
+          "goal": 2,
+          "reward": 5,
+          "progress": 1
+        },
+        {
+          "id": "catchRare",
+          "text": "Catch 1 Rare monster",
+          "goal": 1,
+          "reward": 10,
+          "progress": 1
+        }
+      ],
+      "dailyClaimed": false,
+      "lastDaily": "Sat Jul 11 2026",
+      "huntCount": 1,
+      "dailyReward": 0,
+      "bait": {
+        "rare": 1,
+        "epic": 1,
+        "legendary": 1
+      },
+      "activeBait": null,
+      "knowledge": {
+        "Harpy": 1
+      },
+      "captureItems": {
+        "berry": 2,
+        "honey": 0,
+        "net": 0,
+        "masterCharm": 0
+      }
+    },
+    "347916684247564291": {
+      "points": 188,
+      "caught": [
+        {
+          "name": "Giant Rat",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Zombie",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Giant Rat",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Tarrasque",
+          "rarity": "Legendary",
+          "points": 20,
+          "shiny": true
+        },
+        {
+          "name": "Goblin",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Balor",
+          "rarity": "Legendary",
+          "points": 10,
+          "shiny": false
+        },
+        {
+          "name": "Mind Flayer",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Basilisk",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Skeleton",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Stirge",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Kobold",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Aboleth",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Giant Rat",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Owlbear",
+          "rarity": "Rare",
+          "points": 13,
+          "shiny": true
+        },
+        {
+          "name": "✨ Shiny Bandit",
+          "rarity": "Common",
+          "points": 11,
+          "shiny": true
+        },
+        {
+          "name": "Mimic",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Yeti",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Death Knight",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Kobold",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Goblin",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Gnoll",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        }
+      ],
+      "currentMonster": null,
+      "lastHunt": 0,
+      "title": "Shiny Hunter",
+      "dailyQuests": [],
+      "dailyClaimed": false,
+      "lastDaily": null,
+      "huntCount": 0,
+      "dailyReward": 0,
+      "bait": {
+        "rare": 3,
+        "epic": 0,
+        "legendary": 0
+      },
+      "activeBait": null,
+      "knowledge": {},
+      "captureItems": {
+        "berry": 2,
+        "honey": 0,
+        "net": 0,
+        "masterCharm": 0
+      }
+    },
+    "438067986897567745": {
+      "points": 194,
+      "caught": [
+        {
+          "name": "Giant Rat",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Mimic",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Beholder",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Gnoll",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Bandit",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Bandit",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Harpy",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Slime",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Mimic",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Zombie",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Zombie",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Bandit",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Bandit",
+          "rarity": "Common",
+          "points": 11,
+          "shiny": true
+        },
+        {
+          "name": "Gelatinous Cube",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Zombie",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Beholder",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Zombie",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Zombie",
+          "rarity": "Common",
+          "points": 11,
+          "shiny": true
+        },
+        {
+          "name": "Skeleton",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Basilisk",
+          "rarity": "Rare",
+          "points": 13,
+          "shiny": true
+        },
+        {
+          "name": "Skeleton",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Twig Blight",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Zombie",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Harpy",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Yeti",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Minotaur",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Twig Blight",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Skeleton",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Mimic",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Goblin",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Goblin",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Stirge",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Gelatinous Cube",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "🦅 Star-Spangled Griffon",
+          "rarity": "Event",
+          "points": 10,
+          "shiny": false
+        },
+        {
+          "name": "Gnoll",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Goblin",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Basilisk",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Owlbear",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Ancient Dragon",
+          "rarity": "Legendary",
+          "points": 10,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Gelatinous Cube",
+          "rarity": "Rare",
+          "points": 13,
+          "shiny": true
+        }
+      ],
+      "currentMonster": null,
+      "lastHunt": 0,
+      "title": "Event Hunter",
+      "dailyQuests": [],
+      "dailyClaimed": false,
+      "lastDaily": null,
+      "huntCount": 0,
+      "dailyReward": 0,
+      "bait": {
+        "rare": 3,
+        "epic": 2,
+        "legendary": 1
+      },
+      "activeBait": null,
+      "knowledge": {},
+      "captureItems": {
+        "berry": 2,
+        "honey": 0,
+        "net": 0,
+        "masterCharm": 0
+      }
+    },
+    "409816293189877772": {
+      "points": 311,
+      "caught": [
+        {
+          "name": "✨ Shiny Skeleton",
+          "rarity": "Common",
+          "points": 11,
+          "shiny": true
+        },
+        {
+          "name": "Zombie",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Aboleth",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Bandit",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Stirge",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Aboleth",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Kobold",
+          "rarity": "Common",
+          "points": 11,
+          "shiny": true
+        },
+        {
+          "name": "Owlbear",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Harpy",
+          "rarity": "Rare",
+          "points": 13,
+          "shiny": true
+        },
+        {
+          "name": "Basilisk",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Kobold",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Goblin",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Mind Flayer",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Yeti",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Death Knight",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Minotaur",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Kobold",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Skeleton",
+          "rarity": "Common",
+          "points": 11,
+          "shiny": true
+        },
+        {
+          "name": "Beholder",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Kobold",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Zombie",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "🦅 Star-Spangled Griffon",
+          "rarity": "Event",
+          "points": 10,
+          "shiny": false
+        },
+        {
+          "name": "🌌 Mixer Monster",
+          "rarity": "Secret",
+          "points": 100,
+          "shiny": false
+        },
+        {
+          "name": "Harpy",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Ancient Dragon",
+          "rarity": "Legendary",
+          "points": 10,
+          "shiny": false
+        },
+        {
+          "name": "Stirge",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Bandit",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Ancient Dragon",
+          "rarity": "Legendary",
+          "points": 20,
+          "shiny": true
+        },
+        {
+          "name": "Skeleton",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Bandit",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Mimic",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        }
+      ],
+      "currentMonster": null,
+      "lastHunt": 0,
+      "title": "Mixed Legend",
+      "dailyQuests": [],
+      "dailyClaimed": false,
+      "lastDaily": null,
+      "huntCount": 0,
+      "dailyReward": 0,
+      "bait": {
+        "rare": 1,
+        "epic": 1,
+        "legendary": 0
+      },
+      "activeBait": null,
+      "knowledge": {},
+      "captureItems": {
+        "berry": 2,
+        "honey": 0,
+        "net": 0,
+        "masterCharm": 0
+      }
+    },
+    "778090164983169044": {
+      "points": 64,
+      "caught": [
+        {
+          "name": "Giant Rat",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Stirge",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Twig Blight",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Aboleth",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Twig Blight",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Yeti",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Slime",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Harpy",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Minotaur",
+          "rarity": "Rare",
+          "points": 13,
+          "shiny": true
+        },
+        {
+          "name": "Minotaur",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Gnoll",
+          "rarity": "Common",
+          "points": 11,
+          "shiny": true
+        },
+        {
+          "name": "Gnoll",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Twig Blight",
+          "rarity": "Common",
+          "points": 11,
+          "shiny": true
+        },
+        {
+          "name": "Bandit",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Minotaur",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        }
+      ],
+      "currentMonster": null,
+      "lastHunt": 1783834117263,
+      "title": "Shiny Hunter",
+      "dailyQuests": [
+        {
+          "id": "hunt3",
+          "text": "Hunt 3 times",
+          "goal": 3,
+          "reward": 5,
+          "progress": 1
+        },
+        {
+          "id": "catch2",
+          "text": "Catch 2 monsters",
+          "goal": 2,
+          "reward": 5,
+          "progress": 0
+        },
+        {
+          "id": "catchRare",
+          "text": "Catch 1 Rare monster",
+          "goal": 1,
+          "reward": 10,
+          "progress": 0
+        }
+      ],
+      "dailyClaimed": false,
+      "lastDaily": "Sat Jul 11 2026",
+      "huntCount": 1,
+      "dailyReward": 0,
+      "bait": {
+        "rare": 1,
+        "epic": 1,
+        "legendary": 1
+      },
+      "activeBait": null,
+      "knowledge": {
+        "Vecna": 1
+      },
+      "captureItems": {
+        "berry": 2,
+        "honey": 0,
+        "net": 0,
+        "masterCharm": 0
+      }
+    },
+    "282181556011925515": {
+      "points": 238,
+      "caught": [
+        {
+          "name": "Skeleton",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Goblin",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Harpy",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Giant Rat",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Harpy",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Mind Flayer",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Gelatinous Cube",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Goblin",
+          "rarity": "Common",
+          "points": 11,
+          "shiny": true
+        },
+        {
+          "name": "✨ Shiny Basilisk",
+          "rarity": "Rare",
+          "points": 13,
+          "shiny": true
+        },
+        {
+          "name": "Owlbear",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Kobold",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Slime",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Slime",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Twig Blight",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Yeti",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Zombie",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Stirge",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Aboleth",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Slime",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Gnoll",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "🦅 Star-Spangled Griffon",
+          "rarity": "Event",
+          "points": 10,
+          "shiny": false
+        },
+        {
+          "name": "🎆 Firework Dragon",
+          "rarity": "Event",
+          "points": 12,
+          "shiny": false
+        },
+        {
+          "name": "Balor",
+          "rarity": "Legendary",
+          "points": 10,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Werewolf",
+          "rarity": "Rare",
+          "points": 13,
+          "shiny": true
+        },
+        {
+          "name": "Basilisk",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Gelatinous Cube",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Owlbear",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Twig Blight",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Stirge",
+          "rarity": "Common",
+          "points": 1,
+          "chance": 80,
+          "image": "stirge.png",
+          "shiny": false
+        }
+      ],
+      "currentMonster": null,
+      "lastHunt": 1783834922223,
+      "title": "Event Hunter",
+      "dailyQuests": [
+        {
+          "id": "hunt3",
+          "text": "Hunt 3 times",
+          "goal": 3,
+          "reward": 5,
+          "progress": 1
+        },
+        {
+          "id": "catch2",
+          "text": "Catch 2 monsters",
+          "goal": 2,
+          "reward": 5,
+          "progress": 1
+        },
+        {
+          "id": "catchRare",
+          "text": "Catch 1 Rare monster",
+          "goal": 1,
+          "reward": 10,
+          "progress": 0
+        }
+      ],
+      "dailyClaimed": false,
+      "lastDaily": "Sat Jul 11 2026",
+      "huntCount": 1,
+      "dailyReward": 0,
+      "bait": {
+        "rare": 1,
+        "epic": 0,
+        "legendary": 0
+      },
+      "activeBait": null,
+      "knowledge": {
+        "Stirge": 1
+      },
+      "captureItems": {
+        "berry": 2,
+        "honey": 0,
+        "net": 0,
+        "masterCharm": 0
+      }
+    },
+    "234592352285622272": {
+      "points": 80,
+      "caught": [
+        {
+          "name": "Bandit",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Kobold",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Twig Blight",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Mimic",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Zombie",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Gelatinous Cube",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Kobold",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Stirge",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Owlbear",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "🦅 Star-Spangled Griffon",
+          "rarity": "Event",
+          "points": 10,
+          "shiny": false
+        }
+      ],
+      "currentMonster": null,
+      "lastHunt": 0,
+      "title": "Event Hunter",
+      "dailyQuests": [],
+      "dailyClaimed": false,
+      "lastDaily": null,
+      "huntCount": 0,
+      "dailyReward": 0,
+      "bait": {
+        "rare": 0,
+        "epic": 0,
+        "legendary": 0
+      },
+      "activeBait": null,
+      "knowledge": {},
+      "captureItems": {
+        "berry": 2,
+        "honey": 0,
+        "net": 0,
+        "masterCharm": 0
+      }
+    },
+    "387472046377926657": {
+      "points": 148,
+      "caught": [
+        {
+          "name": "Basilisk",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Twig Blight",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Slime",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Goblin",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Gnoll",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Tarrasque",
+          "rarity": "Legendary",
+          "points": 10,
+          "shiny": false
+        },
+        {
+          "name": "Beholder",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Gelatinous Cube",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Stirge",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Giant Rat",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Goblin",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Twig Blight",
+          "rarity": "Common",
+          "points": 11,
+          "shiny": true
+        },
+        {
+          "name": "Twig Blight",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Mimic",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Gnoll",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Slime",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Stirge",
+          "rarity": "Common",
+          "points": 11,
+          "shiny": true
+        },
+        {
+          "name": "Gnoll",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "✨ Shiny Twig Blight",
+          "rarity": "Common",
+          "points": 11,
+          "shiny": true
+        },
+        {
+          "name": "🦅 Star-Spangled Griffon",
+          "rarity": "Event",
+          "points": 10,
+          "shiny": false
+        },
+        {
+          "name": "🎆 Firework Dragon",
+          "rarity": "Event",
+          "points": 12,
+          "shiny": false
+        },
+        {
+          "name": "🦅 Star-Spangled Griffon",
+          "rarity": "Event",
+          "points": 10,
+          "shiny": false
+        },
+        {
+          "name": "🎆 Firework Dragon",
+          "rarity": "Event",
+          "points": 12,
+          "shiny": false
+        },
+        {
+          "name": "Giant Rat",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        }
+      ],
+      "currentMonster": null,
+      "lastHunt": 0,
+      "title": "Event Hunter",
+      "dailyQuests": [],
+      "dailyClaimed": false,
+      "lastDaily": null,
+      "huntCount": 0,
+      "dailyReward": 0,
+      "bait": {
+        "rare": 0,
+        "epic": 0,
+        "legendary": 0
+      },
+      "activeBait": null,
+      "knowledge": {},
+      "captureItems": {
+        "berry": 2,
+        "honey": 0,
+        "net": 0,
+        "masterCharm": 0
+      }
+    },
+    "364613679712436225": {
+      "points": 66,
+      "caught": [
+        {
+          "name": "Gnoll",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Beholder",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Giant Rat",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Beholder",
+          "rarity": "Epic",
+          "points": 5,
+          "shiny": false
+        },
+        {
+          "name": "Stirge",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Yeti",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Goblin",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Zombie",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Giant Rat",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "Basilisk",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "Yeti",
+          "rarity": "Rare",
+          "points": 3,
+          "shiny": false
+        },
+        {
+          "name": "🇺🇸 Liberty Mimic",
+          "rarity": "Event",
+          "points": 8,
+          "shiny": false
+        },
+        {
+          "name": "Twig Blight",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        },
+        {
+          "name": "🎆 Firework Dragon",
+          "rarity": "Event",
+          "points": 12,
+          "shiny": false
+        },
+        {
+          "name": "Bandit",
+          "rarity": "Common",
+          "points": 1,
+          "shiny": false
+        }
+      ],
+      "currentMonster": null,
+      "lastHunt": 0,
+      "title": "Event Hunter",
+      "dailyQuests": [],
+      "dailyClaimed": false,
+      "lastDaily": null,
+      "huntCount": 0,
+      "dailyReward": 0,
+      "bait": {
+        "rare": 0,
+        "epic": 0,
+        "legendary": 0
+      },
+      "activeBait": null,
+      "knowledge": {},
+      "captureItems": {
+        "berry": 2,
+        "honey": 0,
+        "net": 0,
+        "masterCharm": 0
+      }
+    },
+    "241033134139899904": {
+      "points": 0,
+      "caught": [],
+      "currentMonster": null,
+      "lastHunt": 0,
+      "title": null,
+      "dailyQuests": [],
+      "dailyClaimed": false,
+      "lastDaily": null,
+      "huntCount": 0,
+      "dailyReward": 0,
+      "bait": {
+        "rare": 0,
+        "epic": 0,
+        "legendary": 0
+      },
+      "activeBait": null
+    }
+  },
+  "pendingTrades": {}
+}
