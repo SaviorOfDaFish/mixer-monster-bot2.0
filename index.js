@@ -53,6 +53,16 @@ const EGG_TYPES = {
   Legendary: { icon: "🟡", incubationMs: 4 * 60 * 60 * 1000 }
 };
 
+const MAX_INCUBATORS = 5;
+const POINTS_PER_INCUBATOR = 100;
+const HATCH_POINT_REWARDS = {
+  Common: 2,
+  Rare: 5,
+  Epic: 10,
+  Legendary: 20
+};
+const NEW_PET_SPECIES_BONUS = 5;
+
 const PET_PERSONALITIES = ["Cheerful", "Curious", "Loyal", "Mischievous", "Sleepy", "Brave"];
 
 const pets = [
@@ -346,7 +356,8 @@ function getPlayer(data, userId) {
         masterCharm: 0
       },
       eggs: [],
-      incubatingEgg: null,
+      incubatingEggs: [],
+      lastIncubatorSlots: 1,
       pets: [],
       equippedPetId: null,
       nextPetId: 1,
@@ -401,7 +412,26 @@ function getPlayer(data, userId) {
   if (player.captureItems.net === undefined) player.captureItems.net = 0;
   if (player.captureItems.masterCharm === undefined) player.captureItems.masterCharm = 0;
   if (!Array.isArray(player.eggs)) player.eggs = [];
-  if (player.incubatingEgg === undefined) player.incubatingEgg = null;
+
+  // Migrate the previous single-incubator format without losing an active egg.
+  if (!Array.isArray(player.incubatingEggs)) {
+    player.incubatingEggs = player.incubatingEgg
+      ? [{ ...player.incubatingEgg, notified: Boolean(player.incubatingEgg.notified) }]
+      : [];
+  }
+  delete player.incubatingEgg;
+
+  for (const incubation of player.incubatingEggs) {
+    if (incubation.notified === undefined) incubation.notified = false;
+  }
+
+  if (!Number.isInteger(player.lastIncubatorSlots) || player.lastIncubatorSlots < 1) {
+    player.lastIncubatorSlots = Math.min(
+      MAX_INCUBATORS,
+      1 + Math.floor((player.points || 0) / POINTS_PER_INCUBATOR)
+    );
+  }
+
   if (!Array.isArray(player.pets)) player.pets = [];
   if (player.equippedPetId === undefined) player.equippedPetId = null;
   if (!Number.isInteger(player.nextPetId) || player.nextPetId < 1) {
@@ -481,6 +511,70 @@ function petPassiveText(player) {
     itemFinder: `+${bonus}% companion item-find chance`
   };
   return labels[definition.ability] || definition.description;
+}
+
+function petPassiveTextForOwned(ownedPet) {
+  const definition = getOwnedPetDefinition(ownedPet);
+  if (!ownedPet || !definition) return "Unknown passive.";
+  const bonus = definition.baseBonus + getPetBondLevel(ownedPet) - 1;
+  const labels = {
+    eggFinder: `+${bonus}% egg discovery chance`,
+    shiny: `+${bonus}% shiny chance`,
+    capture: `+${bonus}% normal capture chance`,
+    cooldown: `${bonus * 5} minute hunt cooldown reduction`,
+    points: `+${bonus} points on successful catches`,
+    itemFinder: `+${bonus}% companion item-find chance`
+  };
+  return labels[definition.ability] || definition.description;
+}
+
+function getIncubatorSlots(player) {
+  return Math.min(
+    MAX_INCUBATORS,
+    1 + Math.floor((player?.points || 0) / POINTS_PER_INCUBATOR)
+  );
+}
+
+function getNewIncubatorUnlockText(player, previousPoints) {
+  const before = Math.min(
+    MAX_INCUBATORS,
+    1 + Math.floor((previousPoints || 0) / POINTS_PER_INCUBATOR)
+  );
+  const after = getIncubatorSlots(player);
+  player.lastIncubatorSlots = after;
+
+  if (after <= before) return "";
+
+  return (
+    `\n\n🎉 **NEW INCUBATOR UNLOCKED!**\n` +
+    `You reached **${(after - 1) * POINTS_PER_INCUBATOR} Hunter Points**.\n` +
+    `Incubators: **${before} → ${after}**`
+  );
+}
+
+function choosePetFromEgg(rarity) {
+  const pool = pets.filter(pet => pet.rarity === rarity);
+  if (pool.length === 0) return null;
+
+  if (rarity !== "Legendary") {
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  // Legendary Eggs have one especially elusive companion.
+  const weighted = [
+    { key: "ancientguardian", weight: 45 },
+    { key: "minileviathan", weight: 30 },
+    { key: "phoenixhatchling", weight: 20 },
+    { key: "celestialdragonling", weight: 5 }
+  ];
+
+  let roll = Math.random() * 100;
+  for (const entry of weighted) {
+    roll -= entry.weight;
+    if (roll < 0) return getPetDefinition(entry.key);
+  }
+
+  return getPetDefinition("ancientguardian");
 }
 
 function rollEggRarity(player) {
@@ -695,6 +789,7 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
     if (event?.doublePoints) pointsEarned *= 2;
     pointsEarned += getPetBonus(player, "points");
 
+    const previousPoints = player.points;
     player.points += pointsEarned;
     player.caught.push(monster);
     player.currentMonster = null;
@@ -704,6 +799,7 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
     const eggFound = maybeFindEgg(player);
     const reaction = companionReaction(player, monster);
     const newBondLevel = addPetBond(player);
+    const incubatorUnlockText = getNewIncubatorUnlockText(player, previousPoints);
     saveData(data);
 
     if (monster.name.includes("Mixer Monster")) {
@@ -720,7 +816,12 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
         `**Final Capture Chance:** ${chanceInfo.total}%\n` +
         `**Roll:** ${roll}\n` +
         `**+${pointsEarned} points**` +
-        `${bonusRewards.length > 0 ? `\n\n**Bonus Rewards:**\n${bonusRewards.join("\n")}` : ""}`
+        `${eggFound ? `\n\n🥚 **EGG FOUND!**\n${EGG_TYPES[eggFound]?.icon || "🥚"} You discovered a **${eggFound} Egg**!` : ""}` +
+        `${reaction.text ? `\n\n🐾 **Companion Reaction**\n${reaction.text}` : ""}` +
+        `${reaction.rewards.length > 0 ? `\n${reaction.rewards.join("\n")}` : ""}` +
+        `${newBondLevel ? `\n\n💞 Your companion reached **Bond Level ${newBondLevel}**!` : ""}` +
+        `${bonusRewards.length > 0 ? `\n\n**Bonus Rewards:**\n${bonusRewards.join("\n")}` : ""}` +
+        `${incubatorUnlockText}`
       )
     );
   }
@@ -2094,8 +2195,54 @@ function giveQuestBonusBait(player) {
   return rewards;
 }
 
+async function checkReadyEggNotifications() {
+  const data = loadData();
+  const channel = await getMonsterHuntChannel();
+  if (!channel) return;
+
+  const now = Date.now();
+  let changed = false;
+
+  for (const [userId, rawPlayer] of Object.entries(data.players || {})) {
+    const player = getPlayer(data, userId);
+
+    for (const incubation of player.incubatingEggs || []) {
+      if (incubation.readyAt > now || incubation.notified) continue;
+
+      incubation.notified = true;
+      changed = true;
+
+      await channel.send(
+        `🥚 **EGG READY!**\n\n` +
+        `${formatPlayerMention(data, userId)}, your **${incubation.rarity} Egg** has finished incubating!\n` +
+        `Use \`!hatch\` to reveal your new companion.`
+      ).catch(error => {
+        console.error(`Failed to send egg-ready notification for ${userId}:`, error);
+        incubation.notified = false;
+        changed = true;
+      });
+    }
+  }
+
+  if (changed) saveData(data);
+}
+
 client.once("ready", () => {
   console.log(`Logged in as ${client.user.tag}`);
+
+  // Check once per minute for eggs that have completed incubation.
+  cron.schedule("* * * * *", async () => {
+    try {
+      await checkReadyEggNotifications();
+    } catch (error) {
+      console.error("Egg-ready notification check failed:", error);
+    }
+  });
+
+  // Catch eggs that finished while the bot was restarting.
+  checkReadyEggNotifications().catch(error =>
+    console.error("Initial egg-ready notification check failed:", error)
+  );
 
   //
   // 🌅 7:00 AM MST Reminder
@@ -2641,47 +2788,161 @@ ${captureChoicesText(choices)}
 
 
   if (command === "!eggs" || command === "!egg") {
-    const inventory = player.eggs.length > 0
-      ? player.eggs.map((egg, index) => `${index + 1}. ${EGG_TYPES[egg.rarity]?.icon || "🥚"} **${egg.rarity} Egg**`).join("\n")
-      : "You do not currently own any eggs.";
-    const incubation = player.incubatingEgg
-      ? `${EGG_TYPES[player.incubatingEgg.rarity]?.icon || "🥚"} **${player.incubatingEgg.rarity} Egg** — ${Date.now() >= player.incubatingEgg.readyAt ? "Ready to hatch! Use `!hatch`." : `Ready <t:${Math.floor(player.incubatingEgg.readyAt / 1000)}:R>.`}`
-      : "No egg is currently incubating.";
-    return message.reply(`🥚 **${formatPlayerName(player, message.author.username)}'s Eggs**\n\n${inventory}\n\n⏳ **Incubator**\n${incubation}\n\nUse \`!incubate number\` to begin incubating an egg.`);
+    const slots = getIncubatorSlots(player);
+    const active = player.incubatingEggs || [];
+
+    const incubatorLines = Array.from({ length: slots }, (_, index) => {
+      const incubation = active[index];
+      if (!incubation) return `**Slot ${index + 1}:** Empty`;
+
+      const status = Date.now() >= incubation.readyAt
+        ? "✅ **Ready to hatch!**"
+        : `⏳ Ready <t:${Math.floor(incubation.readyAt / 1000)}:R>`;
+
+      return `**Slot ${index + 1}:** ${EGG_TYPES[incubation.rarity]?.icon || "🥚"} **${incubation.rarity} Egg** — ${status}`;
+    }).join("\n");
+
+    const counts = Object.keys(EGG_TYPES)
+      .map(rarity => ({
+        rarity,
+        count: player.eggs.filter(egg => egg.rarity === rarity).length
+      }))
+      .filter(entry => entry.count > 0);
+
+    const inventory = counts.length > 0
+      ? counts.map(entry => `${EGG_TYPES[entry.rarity]?.icon || "🥚"} **${entry.rarity} Egg ×${entry.count}**`).join("\n")
+      : "You do not currently own any unincubated eggs.";
+
+    return message.reply(
+      `🥚 **${formatPlayerName(player, message.author.username)}'s Egg Nursery**\n\n` +
+      `⏳ **Incubators: ${active.length}/${slots} in use**\n${incubatorLines}\n\n` +
+      `🎒 **Egg Inventory**\n${inventory}\n\n` +
+      `Use \`!incubate egg#\` to start an egg.\n` +
+      `Use \`!hatch\` to hatch the first ready egg or \`!hatch slot#\` to choose one.`
+    );
   }
 
   if (command.startsWith("!incubate")) {
-    if (player.incubatingEgg) return message.reply("You already have an egg incubating. Use `!eggs` to check its timer.");
+    const slots = getIncubatorSlots(player);
+    if ((player.incubatingEggs || []).length >= slots) {
+      return message.reply(
+        `All **${slots} incubator${slots === 1 ? "" : "s"}** are currently in use. ` +
+        `Use \`!eggs\` to check their timers.`
+      );
+    }
+
     const index = Number(content.slice("!incubate".length).trim() || "1") - 1;
-    if (!Number.isInteger(index) || !player.eggs[index]) return message.reply("Use `!incubate egg#`. Check your egg numbers with `!eggs`.");
+    if (!Number.isInteger(index) || !player.eggs[index]) {
+      return message.reply("Use `!incubate egg#`. Check your egg numbers with `!eggs`.");
+    }
+
     const [egg] = player.eggs.splice(index, 1);
     const duration = EGG_TYPES[egg.rarity]?.incubationMs || EGG_TYPES.Common.incubationMs;
-    player.incubatingEgg = { rarity: egg.rarity, startedAt: Date.now(), readyAt: Date.now() + duration };
+    const incubation = {
+      rarity: egg.rarity,
+      startedAt: Date.now(),
+      readyAt: Date.now() + duration,
+      notified: false
+    };
+
+    player.incubatingEggs.push(incubation);
     saveData(data);
-    return message.reply(`${EGG_TYPES[egg.rarity]?.icon || "🥚"} Your **${egg.rarity} Egg** is now incubating!\nIt will be ready <t:${Math.floor(player.incubatingEgg.readyAt / 1000)}:R>.`);
+
+    return message.reply(
+      `${EGG_TYPES[egg.rarity]?.icon || "🥚"} Your **${egg.rarity} Egg** is now incubating in ` +
+      `**Slot ${player.incubatingEggs.length}/${slots}**!\n` +
+      `It will be ready <t:${Math.floor(incubation.readyAt / 1000)}:R>.`
+    );
   }
 
-  if (command === "!hatch") {
-    if (!player.incubatingEgg) return message.reply("You do not have an egg incubating. Use `!eggs` to view your eggs.");
-    if (Date.now() < player.incubatingEgg.readyAt) return message.reply(`⏳ Your **${player.incubatingEgg.rarity} Egg** will be ready <t:${Math.floor(player.incubatingEgg.readyAt / 1000)}:R>.`);
-    const rarity = player.incubatingEgg.rarity;
-    const pool = pets.filter(pet => pet.rarity === rarity);
-    const definition = pool[Math.floor(Math.random() * pool.length)];
-    const ownedPet = { id: player.nextPetId++, key: definition.key, personality: PET_PERSONALITIES[Math.floor(Math.random() * PET_PERSONALITIES.length)], bondXp: 0, timesHelped: 0, hatchedAt: Date.now() };
+  if (command === "!hatch" || command.startsWith("!hatch ")) {
+    const requested = Number(content.slice("!hatch".length).trim());
+    let incubationIndex = Number.isInteger(requested) && requested > 0
+      ? requested - 1
+      : player.incubatingEggs.findIndex(egg => Date.now() >= egg.readyAt);
+
+    if (player.incubatingEggs.length === 0) {
+      return message.reply("You do not have any eggs incubating. Use `!eggs` to view your eggs.");
+    }
+
+    if (incubationIndex < 0 || !player.incubatingEggs[incubationIndex]) {
+      const next = [...player.incubatingEggs].sort((a, b) => a.readyAt - b.readyAt)[0];
+      return message.reply(
+        `⏳ None of your eggs are ready yet. Your next **${next.rarity} Egg** will be ready ` +
+        `<t:${Math.floor(next.readyAt / 1000)}:R>.`
+      );
+    }
+
+    const incubation = player.incubatingEggs[incubationIndex];
+    if (Date.now() < incubation.readyAt) {
+      return message.reply(
+        `⏳ Your **${incubation.rarity} Egg** in Slot ${incubationIndex + 1} will be ready ` +
+        `<t:${Math.floor(incubation.readyAt / 1000)}:R>.`
+      );
+    }
+
+    const rarity = incubation.rarity;
+    const definition = choosePetFromEgg(rarity);
+    if (!definition) return message.reply("That egg could not find a matching pet. Please contact an admin.");
+
+    const alreadyOwnedSpecies = player.pets.some(pet => pet.key === definition.key);
+    const ownedPet = {
+      id: player.nextPetId++,
+      key: definition.key,
+      personality: PET_PERSONALITIES[Math.floor(Math.random() * PET_PERSONALITIES.length)],
+      bondXp: 0,
+      timesHelped: 0,
+      hatchedAt: Date.now()
+    };
+
+    const previousPoints = player.points;
+    const hatchPoints = HATCH_POINT_REWARDS[rarity] || 0;
+    const dexBonus = alreadyOwnedSpecies ? 0 : NEW_PET_SPECIES_BONUS;
+
     player.pets.push(ownedPet);
-    player.incubatingEgg = null;
+    player.incubatingEggs.splice(incubationIndex, 1);
+    player.points += hatchPoints + dexBonus;
+
     if (player.equippedPetId === null) player.equippedPetId = ownedPet.id;
+
+    const incubatorUnlockText = getNewIncubatorUnlockText(player, previousPoints);
     saveData(data);
-    return message.reply(`${definition.icon} **YOUR EGG HATCHED!**\n\nYou received **${definition.name}**!\nRarity: **${definition.rarity}**\nPersonality: **${ownedPet.personality}**\nAbility: **${definition.description}**\n\n${player.equippedPetId === ownedPet.id ? "It has been equipped as your first companion!" : `Use \`!equippet ${player.pets.length}\` to equip it.`}`);
+
+    return message.reply(
+      `${definition.icon} **YOUR ${rarity.toUpperCase()} EGG HATCHED!**\n\n` +
+      `You received **${definition.name}**!\n` +
+      `Rarity: **${definition.rarity}**\n` +
+      `Personality: **${ownedPet.personality}**\n` +
+      `Passive: **${petPassiveTextForOwned(ownedPet)}**\n\n` +
+      `💰 **Hatch Reward:** +${hatchPoints} Hunter Points` +
+      `${dexBonus ? `\n📖 **NEW PET DEX SPECIES:** +${dexBonus} Hunter Points` : ""}` +
+      `${incubatorUnlockText}\n\n` +
+      `${player.equippedPetId === ownedPet.id
+        ? "It has been equipped as your first companion!"
+        : `Use \`!equippet ${player.pets.length}\` to equip it.`}`
+    );
   }
 
   if (command === "!pets") {
-    if (player.pets.length === 0) return message.reply("🐾 You have not hatched any pets yet. Find eggs during successful hunts!");
+    if (player.pets.length === 0) {
+      return message.reply("🐾 You have not hatched any pets yet. Find eggs during successful hunts!");
+    }
+
     const list = player.pets.map((owned, index) => {
       const definition = getOwnedPetDefinition(owned);
-      return `${player.equippedPetId === owned.id ? "⭐" : `${index + 1}.`} ${definition?.icon || "🐾"} **${definition?.name || owned.key}** — ${definition?.rarity || "Unknown"} | Bond ${getPetBondLevel(owned)} | ${owned.personality}`;
-    }).join("\n");
-    return message.reply(`🐾 **${formatPlayerName(player, message.author.username)}'s Pets**\n\n${list}\n\n⭐ = Equipped\nUse \`!pet number\` for details or \`!equippet number\` to equip one.`);
+      const marker = player.equippedPetId === owned.id ? "⭐" : `${index + 1}.`;
+
+      return (
+        `${marker} ${definition?.icon || "🐾"} **${definition?.name || owned.key}** — ` +
+        `${definition?.rarity || "Unknown"} | Bond ${getPetBondLevel(owned)} | ${owned.personality}\n` +
+        `   ✨ Passive: **${petPassiveTextForOwned(owned)}**`
+      );
+    }).join("\n\n");
+
+    return message.reply(
+      `🐾 **${formatPlayerName(player, message.author.username)}'s Pets**\n\n${list}\n\n` +
+      `⭐ = Equipped\nUse \`!pet number\` for details or \`!equippet number\` to equip one.`
+    );
   }
 
   if (command === "!petdex") {
