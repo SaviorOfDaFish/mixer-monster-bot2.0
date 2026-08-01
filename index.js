@@ -258,6 +258,8 @@ const ultraRareMonsters = [
     catchChance: 5,
     durationMinutes: 30,
     personality: "steadfast",
+    abilityName: "Reality Collapse",
+    abilityDescription: "Every 5 minutes, its base catch chance permanently falls by 1%, to a minimum of 1%.",
     spawnText: "Reality trembles as the skies begin to darken...",
     description: "An impossibly ancient creature that exists only to consume worlds. Wherever it travels, stars fade, forests wither, and even magic begins to unravel.",
     secretAchievement: "The End Has Begun",
@@ -275,6 +277,8 @@ const ultraRareMonsters = [
     catchChance: 12,
     durationMinutes: 30,
     personality: "watching",
+    abilityName: "All-Seeing Gaze",
+    abilityDescription: "Every 5 minutes, a random participant is marked. Their next Ultra attempt suffers -5% catch chance.",
     spawnText: "You feel as though something is watching from every direction...",
     description: "A nightmare formed from countless living eyes drifting around a massive floating core. It sees every hunt, every secret, and every movement made beneath its endless gaze.",
     secretAchievement: "Nothing Escapes",
@@ -292,6 +296,8 @@ const ultraRareMonsters = [
     catchChance: 10,
     durationMinutes: 30,
     personality: "shifting",
+    abilityName: "Time Distortion",
+    abilityDescription: "Every 5 minutes, time shifts and the Ultra Hunt cooldown becomes either 3 or 7 minutes until the next shift.",
     spawnText: "Time itself begins to twist and fracture...",
     description: "A colossal beast that feeds upon time itself. Flowers bloom and decay in seconds wherever it walks, while ancient ruins become new before crumbling again.",
     secretAchievement: "Master of Time",
@@ -309,6 +315,8 @@ const ultraRareMonsters = [
     catchChance: 8,
     durationMinutes: 30,
     personality: "generous",
+    abilityName: "Falling Stars",
+    abilityDescription: "Every 5 minutes, a random participant receives +5% catch chance on their next Ultra attempt.",
     spawnText: "A brilliant light tears across the sky as meteors begin to fall...",
     description: "A titan forged from shattered stars and drifting constellations. Meteor showers follow in its wake while fragments of distant galaxies orbit its colossal body.",
     secretAchievement: "Among the Stars",
@@ -326,6 +334,8 @@ const ultraRareMonsters = [
     catchChance: 15,
     durationMinutes: 30,
     personality: "flee",
+    abilityName: "Soul Flight",
+    abilityDescription: "After 15 minutes, it has a 20% chance to flee early every 5 minutes.",
     spawnText: "An unnatural silence falls across the world...",
     description: "A mysterious figure wrapped in endless black robes, carrying a lantern filled with wandering souls. Entire kingdoms have vanished shortly after crossing its path.",
     secretAchievement: "Death's Witness",
@@ -1696,46 +1706,102 @@ function getUltraStateStatus(state, now = Date.now()) {
 }
 
 function getUltraCatchChance(monster, state, now = Date.now()) {
-  if (monster.personality === "weakening") {
-    return Math.min(50, monster.catchChance + (state.failedAttempts || 0) * 2);
-  }
-
-  if (monster.personality === "shifting") {
-    const phases = [5, 10, 15, 20];
-    const phase = Math.floor((now - state.startAt) / (5 * 60 * 1000));
-    return phases[Math.max(0, phase) % phases.length];
+  if (monster.key === "worldeater") {
+    const elapsedTicks = Math.floor((now - state.startAt) / (5 * 60 * 1000));
+    return Math.max(1, monster.catchChance - elapsedTicks);
   }
 
   return monster.catchChance;
 }
 
 function getUltraParticipantReward(monster, state) {
-  if (monster.personality !== "generous") return ULTRA_PARTICIPANT_REWARD;
-  return Math.min(50, ULTRA_PARTICIPANT_REWARD + (state.failedAttempts || 0) * 2);
+  return ULTRA_PARTICIPANT_REWARD;
 }
 
-function calculateUltraCaptureChance(monster, state, itemKey = null) {
+function getUltraCooldownMs(monster, state) {
+  if (monster.key === "chronovore") {
+    const modifierMinutes = Number(state.cooldownModifierMinutes || 0);
+    return Math.max(60 * 1000, ULTRA_HUNT_COOLDOWN + modifierMinutes * 60 * 1000);
+  }
+
+  return ULTRA_HUNT_COOLDOWN;
+}
+
+function ensureUltraAbilityState(state) {
+  if (!state.personalEffects || typeof state.personalEffects !== "object") {
+    state.personalEffects = {};
+  }
+  if (state.cooldownModifierMinutes === undefined) state.cooldownModifierMinutes = 0;
+  if (state.abilityTickCount === undefined) state.abilityTickCount = 0;
+}
+
+function getUltraPersonalEffect(state, userId) {
+  ensureUltraAbilityState(state);
+  if (!state.personalEffects[userId]) {
+    state.personalEffects[userId] = {
+      markedPenalty: 0,
+      starBlessing: 0
+    };
+  }
+  return state.personalEffects[userId];
+}
+
+function getUltraPersonalBonusText(monster, state, userId) {
+  const effect = getUltraPersonalEffect(state, userId);
+  const lines = [];
+
+  if (effect.markedPenalty > 0) {
+    lines.push(`👁️ **All-Seeing Mark:** -${effect.markedPenalty}% on your next attempt`);
+  }
+  if (effect.starBlessing > 0) {
+    lines.push(`🌠 **Fallen Star Blessing:** +${effect.starBlessing}% on your next attempt`);
+  }
+
+  if (monster.key === "chronovore") {
+    const cooldownMinutes = Math.round(getUltraCooldownMs(monster, state) / 60000);
+    lines.push(`⏳ **Time Distortion:** Ultra Hunt cooldown is currently ${cooldownMinutes} minutes`);
+  }
+
+  return lines.length > 0 ? lines.join("\n") : "No temporary Ultra effects.";
+}
+
+function calculateUltraCaptureChance(monster, state, itemKey = null, userId = null) {
   const baseChance = getUltraCatchChance(monster, state);
   const item = itemKey ? CAPTURE_ITEMS[itemKey] : null;
+  const effect = userId
+    ? getUltraPersonalEffect(state, userId)
+    : { markedPenalty: 0, starBlessing: 0 };
+
+  const personalBonus = (effect.starBlessing || 0) - (effect.markedPenalty || 0);
 
   if (item?.guaranteed) {
-    return { total: 100, base: baseChance, itemBonus: item.bonus, guaranteed: true };
+    return {
+      total: 100,
+      base: baseChance,
+      itemBonus: item.bonus,
+      personalBonus,
+      guaranteed: true
+    };
   }
 
   return {
-    total: Math.min(MAX_CAPTURE_CHANCE, baseChance + (item?.bonus || 0)),
+    total: Math.max(
+      1,
+      Math.min(MAX_CAPTURE_CHANCE, baseChance + (item?.bonus || 0) + personalBonus)
+    ),
     base: baseChance,
     itemBonus: item?.bonus || 0,
+    personalBonus,
     guaranteed: false
   };
 }
 
-function buildUltraCaptureChoices(player, monster, state) {
+function buildUltraCaptureChoices(player, monster, state, userId = null) {
   const choices = [{
     number: 1,
     itemKey: null,
     label: "🎯 Normal Throw",
-    chance: calculateUltraCaptureChance(monster, state).total
+    chance: calculateUltraCaptureChance(monster, state, null, userId).total
   }];
 
   for (const itemKey of ["berry", "honey", "net", "masterCharm"]) {
@@ -1745,11 +1811,19 @@ function buildUltraCaptureChoices(player, monster, state) {
       number: choices.length + 1,
       itemKey,
       label: `${item.name} x${player.captureItems[itemKey]}`,
-      chance: calculateUltraCaptureChance(monster, state, itemKey).total
+      chance: calculateUltraCaptureChance(monster, state, itemKey, userId).total
     });
   }
 
   return choices;
+}
+
+function ultraAbilityText(monster) {
+  if (!monster?.abilityName) return "";
+  return (
+    `\n\n⚠️ **Special Ability: ${monster.abilityName}**\n` +
+    `${monster.abilityDescription}`
+  );
 }
 
 function buildUltraMonsterEmbed(monster, title, description, { thumbnail = false } = {}) {
@@ -1787,7 +1861,8 @@ async function performUltraCaptureAttempt(message, monsterKey, itemKey = null) {
 
   const player = getPlayer(data, message.author.id);
   const participant = state.participants[message.author.id] || { attempts: 0, lastAttempt: 0 };
-  const timeLeft = ULTRA_HUNT_COOLDOWN - (Date.now() - participant.lastAttempt);
+  const ultraCooldownMs = getUltraCooldownMs(monster, state);
+  const timeLeft = ultraCooldownMs - (Date.now() - participant.lastAttempt);
 
   if (timeLeft > 0) {
     return message.reply(`⏳ You can use \`!ultrahunt\` again in **${formatTime(timeLeft)}**.`);
@@ -1797,7 +1872,7 @@ async function performUltraCaptureAttempt(message, monsterKey, itemKey = null) {
     return message.reply(`You no longer have any ${CAPTURE_ITEMS[itemKey].name}.`);
   }
 
-  const chanceInfo = calculateUltraCaptureChance(monster, state, itemKey);
+  const chanceInfo = calculateUltraCaptureChance(monster, state, itemKey, message.author.id);
   const roll = Math.floor(Math.random() * 100) + 1;
 
   if (itemKey) player.captureItems[itemKey]--;
@@ -1805,6 +1880,10 @@ async function performUltraCaptureAttempt(message, monsterKey, itemKey = null) {
   participant.attempts++;
   participant.lastAttempt = Date.now();
   state.participants[message.author.id] = participant;
+
+  const personalEffect = getUltraPersonalEffect(state, message.author.id);
+  personalEffect.markedPenalty = 0;
+  personalEffect.starBlessing = 0;
 
   if (chanceInfo.guaranteed || roll <= chanceInfo.total) {
     saveData(data);
@@ -1815,12 +1894,16 @@ async function performUltraCaptureAttempt(message, monsterKey, itemKey = null) {
   saveData(data);
 
   let personalityText = "";
-  if (monster.personality === "weakening") {
-    personalityText = `\n❄️ The Frost Titan weakens! The next server-wide chance is now **${getUltraCatchChance(monster, state)}%**.`;
-  } else if (monster.personality === "shifting") {
-    personalityText = "\n⚡ The storm shifts every five minutes. Its chance may be different on your next attempt.";
-  } else if (monster.personality === "generous") {
-    personalityText = `\n🌠 The community reward has grown to **${getUltraParticipantReward(monster, state)} points**.`;
+  if (monster.key === "worldeater") {
+    personalityText = `\n🌑 Reality continues collapsing. Current base chance: **${getUltraCatchChance(monster, state)}%**.`;
+  } else if (monster.key === "thousandeyes") {
+    personalityText = "\n👁️ Its gaze searches for another hunter to mark.";
+  } else if (monster.key === "chronovore") {
+    personalityText = `\n⏳ Current Ultra cooldown: **${Math.round(getUltraCooldownMs(monster, state) / 60000)} minutes**.`;
+  } else if (monster.key === "astralcolossus") {
+    personalityText = "\n🌠 Another fallen star may soon choose a hunter.";
+  } else if (monster.key === "harbinger") {
+    personalityText = "\n💀 After the halfway point, it may vanish without warning.";
   }
 
   return message.reply(buildUltraMonsterEmbed(
@@ -1829,9 +1912,10 @@ async function performUltraCaptureAttempt(message, monsterKey, itemKey = null) {
     `${itemKey ? `**Item Used:** ${CAPTURE_ITEMS[itemKey].name}\n` : "**Method:** Normal Throw\n"}` +
     `**Base Catch Chance:** ${chanceInfo.base}%\n` +
     `${chanceInfo.itemBonus > 0 ? `**Item Bonus:** +${chanceInfo.itemBonus}%\n` : ""}` +
+    `${chanceInfo.personalBonus !== 0 ? `**Ultra Ability Modifier:** ${chanceInfo.personalBonus > 0 ? "+" : ""}${chanceInfo.personalBonus}%\n` : ""}` +
     `**Final Catch Chance:** ${chanceInfo.total}%\n` +
     `**Roll:** ${roll}${personalityText}\n\n` +
-    `Try again in **5 minutes** while the event remains active.`,
+    `Try again when your Ultra cooldown ends while the event remains active.`,
     { thumbnail: true }
   ));
 }
@@ -2057,6 +2141,9 @@ async function announceUltraHunt(channel, monster, sourceUserId = null) {
     endAt: startAt + durationMs,
     participants: {},
     failedAttempts: 0,
+    personalEffects: {},
+    cooldownModifierMinutes: 0,
+    abilityTickCount: 0,
     lastPersonalityTick: startAt,
     sourceUserId,
     resolved: false,
@@ -2077,7 +2164,8 @@ async function announceUltraHunt(channel, monster, sourceUserId = null) {
     `**Ultra Hunt Cooldown:** 5 minutes
 
 ` +
-    `${monster.description}
+    `${monster.description}` +
+    `${ultraAbilityText(monster)}
 
 ` +
     `Use \`!ultrahunt\` to view your available catch choices.
@@ -2109,6 +2197,9 @@ async function scheduleSummonedUltra(channel, monster, userId) {
     endAt: startAt + monster.durationMinutes * 60 * 1000,
     participants: {},
     failedAttempts: 0,
+    personalEffects: {},
+    cooldownModifierMinutes: 0,
+    abilityTickCount: 0,
     lastPersonalityTick: startAt,
     sourceUserId: userId,
     resolved: false,
@@ -2190,6 +2281,9 @@ async function finishUltraHunt(channel, reason = "expired") {
       endAt: returnAt + monster.durationMinutes * 60 * 1000,
       participants: {},
       failedAttempts: 0,
+      personalEffects: {},
+      cooldownModifierMinutes: 0,
+      abilityTickCount: 0,
       lastPersonalityTick: returnAt,
       sourceUserId: null,
       resolved: false,
@@ -2253,7 +2347,8 @@ async function processUltraState(channel) {
         `**Ultra Hunt Cooldown:** 5 minutes
 
 ` +
-        `${monster.description}
+        `${monster.description}` +
+        `${ultraAbilityText(monster)}
 
 ` +
         `Use \`!ultrahunt\` to view your available catch choices.`
@@ -2281,18 +2376,80 @@ async function processUltraState(channel) {
     }
   }
 
-  if (monster.personality === "flee") {
-    const elapsedTicks = Math.floor((now - state.lastPersonalityTick) / (5 * 60 * 1000));
-    if (elapsedTicks > 0) {
-      state.lastPersonalityTick += elapsedTicks * 5 * 60 * 1000;
-      if (Math.random() < 0.2) {
-        saveData(data);
-        return finishUltraHunt(channel, "fled");
+  ensureUltraAbilityState(state);
+
+  const elapsedTicks = Math.floor((now - state.lastPersonalityTick) / (5 * 60 * 1000));
+  if (elapsedTicks <= 0) return;
+
+  for (let tick = 0; tick < elapsedTicks; tick++) {
+    state.lastPersonalityTick += 5 * 60 * 1000;
+    state.abilityTickCount++;
+
+    const participantIds = Object.keys(state.participants || {});
+
+    if (monster.key === "worldeater") {
+      await channel.send(
+        `🌑 **REALITY COLLAPSE!**\n\n` +
+        `${monster.name} consumes another piece of the battlefield.\n` +
+        `Base catch chance is now **${getUltraCatchChance(monster, state, state.lastPersonalityTick)}%**.`
+      );
+    }
+
+    if (monster.key === "thousandeyes" && participantIds.length > 0) {
+      const targetId = participantIds[Math.floor(Math.random() * participantIds.length)];
+      const effect = getUltraPersonalEffect(state, targetId);
+      effect.markedPenalty = 5;
+
+      await channel.send(
+        `👁️ **ALL-SEEING GAZE!**\n\n` +
+        `${formatPlayerMention(data, targetId)} has been marked by ${monster.name}.\n` +
+        `Their next Ultra attempt suffers **-5% catch chance**.`
+      );
+    }
+
+    if (monster.key === "chronovore") {
+      state.cooldownModifierMinutes = Math.random() < 0.5 ? -2 : 2;
+      const cooldownMinutes = Math.round(getUltraCooldownMs(monster, state) / 60000);
+      const accelerated = state.cooldownModifierMinutes < 0;
+
+      await channel.send(
+        `⏳ **TIME DISTORTION!**\n\n` +
+        `${accelerated ? "Time accelerates around the battlefield." : "Time slows to a painful crawl."}\n` +
+        `Ultra Hunt cooldown is now **${cooldownMinutes} minutes** until the next distortion.`
+      );
+    }
+
+    if (monster.key === "astralcolossus" && participantIds.length > 0) {
+      const targetId = participantIds[Math.floor(Math.random() * participantIds.length)];
+      const effect = getUltraPersonalEffect(state, targetId);
+      effect.starBlessing = 5;
+
+      await channel.send(
+        `🌠 **FALLING STAR!**\n\n` +
+        `A fallen star chooses ${formatPlayerMention(data, targetId)}!\n` +
+        `Their next Ultra attempt gains **+5% catch chance**.`
+      );
+    }
+
+    if (monster.key === "harbinger") {
+      const elapsedFromStart = state.lastPersonalityTick - state.startAt;
+      if (elapsedFromStart >= 15 * 60 * 1000) {
+        await channel.send(
+          `💀 **SOUL FLIGHT!**\n\n` +
+          `${monster.name} raises its lantern as the wandering souls pull it toward the darkness...`
+        );
+
+        if (Math.random() < 0.2) {
+          saveData(data);
+          return finishUltraHunt(channel, "fled");
+        }
+
+        await channel.send(`${monster.name} remains for now—but the lantern burns brighter.`);
       }
-      saveData(data);
-      await channel.send(`🌊 ${monster.name} dives beneath the waves... but it is still nearby!`);
     }
   }
+
+  saveData(data);
 }
 
 function maybeAwardUltraRelic(data, player, monster) {
@@ -2744,13 +2901,14 @@ client.on("messageCreate", async (message) => {
 
     const ultraPlayer = getPlayer(freshData, message.author.id);
     const participant = state.participants[message.author.id] || { attempts: 0, lastAttempt: 0 };
-    const timeLeft = ULTRA_HUNT_COOLDOWN - (Date.now() - participant.lastAttempt);
+    const ultraCooldownMs = getUltraCooldownMs(monster, state);
+    const timeLeft = ultraCooldownMs - (Date.now() - participant.lastAttempt);
 
     if (timeLeft > 0) {
       return message.reply(`⏳ You can use \`!ultrahunt\` again in **${formatTime(timeLeft)}**.`);
     }
 
-    const choices = buildUltraCaptureChoices(ultraPlayer, monster, state);
+    const choices = buildUltraCaptureChoices(ultraPlayer, monster, state, message.author.id);
     const validNumbers = choices.map(choice => choice.number);
     const currentChance = getUltraCatchChance(monster, state);
     const remainingMs = Math.max(0, state.endAt - Date.now());
@@ -2765,6 +2923,14 @@ client.on("messageCreate", async (message) => {
       `**Time Remaining:** ${formatTime(remainingMs)}
 ` +
       `**Your Previous Attempts:** ${participant.attempts || 0}
+` +
+      `**Special Ability:** ${monster.abilityName}
+` +
+      `${monster.abilityDescription}
+
+` +
+      `**Your Current Ultra Effects:**
+${getUltraPersonalBonusText(monster, state, message.author.id)}
 
 ` +
       `**Choose how to catch it:**
