@@ -3681,59 +3681,27 @@ ${captureChoicesText(choices)}
     );
   }
 
-  if (command === "!petdex" || command.startsWith("!petdex ")) {
+  if (command === "!petdex") {
     const ownedKeys = new Set(player.pets.map(pet => pet.key));
-    const habitatNames = Object.keys(PET_COLLECTIONS);
-    const habitatsPerPage = 2;
-    const totalPages = Math.ceil(habitatNames.length / habitatsPerPage);
 
-    const requestedPage = Number(content.slice("!petdex".length).trim() || "1");
-    const page = Number.isInteger(requestedPage)
-      ? Math.max(1, Math.min(totalPages, requestedPage))
-      : 1;
-
-    const pageHabitats = habitatNames.slice(
-      (page - 1) * habitatsPerPage,
-      page * habitatsPerPage
-    );
-
-    const habitatSections = pageHabitats.map(habitat => {
+    const habitatSections = Object.keys(PET_COLLECTIONS).map(habitat => {
       const habitatPets = pets.filter(pet => pet.habitat === habitat);
       const reward = PET_COLLECTIONS[habitat];
-      const collected = habitatPets.filter(pet => ownedKeys.has(pet.key)).length;
-      const complete = collected === habitatPets.length;
-
       const entries = habitatPets
         .map(definition =>
-          `${ownedKeys.has(definition.key) ? "✅" : "⬜"} ` +
-          `${getPetDisplayIcon(definition)} **${definition.name}** — ${definition.rarity}`
+          `${ownedKeys.has(definition.key) ? "✅" : "⬜"} ${getPetDisplayIcon(definition)} **${definition.name}** — ${definition.rarity}`
         )
         .join("\n");
 
-      return (
-        `${reward.icon} **${habitat} Companions — ${collected}/${habitatPets.length}**\n` +
-        `${entries}\n` +
-        `${complete
-          ? `🏆 Collection complete! Title: **${reward.title}**`
-          : `Complete this habitat to unlock **${reward.title}**.`}`
-      );
+      return `${reward.icon} **${habitat} Companions**\n${entries}`;
     }).join("\n\n");
 
-    const completedHabitats = habitatNames.filter(habitat => {
-      const habitatPets = pets.filter(pet => pet.habitat === habitat);
-      return habitatPets.every(pet => ownedKeys.has(pet.key));
-    }).length;
-
     return message.reply(
-      `📖 **${formatPlayerName(player, message.author.username)}'s Pet Dex**\n` +
-      `Collected: **${ownedKeys.size}/${pets.length} companions**\n` +
-      `Completed Habitats: **${completedHabitats}/${habitatNames.length}**\n` +
-      `Page: **${page}/${totalPages}**\n\n` +
+      `📖 **Pet Dex**\n` +
+      `Collected: **${ownedKeys.size}/${pets.length}**\n\n` +
+      `🏆 **Habitat Collection Progress**\n${petCollectionProgressText(player)}\n\n` +
       `${habitatSections}\n\n` +
-      `👑 Collect all **32 companions** to unlock **Master Beast Tamer**.\n` +
-      `${page < totalPages
-        ? `Use \`!petdex ${page + 1}\` for the next page.`
-        : `Use \`!petdex 1\` to return to the first page.`}`
+      `Collect all **32 companions** to unlock the title **Master Beast Tamer**.`
     );
   }
 
@@ -4321,24 +4289,81 @@ ${captureChoicesText(choices)}
       return message.reply("Only admins can reset the season.");
     }
 
-    for (const playerData of Object.values(data.players)) {
-      playerData.points = 0;
-      playerData.currentMonster = null;
-      playerData.lastHunt = 0;
-      playerData.dailyQuests = [];
-      playerData.dailyClaimed = false;
-      playerData.lastDaily = null;
-      playerData.huntCount = 0;
-      playerData.dailyReward = 0;
-      playerData.activeBait = null;
+    let preservedPlayers = 0;
+    let preservedCreatures = 0;
+
+    for (const [userId, oldPlayerData] of Object.entries(data.players)) {
+      // The permanent Monster Dex is the ONLY player progress preserved.
+      const lifetimeCaught = Array.isArray(oldPlayerData.lifetimeCaught)
+        ? oldPlayerData.lifetimeCaught.map(monster => ({ ...monster }))
+        : [];
+
+      if (lifetimeCaught.length > 0) {
+        preservedPlayers++;
+        preservedCreatures += lifetimeCaught.length;
+      }
+
+      data.players[userId] = {
+        points: 0,
+        caught: [],
+        lifetimeCaught,
+        currentMonster: null,
+        lastHunt: 0,
+        title: null,
+        unlockedTitles: [],
+        secretAchievements: [],
+        ultraCaughtKeys: [],
+        ultraSummonedKeys: [],
+        ultraParticipationCount: 0,
+        dailyQuests: [],
+        dailyClaimed: false,
+        lastDaily: null,
+        huntCount: 0,
+        dailyReward: 0,
+        bait: {
+          rare: 0,
+          epic: 0,
+          legendary: 0
+        },
+        activeBait: null,
+        knowledge: {},
+        captureItems: {
+          berry: 0,
+          honey: 0,
+          net: 0,
+          masterCharm: 0
+        },
+        eggs: [],
+        incubatingEggs: [],
+        lastIncubatorSlots: 1,
+        pets: [],
+        equippedPetId: null,
+        nextPetId: 1,
+        relics: Object.fromEntries(RELIC_KEYS.map(relicKey => [relicKey, 0]))
+      };
     }
+
+    // Reset all shared seasonal systems.
     data.pendingTrades = {};
     data.ultraRareState = null;
+    data.worldProgress = Object.fromEntries(
+      RELIC_KEYS.map(relicKey => [relicKey, false])
+    );
+    data.worldShatterUnlocked = false;
+    data.ultraWeeklySchedule = null;
+    data.ultraAdminPauseUntil = 0;
+
+    // Keep Dex-import records so the same old-bot export cannot be
+    // accidentally imported over the permanent collection a second time.
     saveData(data);
 
     return message.reply(
-      `🔄 **Monster Collector season has been reset!**\n` +
-      `Leaderboard points and seasonal timers were reset. Monster collections, shinies, knowledge, items, Relics, titles, and hidden world progress were preserved.`
+      `🔄 **Monster Hunt season has been fully reset!**\n\n` +
+      `✅ Preserved permanent Monster Dex collections for **${preservedPlayers} players**\n` +
+      `✅ Preserved **${preservedCreatures} lifetime monster catches**\n\n` +
+      `Reset: points, seasonal catches, hunt timers, quests, bait, capture items, ` +
+      `knowledge, titles, achievements, eggs, incubators, pets, Companion XP, ` +
+      `Relics, trades, Ultra records, world progress, and the random Ultra schedule.`
     );
   }
 if (command.startsWith("!givepoints ")) {
