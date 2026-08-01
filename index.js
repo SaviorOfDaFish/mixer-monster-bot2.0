@@ -4020,26 +4020,89 @@ ${captureChoicesText(choices)}
     );
   }
 
+  if (command === "!pethelp" || command === "!petshelp") {
+    return message.reply(
+      `🥚 **EGGS & COMPANION GUIDE**\n\n` +
+      `🥚 **Finding Eggs**\n` +
+      `Eggs may appear after successful normal hunts.\n` +
+      `Common roll: **50%** | Rare: **30%** | Epic: **20%** | Legendary: **10%**\n\n` +
+      `⏳ **Incubation Times**\n` +
+      `Common = **30 minutes**\nRare = **1 hour**\nEpic = **2 hours**\nLegendary = **4 hours**\n\n` +
+      `Use \`!eggs\` to view eggs and incubators.\n` +
+      `Use \`!incubate rarity\` or \`!incubate egg#\` to begin incubation.\n` +
+      `Use \`!hatch\` when an egg is ready.\n\n` +
+      `🏗️ **Incubator Progression**\n` +
+      `You begin with **1 incubator** and unlock another every **100 Hunter Points**, up to **5**.\n\n` +
+      `🐾 **Companions**\n` +
+      `Every habitat has Common, Rare, Epic, and Legendary companions. Only one can be equipped at a time.\n` +
+      `Use \`!pets\`, \`!pet number\`, and \`!equippet number\`.\n\n` +
+      `⭐ **Companion Progression**\n` +
+      `The equipped pet earns **10 Companion XP** after successful hunts. Affection Events can award **5 bonus XP**.\n` +
+      `Pets can reach **Level 25**. Bond increases every five levels, up to Bond 5, strengthening the passive.\n\n` +
+      `✨ **Pet Passives**\n` +
+      `Passives can improve capture chance, egg discovery, shiny odds, points, item finds, or hunt cooldowns.\n\n` +
+      `📖 **Pet Dex Collections**\n` +
+      `Use \`!petdex\` to track all **32 companions**.\n` +
+      `Collect all four pets from a habitat for a unique title. Collect all 32 for **Master Beast Tamer**.`
+    );
+  }
+
+  if (command === "!monstercommands" || command === "!commands") {
+    return message.reply(
+      `📜 **MONSTER HUNT PLAYER COMMANDS**\n\n` +
+      `🎯 **Hunting**\n` +
+      `\`!hunt\` — Find a monster\n\`!captureitems\` — View capture items\n` +
+      `\`!usebait rare/epic/legendary\` — Activate bait\n\`!knowledge\` — View species knowledge\n\n` +
+      `📚 **Collection & Progress**\n` +
+      `\`!dex\` — Monster Dex\n\`!stats\` — Hunter statistics\n\`!leaderboard\` — Rankings\n` +
+      `\`!achievements\` — Achievements\n\`!titles\` — View and equip titles\n\n` +
+      `🥚 **Eggs & Pets**\n` +
+      `\`!eggs\` — Eggs and incubators\n\`!incubate rarity\` or \`!incubate egg#\`\n` +
+      `\`!hatch\` or \`!hatch slot#\`\n\`!pets\` — Companion list\n` +
+      `\`!pet number\` — Pet details\n\`!equippet number\` — Equip pet\n\`!petdex\` — Pet collections\n\n` +
+      `🌌 **Ultra Hunts**\n` +
+      `\`!ultrahunt\` — Join active Ultra event\n\`!relics\` — View Relics\n` +
+      `\`!summon relic name\` — Summon an Ultra\n\n` +
+      `🎯 **Daily & Events**\n` +
+      `\`!daily\` — Daily quests\n\`!claimdaily\` — Claim quest rewards\n` +
+      `\`!dailyreward\` — Login reward\n\`!events\` — Current event\n\n` +
+      `🤝 **Social & Notifications**\n` +
+      `\`!trade @user your# their#\` — Trade monsters\n` +
+      `\`!monsternotify on/off\` — Toggle reminders\n\n` +
+      `📖 **Help**\n` +
+      `\`!monsterhelp\` | \`!monsterrules\` | \`!pethelp\``
+    );
+  }
+
   if (command === "!monsterrules" || command === "!rules") {
     return message.reply(
-      `🐉 **MONSTER COLLECTOR CHALLENGE RULES**\n\n` +
-      `Use \`!hunt\` to find a monster.\n` +
-      `The bot will show numbered catch choices. Reply with a number to immediately attempt the catch.\n` +
-      `Only capture items you currently own will be shown.\n\n` +
-      `⏳ You can hunt once every **2 hours**.\n\n` +
-      `**Points:**\n` +
-      `Common = 1\nRare = 3\nEpic = 5\nLegendary = 10\nMythic = 25\nSecret = 100\nEvent = varies\n✨ Shiny = +10 bonus\n\n` +
-      `🎯 Complete daily quests with \`!daily\` and claim rewards with \`!claimdaily\`.\n` +
-      `🎁 Claim daily login rewards with \`!dailyreward\`.\n` +
-      `🪤 Bait improves the rarity of your next encounter. Use \`!usebait rare\`, \`!usebait epic\`, or \`!usebait legendary\`.\n` +
-      `🎒 Capture items improve catch chance after a monster appears. View them with \`!captureitems\`.\n` +
-      `📚 Repeated encounters build species knowledge: 3 = +5%, 5 = +10%, 10 = +15%, and 20 = +20%.\n` +
-      `🤝 Trade monsters with \`!trade @user your# their#\`.\n` +
-      `🌌 Join active Ultra Rare events with \`!ultrahunt\` every 5 minutes.\n` +
-      `💎 View Relics with \`!relics\` and sacrifice one with \`!summon relic name\`.\n` +
-      `🎉 Check events with \`!events\`.\n` +
-      `🔔 Use \`!monsternotify on\` for hunt reminders.\n\n` +
-      `Unlock titles with achievements and climb the leaderboard!`
+      `🐉 **MONSTER HUNT RULES & GUIDE**\n\n` +
+      `🎯 **Hunting**\n` +
+      `Use \`!hunt\` to encounter a monster. Reply with one of the numbered capture choices shown by the bot.\n` +
+      `You can normally hunt once every **2 hours**. Equipped pets with cooldown abilities can reduce this timer.\n\n` +
+      `⭐ **Hunter Points**\n` +
+      `Common = **1** | Rare = **3** | Epic = **5** | Legendary = **10**\n` +
+      `Mythic and secret creatures have special rewards. Shiny monsters award **+10 points**.\n\n` +
+      `📚 **Species Knowledge**\n` +
+      `3 encounters = **+5%** | 5 = **+10%** | 10 = **+15%** | 20 = **+20%**\n\n` +
+      `🎒 **Capture Items**\n` +
+      `🍓 Hunter Berry = **+10%**\n🍯 Sticky Honey = **+20%**\n` +
+      `🕸️ Enchanted Net = **+30%**\n🌟 Master Charm = **Guaranteed capture**\n` +
+      `Use \`!captureitems\` to view your inventory.\n\n` +
+      `🪤 **Bait**\n` +
+      `Use \`!usebait rare\`, \`!usebait epic\`, or \`!usebait legendary\` to improve the rarity of your next normal encounter.\n\n` +
+      `🌌 **Ultra Rare Hunts**\n` +
+      `Ultra monsters appear through random weekly events or Relic summons. Use \`!ultrahunt\` during an active event.\n` +
+      `Each Ultra has a unique ability. Catchers earn **50 points** and participating hunters earn at least **25 points** when it is caught.\n` +
+      `View Relics with \`!relics\` and summon with \`!summon relic name\`.\n\n` +
+      `🥚 **Eggs & Companions**\n` +
+      `Successful hunts can uncover eggs. Incubate and hatch them to collect pets with passive abilities.\n` +
+      `Use \`!pethelp\` for the complete companion guide.\n\n` +
+      `🎯 **Daily Progress**\n` +
+      `Use \`!daily\`, \`!claimdaily\`, and \`!dailyreward\`.\n\n` +
+      `🏆 **Collections & Rewards**\n` +
+      `Complete the Monster Dex, unlock achievements and titles, collect habitat pet sets, and climb the leaderboard.\n\n` +
+      `Use \`!monstercommands\` for the complete command list.`
     );
   }
 
@@ -4676,53 +4739,23 @@ if (command.startsWith("!givepoints ")) {
     files: [path.join(DATA_DIRECTORY, "recovered-data.json")]
   });
 }
-  if (command === "!monsterhelp") {
+  if (command === "!monsterhelp" || command === "!help" || command === "!guide") {
     return message.reply(
-      `🐉 **Monster Collector Commands**\n\n` +
-      `\`!givepoints @user amount\` — Admin only\n` +
-      `\`!givebait @user rare/epic/legendary amount\` — Admin only\n` +
-      `\`!givecapture @user berry/honey/net/master amount\` — Admin only\n` +
-      `\`!hunt\` — Find a monster and receive numbered catch choices\n` +
-      `\`!ultrahunt\` — Attempt the active Ultra Rare Hunt every 5 minutes\n` +
-      `\`!ultrastatus\` — Admin only: view the active event and hidden world progress\n` +
-      `\`!endultra\` — Admin only: end the current or scheduled Ultra Rare Hunt\n` +
-      `\`!ultraclear\` — Admin only: hard-clear event state and overdue automatic spawns\n` +
-      `\`!inventory\` / \`!relics\` — View bait, capture items, and Relics\n` +
-      `\`!summon relic name\` — Sacrifice a Relic to summon its matching Ultra Rare\n` +
-      `Reply with the shown number — Immediately attempt the catch\n` +
-      `The old \`!catch\` command is retired. Use the numbered choices after \`!hunt\`.\n` +
-      `\`!rebuildhistory2\` — Admin recovery scan\n` +
-      `\`!daily\` — View daily quests\n` +
-      `\`!claimdaily\` — Claim daily quest rewards\n` +
-      `\`!dailyreward\` — Claim your daily login reward\n` +
-      `\`!bait\` — View your bait inventory\n` +
-      `\`!captureitems\` / \`!items\` / \`!item\` — View capture items\n` +
-      `\`!knowledge\` — View all species knowledge\n` +
-      `\`!knowledge Monster Name\` — View knowledge for one monster\n` +
-      `\`!usebait rare\` — Use Rare Bait\n` +
-      `\`!usebait epic\` — Use Epic Bait\n` +
-      `\`!usebait legendary\` — Use Legendary Bait\n` +
-      `\`!events\` — View today's special event\n` +
-      `\`!collection\` — View your monsters\n` +
-      `\`!leaderboard\` — View rankings\n` +
-      `\`!achievements\` — View achievements\n` +
-      `\`!title\` — View titles\n` +
-      `\`!title Title Name\` — Equip a title\n` +
-      `\`!dex\` — View the Monster Dex\n` +
-      `\`!dex Monster Name\` — View monster details\n` +
-      `\`!collection\` — View your lifetime collection and current-season totals\n` +
-      `\`!trade @user your# their#\` — Offer a trade\n` +
-      `\`!accepttrade\` — Accept incoming trade\n` +
-      `\`!declinetrade\` — Decline incoming trade\n` +
-      `\`!monsternotify on\` — Enable hunt reminders\n` +
-      `\`!monsternotify off\` — Disable hunt reminders\n` +
-      `\`!testreminder\` — Admin only\n` +
-      `\`!startultra Monster Name\` — Admin only; starts an Ultra Rare Hunt\n` +
-      `\`!givemonster @user MonsterName\` — Admin only\n` +
-      `\`!removemonster @user Monster Name [amount]\` — Admin only; removes catches and their points\n` +
-      `\`!monsterrules\` — View rules\n` +
-      `\`!importdex\` — Admin: import an attached Dex export into lifetime collections\n` +
-      `\`!resetseason\` — Admin only`
+      `🌌 **MONSTER HUNT HELP**\n\n` +
+      `Welcome, Hunter! Choose the guide you need:\n\n` +
+      `🐉 **Game Rules & Core Systems**\nUse \`!monsterrules\`\n\n` +
+      `🥚 **Eggs, Incubators & Companions**\nUse \`!pethelp\`\n\n` +
+      `📜 **Complete Player Command List**\nUse \`!monstercommands\`\n\n` +
+      `⭐ **Popular Commands**\n` +
+      `\`!hunt\` — Find a monster\n` +
+      `\`!eggs\` — View eggs and incubators\n` +
+      `\`!pets\` — View your companions\n` +
+      `\`!petdex\` — View companion collections\n` +
+      `\`!dex\` — View your Monster Dex\n` +
+      `\`!leaderboard\` — View the rankings\n` +
+      `\`!events\` — View the current event\n` +
+      `\`!relics\` — View Ultra Relics\n\n` +
+      `New players should begin with \`!monsterrules\` and \`!pethelp\`.`
     );
   }
 });
