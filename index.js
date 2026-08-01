@@ -332,6 +332,7 @@ function getPlayer(data, userId) {
     data.players[userId] = {
       points: 0,
       caught: [],
+      lifetimeCaught: [],
       currentMonster: null,
       lastHunt: 0,
       title: null,
@@ -380,6 +381,9 @@ function getPlayer(data, userId) {
   
 
   const player = data.players[userId];
+
+  // Lifetime collection is display-only and never affects seasonal scoring.
+  if (!Array.isArray(player.lifetimeCaught)) player.lifetimeCaught = [];
 
   if (player.lastHunt === undefined) player.lastHunt = 0;
   if (player.title === undefined) player.title = null;
@@ -868,6 +872,7 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
     const previousPoints = player.points;
     player.points += pointsEarned;
     player.caught.push(monster);
+    player.lifetimeCaught.push({ ...monster });
     player.currentMonster = null;
     updateQuestProgress(player, "catch", monster);
 
@@ -2178,6 +2183,7 @@ async function resolveUltraCatch(message, monster, state, roll, chance, itemKey 
 
   catcher.points += ULTRA_CATCHER_REWARD;
   catcher.caught.push(caughtMonster);
+  catcher.lifetimeCaught.push({ ...caughtMonster });
 
   if (!catcher.ultraCaughtKeys.includes(monster.key)) {
     catcher.ultraCaughtKeys.push(monster.key);
@@ -2469,6 +2475,68 @@ client.on("messageCreate", async (message) => {
   const command = content.toLowerCase();
   const data = loadData();
   const player = getPlayer(data, message.author.id);
+
+  if (command === "!importdex") {
+    if (!message.member?.permissions.has(PermissionsBitField.Flags.Administrator)) {
+      return message.reply("Only admins can import the lifetime Dex.");
+    }
+
+    if (data.dexImportCompleted) {
+      return message.reply(
+        "✅ The lifetime Dex has already been imported. No changes were made."
+      );
+    }
+
+    const attachment = message.attachments.first();
+    if (!attachment) {
+      return message.reply(
+        "Attach `dex_export.json` to the same message as `!importdex`."
+      );
+    }
+
+    try {
+      const response = await fetch(attachment.url);
+      if (!response.ok) throw new Error(`Download failed with status ${response.status}`);
+
+      const exportData = JSON.parse(await response.text());
+      const exportedPlayers = exportData?.players;
+
+      if (!exportedPlayers || typeof exportedPlayers !== "object" || Array.isArray(exportedPlayers)) {
+        return message.reply("❌ That file is not a valid Dex export.");
+      }
+
+      let playersImported = 0;
+      let creaturesImported = 0;
+
+      for (const [userId, exportedPlayer] of Object.entries(exportedPlayers)) {
+        const creatures = Array.isArray(exportedPlayer?.caught) ? exportedPlayer.caught : [];
+        if (creatures.length === 0) continue;
+
+        const targetPlayer = getPlayer(data, userId);
+        targetPlayer.lifetimeCaught = creatures.map(creature => ({ ...creature }));
+        playersImported++;
+        creaturesImported += creatures.length;
+      }
+
+      data.dexImportCompleted = true;
+      data.dexImportedAt = new Date().toISOString();
+      data.dexImportPlayerCount = playersImported;
+      data.dexImportCreatureCount = creaturesImported;
+      saveData(data);
+
+      return message.reply(
+        `✅ **Lifetime Dex imported successfully!**\n\n` +
+        `Players imported: **${playersImported}**\n` +
+        `Creatures imported: **${creaturesImported}**\n\n` +
+        `Only lifetime collections were imported. No points, quests, achievements, titles, items, pets, eggs, relics, cooldowns, or seasonal catches were changed.`
+      );
+    } catch (error) {
+      console.error("Dex import failed:", error);
+      return message.reply(
+        "❌ The Dex import failed. Make sure the attached file is the `dex_export.json` created by the old bot."
+      );
+    }
+  }
 
   resetDaily(player);
 
@@ -3248,19 +3316,26 @@ ${captureChoicesText(choices)}
     return message.reply(`🎉 **${event.name}**\n\n${event.description}`);
   }
 
-  if (command === "!collection") {
-    if (player.caught.length === 0) return message.reply("You haven't caught any monsters yet!");
+  if (command === "!collection" || command === "!lifetimecollection") {
+    const lifetime = player.lifetimeCaught || [];
+    const season = player.caught || [];
 
-    const list = player.caught
+    if (lifetime.length === 0 && season.length === 0) {
+      return message.reply("You haven't collected any monsters yet!");
+    }
+
+    const lifetimeList = lifetime
       .slice(-25)
-      .map((m, i) => `${i + 1}. ${m.name} — ${m.rarity}`)
+      .map((m, i) => `${lifetime.length - Math.min(25, lifetime.length) + i + 1}. ${m.name} — ${m.rarity}`)
       .join("\n");
 
     return message.reply(
-      `🐉 **Your Monster Collection**\n` +
-      `Title: **${player.title || "None"}**\n` +
-      `Points: **${player.points}**\n` +
-      `Total Caught: **${player.caught.length}**\n\n${list}`
+      `🏛️ **${formatPlayerName(player, message.author.username)}'s Lifetime Monster Collection**\n` +
+      `Lifetime Creatures: **${lifetime.length}**\n` +
+      `Current Season Catches: **${season.length}**\n` +
+      `Current Season Points: **${player.points}**\n\n` +
+      `${lifetimeList || "No lifetime creatures have been imported or caught yet."}\n\n` +
+      `*Imported creatures are for collection and bragging rights only. They do not affect points, quests, achievements, or the leaderboard.*`
     );
   }
 
@@ -3452,7 +3527,9 @@ ${captureChoicesText(choices)}
     if (!match) return message.reply("Monster not found.");
 
     const targetPlayer = getPlayer(data, target.id);
-    targetPlayer.caught.push({ ...match, shiny: false });
+    const grantedMonster = { ...match, shiny: false };
+    targetPlayer.caught.push(grantedMonster);
+    targetPlayer.lifetimeCaught.push({ ...grantedMonster });
     targetPlayer.points += match.points;
 
     saveData(data);
@@ -4208,6 +4285,7 @@ if (command.startsWith("!givepoints ")) {
       `\`!title Title Name\` — Equip a title\n` +
       `\`!dex\` — View the Monster Dex\n` +
       `\`!dex Monster Name\` — View monster details\n` +
+      `\`!collection\` — View your lifetime collection and current-season totals\n` +
       `\`!trade @user your# their#\` — Offer a trade\n` +
       `\`!accepttrade\` — Accept incoming trade\n` +
       `\`!declinetrade\` — Decline incoming trade\n` +
@@ -4218,6 +4296,7 @@ if (command.startsWith("!givepoints ")) {
       `\`!givemonster @user MonsterName\` — Admin only\n` +
       `\`!removemonster @user Monster Name [amount]\` — Admin only; removes catches and their points\n` +
       `\`!monsterrules\` — View rules\n` +
+      `\`!importdex\` — Admin: import an attached Dex export into lifetime collections\n` +
       `\`!resetseason\` — Admin only`
     );
   }
