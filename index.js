@@ -545,6 +545,17 @@ function loadData() {
   if (data.ultraWeeklySchedule === undefined) data.ultraWeeklySchedule = null;
   if (data.ultraAdminPauseUntil === undefined) data.ultraAdminPauseUntil = 0;
 
+  if (!Array.isArray(data.seasonMoments)) data.seasonMoments = [];
+  if (!data.seasonMomentFlags || typeof data.seasonMomentFlags !== "object") {
+    data.seasonMomentFlags = {};
+  }
+  if (!Number.isInteger(data.nextSeasonMomentId) || data.nextSeasonMomentId < 1) {
+    data.nextSeasonMomentId = data.seasonMoments.reduce(
+      (max, moment) => Math.max(max, Number(moment.id) || 0),
+      0
+    ) + 1;
+  }
+
   if (!data.seasonLaunch || typeof data.seasonLaunch !== "object") {
     data.seasonLaunch = {
       channelsOpened: false,
@@ -565,6 +576,90 @@ function loadData() {
 
 function saveData(data) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+}
+
+function addSeasonMoment(data, {
+  type = "community",
+  playerId = null,
+  text,
+  icon = "📜",
+  uniqueKey = null,
+  metadata = {}
+}) {
+  if (!Array.isArray(data.seasonMoments)) data.seasonMoments = [];
+  if (!data.seasonMomentFlags || typeof data.seasonMomentFlags !== "object") {
+    data.seasonMomentFlags = {};
+  }
+  if (!Number.isInteger(data.nextSeasonMomentId) || data.nextSeasonMomentId < 1) {
+    data.nextSeasonMomentId = 1;
+  }
+
+  if (uniqueKey && data.seasonMomentFlags[uniqueKey]) return null;
+
+  const moment = {
+    id: data.nextSeasonMomentId++,
+    timestamp: Date.now(),
+    type,
+    playerId,
+    text: String(text || "").trim(),
+    icon,
+    metadata
+  };
+
+  data.seasonMoments.push(moment);
+  if (uniqueKey) data.seasonMomentFlags[uniqueKey] = moment.id;
+
+  return moment;
+}
+
+function seasonMomentDate(timestamp) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Denver",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(new Date(timestamp));
+}
+
+function seasonMomentPlayerName(data, userId) {
+  if (!userId) return "";
+  const member = client.guilds.cache
+    .map(guild => guild.members.cache.get(userId))
+    .find(Boolean);
+
+  return member?.displayName || member?.user?.username || `Hunter ${userId}`;
+}
+
+function formatSeasonMoment(data, moment, includeNumber = true) {
+  const number = includeNumber ? `**#${moment.id}** ` : "";
+  return (
+    `${number}${moment.icon || "📜"} **${seasonMomentDate(moment.timestamp)}** — ` +
+    `${moment.text}`
+  );
+}
+
+function recordPointMilestoneMoments(data, playerId, previousPoints, currentPoints) {
+  const milestones = [
+    { points: 100, icon: "⭐", label: "reached 100 Hunter Points" },
+    { points: 250, icon: "🌟", label: "reached 250 Hunter Points" },
+    { points: 500, icon: "💫", label: "reached 500 Hunter Points" },
+    { points: 1000, icon: "👑", label: "reached 1,000 Hunter Points" }
+  ];
+
+  const name = seasonMomentPlayerName(data, playerId);
+
+  for (const milestone of milestones) {
+    if (previousPoints < milestone.points && currentPoints >= milestone.points) {
+      addSeasonMoment(data, {
+        type: "point_milestone",
+        playerId,
+        icon: milestone.icon,
+        text: `${name} ${milestone.label}.`,
+        uniqueKey: `points:${playerId}:${milestone.points}`
+      });
+    }
+  }
 }
 
 function getPlayer(data, userId) {
@@ -1218,6 +1313,56 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
       : [];
 
     const automaticTitleUnlocks = checkTitleUnlocks(player);
+
+    const hunterName = seasonMomentPlayerName(data, message.author.id);
+    addSeasonMoment(data, {
+      type: "first_catch",
+      playerId: message.author.id,
+      icon: "🐾",
+      text: `${hunterName} made the first successful catch of the season: ${cleanMonsterName(monster.name)}.`,
+      uniqueKey: "season:first_catch"
+    });
+
+    if (monster.shiny) {
+      addSeasonMoment(data, {
+        type: "first_shiny",
+        playerId: message.author.id,
+        icon: "✨",
+        text: `${hunterName} discovered the season's first Shiny: ${cleanMonsterName(monster.name)}!`,
+        uniqueKey: "season:first_shiny"
+      });
+    }
+
+    if (monster.rarity === "Legendary") {
+      addSeasonMoment(data, {
+        type: "first_legendary",
+        playerId: message.author.id,
+        icon: "🐉",
+        text: `${hunterName} captured the season's first Legendary monster: ${cleanMonsterName(monster.name)}!`,
+        uniqueKey: "season:first_legendary"
+      });
+    }
+
+    if (eggFound) {
+      addSeasonMoment(data, {
+        type: "first_egg",
+        playerId: message.author.id,
+        icon: "🥚",
+        text: `${hunterName} uncovered the season's first ${eggFound} Egg.`,
+        uniqueKey: "season:first_egg"
+      });
+    }
+
+    if (isMixerMonster) {
+      addSeasonMoment(data, {
+        type: "mixer_capture",
+        playerId: message.author.id,
+        icon: "🌌",
+        text: `${hunterName} captured the mythical Mixer Monster!`
+      });
+    }
+
+    recordPointMilestoneMoments(data, message.author.id, previousPoints, player.points);
     saveData(data);
     await announceTitleUnlocks(message, automaticTitleUnlocks);
 
@@ -2437,6 +2582,13 @@ async function scheduleSummonedUltra(channel, monster, userId) {
     announcedActive: false,
     returnScheduled: false
   };
+  addSeasonMoment(data, {
+    type: "ultra_summon",
+    playerId: userId,
+    icon: "🔮",
+    text: `${seasonMomentPlayerName(data, userId)} sacrificed ${monster.relicName} to summon ${cleanMonsterName(monster.name)}.`
+  });
+
   saveData(data);
 
   // Use a dedicated timer for this summon. The saved-state monitor remains
@@ -2481,6 +2633,12 @@ async function finishUltraHunt(channel, reason = "expired") {
       participationUnlockMessages.push({ userId, unlocks: newUnlocks });
     }
   }
+
+  addSeasonMoment(data, {
+    type: "ultra_escape",
+    icon: "💨",
+    text: `${cleanMonsterName(monster.name)} ${reason === "fled" ? "fled early" : "escaped"} after facing ${participantIds.length} hunter${participantIds.length === 1 ? "" : "s"}.`
+  });
 
   saveData(data);
 
@@ -2752,6 +2910,31 @@ async function resolveUltraCatch(message, monster, state, roll, chance, itemKey 
   const relicResult = maybeAwardUltraRelic(data, catcher, monster);
   catcherUnlocks.push(...evaluateUltraSecretRewards(catcher));
   const automaticTitleUnlocks = checkTitleUnlocks(catcher);
+
+  const ultraHunterName = seasonMomentPlayerName(data, message.author.id);
+  addSeasonMoment(data, {
+    type: "ultra_capture",
+    playerId: message.author.id,
+    icon: "⚔️",
+    text: `${ultraHunterName} captured ${cleanMonsterName(monster.name)} during an Ultra Hunt!`
+  });
+
+  if (relicResult) {
+    addSeasonMoment(data, {
+      type: "first_relic",
+      playerId: message.author.id,
+      icon: "💎",
+      text: `${ultraHunterName} recovered the season's first Ultra Relic: ${monster.relicName}.`,
+      uniqueKey: "season:first_relic"
+    });
+  }
+
+  recordPointMilestoneMoments(
+    data,
+    message.author.id,
+    catcher.points - ULTRA_CATCHER_REWARD,
+    catcher.points
+  );
 
   saveData(data);
   await announceTitleUnlocks(message, automaticTitleUnlocks);
@@ -3783,6 +3966,35 @@ ${captureChoicesText(choices)}
     const incubatorUnlockText = getNewIncubatorUnlockText(player, previousPoints);
     const petCollectionUnlocks = evaluatePetCollectionRewards(player);
     const automaticTitleUnlocks = checkTitleUnlocks(player);
+
+    const hatchHunterName = seasonMomentPlayerName(data, message.author.id);
+    addSeasonMoment(data, {
+      type: "first_pet",
+      playerId: message.author.id,
+      icon: "🐾",
+      text: `${hatchHunterName} hatched the season's first companion: ${definition.name}.`,
+      uniqueKey: "season:first_pet"
+    });
+
+    if (rarity === "Legendary") {
+      addSeasonMoment(data, {
+        type: "legendary_pet",
+        playerId: message.author.id,
+        icon: "🌟",
+        text: `${hatchHunterName} hatched a Legendary companion: ${definition.name}!`
+      });
+    }
+
+    for (const unlock of petCollectionUnlocks) {
+      addSeasonMoment(data, {
+        type: "pet_collection",
+        playerId: message.author.id,
+        icon: "🏆",
+        text: `${hatchHunterName} completed a companion collection and unlocked ${unlock.title || unlock.name || "a secret title"}!`
+      });
+    }
+
+    recordPointMilestoneMoments(data, message.author.id, previousPoints, player.points);
     saveData(data);
     await announceTitleUnlocks(message, automaticTitleUnlocks);
 
@@ -4550,6 +4762,140 @@ ${captureChoicesText(choices)}
     );
   }
 
+  if (command === "!moments" || command.startsWith("!moments ")) {
+    const input = content.slice("!moments".length).trim().toLowerCase();
+    const moments = [...(data.seasonMoments || [])].sort(
+      (a, b) => a.timestamp - b.timestamp
+    );
+
+    if (moments.length === 0) {
+      return message.reply(
+        "📜 No Season Chronicle moments have been recorded yet."
+      );
+    }
+
+    const pageSize = 10;
+    const requestedPage = input === "all" ? 1 : Number(input || "1");
+    const totalPages = Math.max(1, Math.ceil(moments.length / pageSize));
+    const page = Number.isInteger(requestedPage)
+      ? Math.max(1, Math.min(totalPages, requestedPage))
+      : 1;
+
+    const pageMoments = moments.slice(
+      (page - 1) * pageSize,
+      page * pageSize
+    );
+
+    return message.reply(
+      `📜 **SEASON CHRONICLE**\n` +
+      `Recorded Moments: **${moments.length}**\n` +
+      `Page **${page}/${totalPages}**\n\n` +
+      `${pageMoments.map(moment => formatSeasonMoment(data, moment)).join("\n\n")}\n\n` +
+      `${page < totalPages
+        ? `Use \`!moments ${page + 1}\` for the next page.`
+        : `Use \`!moments 1\` to return to the beginning.`}`
+    );
+  }
+
+  if (command === "!story") {
+    const moments = [...(data.seasonMoments || [])]
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .slice(-15);
+
+    if (moments.length === 0) {
+      return message.reply(
+        "📖 The season's story has not begun yet. Meaningful moments will appear here as hunters make history."
+      );
+    }
+
+    const storyLines = moments.map((moment, index) => {
+      const transitions = [
+        "The season began when",
+        "Not long after,",
+        "As the hunt continued,",
+        "Then came a moment few expected:",
+        "The chronicles also remember when",
+        "Later,",
+        "Before long,",
+        "The wilderness changed again when"
+      ];
+      const transition = transitions[Math.min(index, transitions.length - 1)];
+      const sentence = moment.text.replace(/[.!]+$/, "");
+      return `${transition} ${sentence.charAt(0).toLowerCase()}${sentence.slice(1)}.`;
+    });
+
+    return message.reply(
+      `📖 **THE MONSTER HUNT SEASON CHRONICLE**\n\n` +
+      `${storyLines.join("\n\n")}\n\n` +
+      `*This story was created from the ${moments.length} most recent recorded moments.*`
+    );
+  }
+
+  if (command.startsWith("!addmoment ")) {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+      return message.reply("Only admins can add Chronicle moments.");
+    }
+
+    const momentText = content.slice("!addmoment".length).trim();
+    if (!momentText) {
+      return message.reply("Usage: `!addmoment Describe the special moment here`");
+    }
+
+    const moment = addSeasonMoment(data, {
+      type: "manual",
+      playerId: message.author.id,
+      icon: "📝",
+      text: momentText
+    });
+
+    saveData(data);
+    return message.reply(
+      `✅ Added Chronicle Moment **#${moment.id}**:\n${moment.text}`
+    );
+  }
+
+  if (command.startsWith("!removemoment ")) {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+      return message.reply("Only admins can remove Chronicle moments.");
+    }
+
+    const momentId = Number(content.slice("!removemoment".length).trim());
+    if (!Number.isInteger(momentId)) {
+      return message.reply("Usage: `!removemoment moment#`");
+    }
+
+    const index = (data.seasonMoments || []).findIndex(
+      moment => Number(moment.id) === momentId
+    );
+
+    if (index < 0) {
+      return message.reply("That Chronicle moment could not be found.");
+    }
+
+    const [removed] = data.seasonMoments.splice(index, 1);
+    for (const [key, value] of Object.entries(data.seasonMomentFlags || {})) {
+      if (Number(value) === momentId) delete data.seasonMomentFlags[key];
+    }
+
+    saveData(data);
+    return message.reply(
+      `🗑️ Removed Chronicle Moment **#${removed.id}**:\n${removed.text}`
+    );
+  }
+
+  if (command === "!clearmoments") {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+      return message.reply("Only admins can clear the Season Chronicle.");
+    }
+
+    data.seasonMoments = [];
+    data.seasonMomentFlags = {};
+    data.nextSeasonMomentId = 1;
+    saveData(data);
+
+    return message.reply("🧹 The Season Chronicle has been cleared.");
+  }
+
   if (command === "!resetseason") {
     if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
       return message.reply("Only admins can reset the season.");
@@ -4624,6 +4970,9 @@ ${captureChoicesText(choices)}
     data.worldShatterUnlocked = false;
     data.ultraWeeklySchedule = null;
     data.ultraAdminPauseUntil = 0;
+    data.seasonMoments = [];
+    data.seasonMomentFlags = {};
+    data.nextSeasonMomentId = 1;
 
     // Keep Dex-import records so the same old-bot export cannot be
     // accidentally imported over the permanent collection a second time.
