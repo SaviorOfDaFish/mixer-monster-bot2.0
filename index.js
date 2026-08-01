@@ -34,6 +34,20 @@ const ULTRA_ESCAPE_REWARD = 10;
 const ULTRA_RANDOM_EVENTS_PER_WEEK = 3;
 const ULTRA_SUMMON_DELAY = 5 * 60 * 1000;
 
+const MIXER_MONSTER_ENCOUNTER_CHANCE = 0.25;
+const MIXER_MONSTER = {
+  key: "mixermonster",
+  name: "🌌 Mixer Monster",
+  habitat: "The Rift",
+  rarity: "Mythic",
+  points: 100,
+  chance: 1,
+  image: "mixer_monster.png",
+  description: "A mysterious cosmic creature said to appear only to the luckiest hunters. It wanders between worlds collecting forgotten stories, enchanted dice, and legendary cards. Many hunters believe seeing one is a once-in-a-lifetime event.",
+  secretAchievement: "Beyond the Rift",
+  titleReward: "The Chosen Mixer"
+};
+
 
 // ==================== PET & EGG SYSTEM ====================
 const EGG_DROP_CHANCES = {
@@ -368,7 +382,8 @@ const achievements = [
   { name: "Legend Seeker", check: p => p.caught.filter(m => m.rarity === "Legendary").length >= 1 },
   { name: "Shiny Hunter", check: p => p.caught.filter(m => m.shiny).length >= 1 },
   { name: "Event Hunter", check: p => p.caught.filter(m => m.rarity === "Event").length >= 1 },
-  { name: "Habitat Explorer", check: p => new Set((p.caught || []).map(m => m.habitat).filter(Boolean)).size >= 8 }
+  { name: "Habitat Explorer", check: p => new Set((p.caught || []).map(m => m.habitat).filter(Boolean)).size >= 8 },
+  { name: "Beyond the Rift", check: p => p.caught.some(m => cleanMonsterName(m.name) === "Mixer Monster") }
 ];
 
 const ULTRA_META_ACHIEVEMENTS = {
@@ -895,10 +910,11 @@ function resolveCaptureItem(input) {
 
 function calculateCaptureChance(player, monster, itemKey = null) {
   const event = getActiveEvent();
+  const isMixerMonster = cleanMonsterName(monster.name) === "Mixer Monster";
   const encounters = getKnowledgeCount(player, monster);
-  const knowledgeBonus = getKnowledgeBonus(encounters);
-  const eventBonus = event?.captureBoost ? 10 : 0;
-  const petBonus = getPetBonus(player, "capture");
+  const knowledgeBonus = isMixerMonster ? 0 : getKnowledgeBonus(encounters);
+  const eventBonus = isMixerMonster ? 0 : (event?.captureBoost ? 10 : 0);
+  const petBonus = isMixerMonster ? 0 : getPetBonus(player, "capture");
   const item = itemKey ? CAPTURE_ITEMS[itemKey] : null;
 
   if (item?.guaranteed) {
@@ -1006,11 +1022,26 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
       affectionEvent.bonusXp > 0 ? "Successful Hunt + Affection Event" : "Successful Hunt"
     );
     const incubatorUnlockText = getNewIncubatorUnlockText(player, previousPoints);
+    const isMixerMonster = cleanMonsterName(monster.name) === "Mixer Monster";
+    const mixerUnlocks = isMixerMonster
+      ? unlockSecretReward(
+          player,
+          MIXER_MONSTER.secretAchievement,
+          MIXER_MONSTER.titleReward
+        )
+      : [];
+
     saveData(data);
 
-    if (monster.name.includes("Mixer Monster")) {
+    if (isMixerMonster) {
       await message.channel.send(
-        `🌌🎉 **INCREDIBLE! ${message.author} has discovered the legendary MIXER MONSTER!** 🎉🌌`
+        `🌌━━━━━━━━━━━━━━━━━━━━━━🌌\n\n` +
+        `✨ **THE MIXER MONSTER HAS BEEN CAPTURED!** ✨\n\n` +
+        `${formatPlayerMention(data, message.author.id)} captured the rarest creature in Monster Hunt!\n` +
+        `🏆 **+${pointsEarned} Hunter Points**\n` +
+        `🌌 **Achievement:** ${MIXER_MONSTER.secretAchievement}\n` +
+        `✨ **Title:** ${MIXER_MONSTER.titleReward}\n\n` +
+        `🌌━━━━━━━━━━━━━━━━━━━━━━🌌`
       );
     }
 
@@ -1028,7 +1059,8 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
         `${affectionEvent.text ? `\n\n❤️ **Affection Event**\n${affectionEvent.text}` : ""}` +
         `${companionXpText ? `\n\n⭐ **Companion Progress**\n${companionXpText}` : ""}` +
         `${bonusRewards.length > 0 ? `\n\n**Bonus Rewards:**\n${bonusRewards.join("\n")}` : ""}` +
-        `${incubatorUnlockText}`
+        `${incubatorUnlockText}` +
+        `${formatSecretUnlocks(mixerUnlocks)}`
       )
     );
   }
@@ -1097,7 +1129,7 @@ function findImageFile(filename) {
 function getMonsterImage(monster) {
   if (!monster) return null;
   const cleanName = cleanMonsterName(monster.name || "");
-  const allMonsters = [...monsters, ...eventMonsters, ...ultraRareMonsters];
+  const allMonsters = [...monsters, MIXER_MONSTER, ...eventMonsters, ...ultraRareMonsters];
   const match = allMonsters.find(candidate =>
     candidate.key === monster.key ||
     cleanMonsterName(candidate.name).toLowerCase() === cleanName.toLowerCase()
@@ -1198,6 +1230,12 @@ function applyShiny(monster, player = null) {
 
 function getRandomMonster(player) {
   const event = getActiveEvent();
+
+  // The Mixer Monster is a separate Mythic encounter and is unaffected by
+  // events, habitat boosts, bait, and shiny rolls.
+  if (Math.random() * 100 < MIXER_MONSTER_ENCOUNTER_CHANCE) {
+    return { ...MIXER_MONSTER };
+  }
 
   let monster = null;
 
@@ -1541,7 +1579,7 @@ function formatSecretUnlocks(unlocks) {
 function getDexStats(data) {
   const stats = {};
 
-  [...monsters, ...eventMonsters, ...ultraRareMonsters].forEach(m => {
+  [...monsters, MIXER_MONSTER, ...eventMonsters, ...ultraRareMonsters].forEach(m => {
     stats[m.name] = {
       rarity: m.rarity,
       chance: m.chance ?? m.catchChance,
@@ -3660,7 +3698,7 @@ ${captureChoicesText(choices)}
 
   if (command.startsWith("!knowledge ")) {
     const search = cleanMonsterName(content.slice(11).trim()).toLowerCase();
-    const allMonsters = [...monsters, ...eventMonsters, ...ultraRareMonsters];
+    const allMonsters = [...monsters, MIXER_MONSTER, ...eventMonsters, ...ultraRareMonsters];
     const match = allMonsters.find(m => cleanMonsterName(m.name).toLowerCase() === search);
 
     if (!match) {
@@ -3904,7 +3942,7 @@ ${captureChoicesText(choices)}
       .replace(/!givemonster\s+<@!?\d+>\s*/i, "")
       .trim();
 
-    const allMonsters = [...monsters, ...eventMonsters, ...ultraRareMonsters];
+    const allMonsters = [...monsters, MIXER_MONSTER, ...eventMonsters, ...ultraRareMonsters];
 
     const match = allMonsters.find(m =>
       m.name.toLowerCase() === monsterName.toLowerCase() ||
