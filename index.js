@@ -3093,37 +3093,37 @@ ${captureChoicesText(choices)}
 
     const incubatorLines = Array.from({ length: slots }, (_, index) => {
       const incubation = active[index];
-      if (!incubation) return `**Slot ${index + 1}:** Empty`;
+      if (!incubation) return `**Incubator Slot ${index + 1}:** Empty`;
 
       const status = Date.now() >= incubation.readyAt
         ? "✅ **Ready to hatch!**"
         : `⏳ Ready <t:${Math.floor(incubation.readyAt / 1000)}:R>`;
 
-      return `**Slot ${index + 1}:** ${EGG_TYPES[incubation.rarity]?.icon || "🥚"} **${incubation.rarity} Egg** — ${status}`;
+      return (
+        `**Incubator Slot ${index + 1}:** ` +
+        `${EGG_TYPES[incubation.rarity]?.icon || "🥚"} **${incubation.rarity} Egg** — ${status}`
+      );
     }).join("\n");
 
-    const counts = Object.keys(EGG_TYPES)
-      .map(rarity => ({
-        rarity,
-        count: player.eggs.filter(egg => egg.rarity === rarity).length
-      }))
-      .filter(entry => entry.count > 0);
-
-    const inventory = counts.length > 0
-      ? counts.map(entry => `${EGG_TYPES[entry.rarity]?.icon || "🥚"} **${entry.rarity} Egg ×${entry.count}**`).join("\n")
+    const inventory = player.eggs.length > 0
+      ? player.eggs.map((egg, index) =>
+          `**${index + 1}.** ${EGG_TYPES[egg.rarity]?.icon || "🥚"} **${egg.rarity} Egg**`
+        ).join("\n")
       : "You do not currently own any unincubated eggs.";
 
     return message.reply(
       `🥚 **${formatPlayerName(player, message.author.username)}'s Egg Nursery**\n\n` +
       `⏳ **Incubators: ${active.length}/${slots} in use**\n${incubatorLines}\n\n` +
       `🎒 **Egg Inventory**\n${inventory}\n\n` +
-      `Use \`!incubate egg#\` to start an egg.\n` +
+      `Use \`!incubate common\`, \`!incubate rare\`, \`!incubate epic\`, or \`!incubate legendary\`.\n` +
+      `You can also use an egg number, such as \`!incubate 4\`.\n` +
       `Use \`!hatch\` to hatch the first ready egg or \`!hatch slot#\` to choose one.`
     );
   }
 
   if (command.startsWith("!incubate")) {
     const slots = getIncubatorSlots(player);
+
     if ((player.incubatingEggs || []).length >= slots) {
       return message.reply(
         `All **${slots} incubator${slots === 1 ? "" : "s"}** are currently in use. ` +
@@ -3131,12 +3131,34 @@ ${captureChoicesText(choices)}
       );
     }
 
-    const index = Number(content.slice("!incubate".length).trim() || "1") - 1;
-    if (!Number.isInteger(index) || !player.eggs[index]) {
-      return message.reply("Use `!incubate egg#`. Check your egg numbers with `!eggs`.");
+    if (player.eggs.length === 0) {
+      return message.reply("You do not have any eggs available to incubate.");
     }
 
-    const [egg] = player.eggs.splice(index, 1);
+    const input = content.slice("!incubate".length).trim();
+    let eggIndex = -1;
+
+    if (/^\d+$/.test(input)) {
+      eggIndex = Number(input) - 1;
+    } else {
+      const requestedRarity = Object.keys(EGG_TYPES).find(
+        rarity => rarity.toLowerCase() === input.toLowerCase()
+      );
+
+      if (requestedRarity) {
+        eggIndex = player.eggs.findIndex(egg => egg.rarity === requestedRarity);
+      }
+    }
+
+    if (eggIndex < 0 || !player.eggs[eggIndex]) {
+      return message.reply(
+        "Egg not found.\n" +
+        "Use `!incubate common`, `!incubate rare`, `!incubate epic`, or `!incubate legendary`.\n" +
+        "You can also use an egg number shown by `!eggs`, such as `!incubate 4`."
+      );
+    }
+
+    const [egg] = player.eggs.splice(eggIndex, 1);
     const duration = EGG_TYPES[egg.rarity]?.incubationMs || EGG_TYPES.Common.incubationMs;
     const incubation = {
       rarity: egg.rarity,
@@ -3148,9 +3170,11 @@ ${captureChoicesText(choices)}
     player.incubatingEggs.push(incubation);
     saveData(data);
 
+    const slotNumber = player.incubatingEggs.length;
+
     return message.reply(
-      `${EGG_TYPES[egg.rarity]?.icon || "🥚"} Your **${egg.rarity} Egg** is now incubating in ` +
-      `**Slot ${player.incubatingEggs.length}/${slots}**!\n` +
+      `${EGG_TYPES[egg.rarity]?.icon || "🥚"} Your **${egg.rarity} Egg** is now incubating!\n` +
+      `**Incubator Slot ${slotNumber} of ${slots}**\n` +
       `It will be ready <t:${Math.floor(incubation.readyAt / 1000)}:R>.`
     );
   }
