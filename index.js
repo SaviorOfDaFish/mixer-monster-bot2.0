@@ -541,6 +541,24 @@ function getOwnedPetDefinition(ownedPet) {
   return ownedPet ? getPetDefinition(ownedPet.key) : null;
 }
 
+function getPetDisplayIcon(definitionOrKey) {
+  const definition = typeof definitionOrKey === "string"
+    ? getPetDefinition(definitionOrKey)
+    : definitionOrKey;
+
+  if (!definition) return "🐾";
+
+  // Automatically use the custom Discord emoji whose name matches the pet key.
+  // Example: pet key "reef_snapper" uses the server emoji named reef_snapper.
+  const customEmoji = client.emojis.cache.find(
+    emoji => emoji.name?.toLowerCase() === definition.key.toLowerCase()
+  );
+
+  return customEmoji
+    ? `<:${customEmoji.name}:${customEmoji.id}>`
+    : definition.icon;
+}
+
 function getEquippedPet(player) {
   if (!player || player.equippedPetId === null || player.equippedPetId === undefined) return null;
   return player.pets.find(pet => String(pet.id) === String(player.equippedPetId)) || null;
@@ -594,7 +612,7 @@ function awardCompanionXp(player, amount, reason = "Companion XP") {
   const after = getCompanionLevelInfo(ownedPet).level;
 
   return (
-    `${definition.icon} **${definition.name} gained ${amount} Companion XP!** (${reason})\n` +
+    `${getPetDisplayIcon(definition)} **${definition.name} gained ${amount} Companion XP!** (${reason})\n` +
     `${companionXpBar(ownedPet)}` +
     `${after > before ? `\n🎉 **LEVEL UP! ${definition.name} reached Level ${after}!**` : ""}` +
     `${getPetBondLevel(ownedPet) > Math.min(MAX_PET_BOND_LEVEL, 1 + Math.floor((before - 1) / 5))
@@ -612,7 +630,8 @@ function getPetBonus(player, ability) {
 
 function getPlayerPetIcon(player) {
   const ownedPet = getEquippedPet(player);
-  return getOwnedPetDefinition(ownedPet)?.icon || "";
+  const definition = getOwnedPetDefinition(ownedPet);
+  return definition ? getPetDisplayIcon(definition) : "";
 }
 
 function formatPlayerMention(data, userId) {
@@ -738,12 +757,12 @@ function rollPetAffectionEvent(player) {
   }
 
   const events = {
-    Cheerful: `${definition.icon} **${definition.name}** celebrates the victory and refuses to leave your side.`,
-    Curious: `${definition.icon} **${definition.name}** studies the monster's tracks, then proudly returns to you.`,
-    Loyal: `${definition.icon} **${definition.name}** guards you while you recover from the hunt.`,
-    Mischievous: `${definition.icon} **${definition.name}** steals a trophy from the battlefield and presents it to you.`,
-    Sleepy: `${definition.icon} **${definition.name}** curls up beside you after the hunt, looking unusually content.`,
-    Brave: `${definition.icon} **${definition.name}** steps between you and danger without hesitation.`
+    Cheerful: `${getPetDisplayIcon(definition)} **${definition.name}** celebrates the victory and refuses to leave your side.`,
+    Curious: `${getPetDisplayIcon(definition)} **${definition.name}** studies the monster's tracks, then proudly returns to you.`,
+    Loyal: `${getPetDisplayIcon(definition)} **${definition.name}** guards you while you recover from the hunt.`,
+    Mischievous: `${getPetDisplayIcon(definition)} **${definition.name}** steals a trophy from the battlefield and presents it to you.`,
+    Sleepy: `${getPetDisplayIcon(definition)} **${definition.name}** curls up beside you after the hunt, looking unusually content.`,
+    Brave: `${getPetDisplayIcon(definition)} **${definition.name}** steps between you and danger without hesitation.`
   };
 
   ownedPet.affectionEvents = (ownedPet.affectionEvents || 0) + 1;
@@ -759,12 +778,12 @@ function companionReaction(player, caughtMonster) {
   if (!ownedPet || !definition || Math.random() * 100 >= PET_REACTION_CHANCE) return { text: "", rewards: [] };
 
   const reactions = {
-    Cheerful: `${definition.icon} **${definition.name}** cheers excitedly beside you!`,
-    Curious: `${definition.icon} **${definition.name}** carefully inspects the tracks left behind.`,
-    Loyal: `${definition.icon} **${definition.name}** stands proudly at your side.`,
-    Mischievous: `${definition.icon} **${definition.name}** darts around your new catch and causes a little chaos.`,
-    Sleepy: `${definition.icon} **${definition.name}** wakes up just long enough to celebrate.`,
-    Brave: `${definition.icon} **${definition.name}** lets out a fearless victory cry!`
+    Cheerful: `${getPetDisplayIcon(definition)} **${definition.name}** cheers excitedly beside you!`,
+    Curious: `${getPetDisplayIcon(definition)} **${definition.name}** carefully inspects the tracks left behind.`,
+    Loyal: `${getPetDisplayIcon(definition)} **${definition.name}** stands proudly at your side.`,
+    Mischievous: `${getPetDisplayIcon(definition)} **${definition.name}** darts around your new catch and causes a little chaos.`,
+    Sleepy: `${getPetDisplayIcon(definition)} **${definition.name}** wakes up just long enough to celebrate.`,
+    Brave: `${getPetDisplayIcon(definition)} **${definition.name}** lets out a fearless victory cry!`
   };
 
   const rewards = [];
@@ -773,16 +792,16 @@ function companionReaction(player, caughtMonster) {
     const roll = Math.random() * 100;
     if (roll < 55) {
       player.captureItems.berry++;
-      rewards.push(`${definition.icon} ${definition.name} found a ${CAPTURE_ITEMS.berry.name}!`);
+      rewards.push(`${getPetDisplayIcon(definition)} ${definition.name} found a ${CAPTURE_ITEMS.berry.name}!`);
     } else if (roll < 82) {
       player.captureItems.honey++;
-      rewards.push(`${definition.icon} ${definition.name} found a ${CAPTURE_ITEMS.honey.name}!`);
+      rewards.push(`${getPetDisplayIcon(definition)} ${definition.name} found a ${CAPTURE_ITEMS.honey.name}!`);
     } else if (roll < 96) {
       player.captureItems.net++;
-      rewards.push(`${definition.icon} ${definition.name} found an ${CAPTURE_ITEMS.net.name}!`);
+      rewards.push(`${getPetDisplayIcon(definition)} ${definition.name} found an ${CAPTURE_ITEMS.net.name}!`);
     } else {
       player.points += 10;
-      rewards.push(`${definition.icon} ${definition.name} found **10 Hunter Points**!`);
+      rewards.push(`${getPetDisplayIcon(definition)} ${definition.name} found **10 Hunter Points**!`);
     }
     ownedPet.timesHelped = (ownedPet.timesHelped || 0) + 1;
   }
@@ -3172,7 +3191,7 @@ ${captureChoicesText(choices)}
     saveData(data);
 
     return message.reply(
-      `${definition.icon} **YOUR ${rarity.toUpperCase()} EGG HATCHED!**\n\n` +
+      `${getPetDisplayIcon(definition)} **YOUR ${rarity.toUpperCase()} EGG HATCHED!**\n\n` +
       `You received **${definition.name}**!\n` +
       `Rarity: **${definition.rarity}**\n` +
       `Habitat: **${definition.habitat}**\n` +
@@ -3199,7 +3218,7 @@ ${captureChoicesText(choices)}
       const marker = player.equippedPetId === owned.id ? "⭐" : `${index + 1}.`;
 
       return (
-        `${marker} ${definition?.icon || "🐾"} **${definition?.name || owned.key}** — ` +
+        `${marker} ${definition ? getPetDisplayIcon(definition) : "🐾"} **${definition?.name || owned.key}** — ` +
         `${definition?.rarity || "Unknown"} | Level ${getCompanionLevelInfo(owned).level} | Bond ${getPetBondLevel(owned)} | ${owned.personality}\n` +
         `   ✨ Passive: **${petPassiveTextForOwned(owned)}**\n` +
         `   ⭐ XP: **${getCompanionLevelInfo(owned).level >= MAX_COMPANION_LEVEL ? "MAX" : `${getCompanionLevelInfo(owned).xpIntoLevel}/${getCompanionLevelInfo(owned).xpNeeded}`}**`
@@ -3220,7 +3239,7 @@ ${captureChoicesText(choices)}
       const reward = PET_COLLECTIONS[habitat];
       const entries = habitatPets
         .map(definition =>
-          `${ownedKeys.has(definition.key) ? "✅" : "⬜"} ${definition.icon} **${definition.name}** — ${definition.rarity}`
+          `${ownedKeys.has(definition.key) ? "✅" : "⬜"} ${getPetDisplayIcon(definition)} **${definition.name}** — ${definition.rarity}`
         )
         .join("\n");
 
@@ -3241,7 +3260,7 @@ ${captureChoicesText(choices)}
     if (!owned) return message.reply("Pet not found. Use `!pets` to view your pet numbers.");
     const definition = getOwnedPetDefinition(owned);
     return message.reply(
-      `${definition.icon} **${definition.name}**
+      `${getPetDisplayIcon(definition)} **${definition.name}**
 
 ` +
       `Rarity: **${definition.rarity}**
@@ -3270,7 +3289,7 @@ ${captureChoicesText(choices)}
     player.equippedPetId = owned.id;
     saveData(data);
     const definition = getOwnedPetDefinition(owned);
-    return message.reply(`${definition.icon} You equipped **${definition.name}**!\nPassive: **${petPassiveText(player)}**\nIts icon will now appear beside your name in Monster Hunt messages.`);
+    return message.reply(`${getPetDisplayIcon(definition)} You equipped **${definition.name}**!\nPassive: **${petPassiveText(player)}**\nIts icon will now appear beside your name in Monster Hunt messages.`);
   }
 
   if (command === "!unequippet") {
