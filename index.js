@@ -4183,46 +4183,104 @@ ${captureChoicesText(choices)}
   if (command === "!dex" || command.startsWith("!dex ")) {
     const input = content.slice("!dex".length).trim();
     const stats = getDexStats(data);
-    const monsterNames = Object.keys(stats);
+
+    // The Dex is discovery-based. Only species this player has actually
+    // caught are visible; undiscovered monsters remain completely secret.
+    const discoveredMap = new Map();
+
+    for (const caughtMonster of player.lifetimeCaught || []) {
+      const cleanName = cleanMonsterName(caughtMonster.name);
+      if (!cleanName || discoveredMap.has(cleanName.toLowerCase())) continue;
+
+      discoveredMap.set(cleanName.toLowerCase(), {
+        name: cleanName,
+        rarity: caughtMonster.rarity || stats[cleanName]?.rarity || "Unknown",
+        shinyCaught: Boolean(caughtMonster.shiny)
+      });
+    }
+
+    const discoveredNames = [...discoveredMap.values()]
+      .map(entry => entry.name)
+      .sort((a, b) => a.localeCompare(b));
+
+    if (discoveredNames.length === 0) {
+      return message.reply(
+        `📖 **${formatPlayerName(player, message.author.username)}'s Monster Dex**\n\n` +
+        `You have not discovered any monsters yet.\n` +
+        `Use \`!hunt\` and successfully capture a creature to add it to your Dex.`
+      );
+    }
 
     if (input && !/^\d+$/.test(input)) {
-      const search = input.toLowerCase();
-      const matchName = monsterNames.find(name => name.toLowerCase() === search);
-      if (!matchName) return message.reply("That monster is not in the Dex.");
+      const search = cleanMonsterName(input).toLowerCase();
+      const matchName = discoveredNames.find(
+        name => cleanMonsterName(name).toLowerCase() === search
+      );
+
+      if (!matchName) {
+        return message.reply(
+          "That creature has not been discovered in your Monster Dex."
+        );
+      }
 
       const info = stats[matchName];
+      const ownedCopies = (player.lifetimeCaught || []).filter(
+        monster => cleanMonsterName(monster.name) === cleanMonsterName(matchName)
+      );
+      const shinyCopies = ownedCopies.filter(monster => monster.shiny).length;
+      const rarity = info?.rarity || ownedCopies[0]?.rarity || "Unknown";
+      const baseChance = info?.chance;
+
       return message.reply(
         `📖 **${matchName}**\n\n` +
-        `Rarity: **${info.rarity}**\n` +
-        `Base Capture Chance: **${info.chance}%**\n` +
+        `Rarity: **${rarity}**\n` +
+        `${baseChance !== undefined ? `Base Capture Chance: **${baseChance}%**\n` : ""}` +
+        `Your Lifetime Catches: **${ownedCopies.length}**\n` +
+        `Your Shiny Catches: **${shinyCopies}**\n` +
         `Your Encounters: **${getKnowledgeCount(player, matchName)}**\n` +
         `Your Knowledge Bonus: **+${getKnowledgeBonus(getKnowledgeCount(player, matchName))}%**\n` +
-        `Times Caught Server-Wide: **${info.caught}**\n` +
-        `First Caught By: ${info.firstCaughtBy ? formatPlayerMention(data, info.firstCaughtBy) : "Nobody yet"}`
+        `${info ? `Times Caught Server-Wide: **${info.caught}**\n` : ""}` +
+        `${info?.firstCaughtBy
+          ? `First Caught By: ${formatPlayerMention(data, info.firstCaughtBy)}`
+          : "First Caught By: Unknown"}`
       );
     }
 
     const pageSize = 10;
     const requestedPage = Number(input || "1");
-    const totalPages = Math.max(1, Math.ceil(monsterNames.length / pageSize));
+    const totalPages = Math.max(1, Math.ceil(discoveredNames.length / pageSize));
     const page = Number.isInteger(requestedPage)
       ? Math.max(1, Math.min(totalPages, requestedPage))
       : 1;
-    const pageNames = monsterNames.slice((page - 1) * pageSize, page * pageSize);
+
+    const pageNames = discoveredNames.slice(
+      (page - 1) * pageSize,
+      page * pageSize
+    );
 
     const lines = pageNames.map(name => {
       const info = stats[name];
-      const personallyCaught = (player.lifetimeCaught || []).some(monster => cleanMonsterName(monster.name) === cleanMonsterName(name));
-      return `${personallyCaught ? "✅" : "⬜"} **${name}** — ${info.rarity} | Server Catches: ${info.caught}`;
+      const ownedCopies = (player.lifetimeCaught || []).filter(
+        monster => cleanMonsterName(monster.name) === cleanMonsterName(name)
+      );
+      const shinyCopies = ownedCopies.filter(monster => monster.shiny).length;
+      const rarity = info?.rarity || ownedCopies[0]?.rarity || "Unknown";
+
+      return (
+        `✅ **${name}** — ${rarity}` +
+        ` | Caught: ${ownedCopies.length}` +
+        `${shinyCopies > 0 ? ` | ✨ Shiny: ${shinyCopies}` : ""}`
+      );
     });
 
     return message.reply(
-      `📖 **Monster Dex**\n` +
+      `📖 **${formatPlayerName(player, message.author.username)}'s Monster Dex**\n` +
+      `Discovered Species: **${discoveredNames.length}**\n` +
       `Page **${page}/${totalPages}**\n\n` +
       `${lines.join("\n")}\n\n` +
-      `✅ = In your lifetime collection\n` +
+      `Only monsters you have personally caught are shown.\n` +
       `Use \`!dex ${page < totalPages ? page + 1 : 1}\` to ${page < totalPages ? "view the next page" : "return to page 1"}.\n` +
-      `Use \`!dex monster name\` for full details.`
+      `Use \`!dex monster name\` for details about a discovered creature.`
     );
   }
 
