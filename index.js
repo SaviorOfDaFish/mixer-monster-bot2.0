@@ -409,6 +409,126 @@ const ULTRA_META_ACHIEVEMENTS = {
   allSummoned: { achievement: "The Summoner", title: "World Summoner" },
   veteran: { achievement: "Veteran Monster Hunter", title: "Legendary Hunter" }
 };
+
+const TITLE_RARITY_ICONS = {
+  Common: "⚪",
+  Rare: "🔵",
+  Epic: "🟣",
+  Legendary: "🟠",
+  Mythic: "🌈"
+};
+
+const HIDDEN_TITLE_DEFINITIONS = [
+  // Hunts and captures
+  { name: "First Footfall", rarity: "Common", check: p => (p.huntCount || 0) >= 1 },
+  { name: "Trail Reader", rarity: "Common", check: p => (p.huntCount || 0) >= 10 },
+  { name: "Wildpath Seeker", rarity: "Rare", check: p => (p.huntCount || 0) >= 25 },
+  { name: "Untiring Pursuer", rarity: "Epic", check: p => (p.huntCount || 0) >= 100 },
+  { name: "Footprints Without End", rarity: "Legendary", check: p => (p.huntCount || 0) >= 250 },
+  { name: "Creature Keeper", rarity: "Common", check: p => (p.caught || []).length >= 10 },
+  { name: "Menagerie Maker", rarity: "Rare", check: p => (p.caught || []).length >= 25 },
+  { name: "Warden of the Wild", rarity: "Epic", check: p => (p.caught || []).length >= 50 },
+  { name: "Hundredfold Hunter", rarity: "Legendary", check: p => (p.caught || []).length >= 100 },
+
+  // Points
+  { name: "Rising Mark", rarity: "Common", check: p => (p.points || 0) >= 100 },
+  { name: "Silver Trail", rarity: "Rare", check: p => (p.points || 0) >= 250 },
+  { name: "Guild Proven", rarity: "Epic", check: p => (p.points || 0) >= 500 },
+  { name: "Crown of the Chase", rarity: "Legendary", check: p => (p.points || 0) >= 1000 },
+  { name: "Beyond the Scoreboard", rarity: "Mythic", check: p => (p.points || 0) >= 2500 },
+
+  // Shiny and rarity accomplishments
+  { name: "Spark-Touched", rarity: "Rare", check: p => (p.caught || []).filter(m => m.shiny).length >= 1 },
+  { name: "Prism Pursuer", rarity: "Epic", check: p => (p.caught || []).filter(m => m.shiny).length >= 5 },
+  { name: "Radiance Bound", rarity: "Legendary", check: p => (p.caught || []).filter(m => m.shiny).length >= 10 },
+  { name: "Rare Resonance", rarity: "Rare", check: p => (p.caught || []).filter(m => m.rarity === "Rare").length >= 10 },
+  { name: "Epic Echo", rarity: "Epic", check: p => (p.caught || []).filter(m => m.rarity === "Epic").length >= 10 },
+  { name: "Legend Magnet", rarity: "Legendary", check: p => (p.caught || []).filter(m => m.rarity === "Legendary").length >= 5 },
+
+  // Knowledge
+  { name: "Field Notes", rarity: "Common", check: p => Object.values(p.knowledge || {}).filter(v => v >= 3).length >= 5 },
+  { name: "Beast Linguist", rarity: "Rare", check: p => Object.values(p.knowledge || {}).filter(v => v >= 5).length >= 5 },
+  { name: "Living Archive", rarity: "Epic", check: p => Object.values(p.knowledge || {}).filter(v => v >= 10).length >= 5 },
+  { name: "Keeper of True Names", rarity: "Legendary", check: p => Object.values(p.knowledge || {}).filter(v => v >= 20).length >= 10 },
+
+  // Eggs and companions
+  { name: "Nestfinder", rarity: "Common", check: p => (p.titleProgress?.eggsFound || 0) >= 1 },
+  { name: "Shell Cartographer", rarity: "Rare", check: p => (p.titleProgress?.eggsFound || 0) >= 10 },
+  { name: "Keeper of Warmth", rarity: "Common", check: p => (p.titleProgress?.eggsHatched || 0) >= 1 },
+  { name: "Cradle of Wonders", rarity: "Epic", check: p => (p.titleProgress?.eggsHatched || 0) >= 10 },
+  { name: "Golden Cradle", rarity: "Legendary", check: p => (p.pets || []).some(x => getOwnedPetDefinition(x)?.rarity === "Legendary") },
+  { name: "Chosen Companion", rarity: "Common", check: p => Boolean(getEquippedPet(p)) },
+  { name: "Bondforged", rarity: "Rare", check: p => (p.pets || []).some(x => getPetBondLevel(x) >= 2) },
+  { name: "Kindred Pulse", rarity: "Epic", check: p => (p.pets || []).some(x => getPetBondLevel(x) >= 3) },
+  { name: "Soulbound Pair", rarity: "Legendary", check: p => (p.pets || []).some(x => getPetBondLevel(x) >= 5) },
+  { name: "Companion Ascendant", rarity: "Legendary", check: p => (p.pets || []).some(x => getCompanionLevelInfo(x).level >= MAX_COMPANION_LEVEL) },
+  { name: "Heartheard", rarity: "Epic", check: p => (p.pets || []).reduce((n, x) => n + (x.affectionEvents || 0), 0) >= 25 },
+
+  // Ultra progression
+  { name: "Rift Witness", rarity: "Rare", check: p => (p.ultraParticipationCount || 0) >= 1 },
+  { name: "Beyond the Veil", rarity: "Epic", check: p => (p.ultraParticipationCount || 0) >= 10 },
+  { name: "Rift-Hardened", rarity: "Legendary", check: p => (p.ultraParticipationCount || 0) >= 25 },
+  { name: "Impossible Aim", rarity: "Epic", check: p => (p.titleProgress?.ultraAttempts || 0) >= 25 },
+  { name: "Titan Taker", rarity: "Legendary", check: p => (p.ultraCaughtKeys || []).length >= 1 },
+  { name: "Relic Awakened", rarity: "Rare", check: p => Object.values(p.relics || {}).some(v => v > 0) },
+  { name: "Caller from Beyond", rarity: "Epic", check: p => (p.ultraSummonedKeys || []).length >= 1 },
+
+  // Item, bait, and unusual secret accomplishments
+  { name: "Well Supplied", rarity: "Rare", check: p => (p.titleProgress?.captureItemsUsed || 0) >= 10 },
+  { name: "Empty Satchel", rarity: "Epic", check: p => (p.titleProgress?.captureItemsUsed || 0) >= 50 },
+  { name: "Charmburner", rarity: "Legendary", check: p => (p.titleProgress?.masterCharmUsed || 0) >= 1 },
+  { name: "Scentweaver", rarity: "Rare", check: p => (p.titleProgress?.baitUsed || 0) >= 10 },
+  { name: "Professional Escape Artist", rarity: "Rare", check: p => (p.titleProgress?.failedCaptureStreak || 0) >= 10 },
+  { name: "Almost Certain", rarity: "Epic", check: p => Boolean(p.titleProgress?.failedAtNinety) },
+  { name: "The One Percent", rarity: "Mythic", check: p => Boolean(p.titleProgress?.mixerWithoutCharm) },
+  { name: "Against the Cosmos", rarity: "Mythic", check: p => Boolean(p.titleProgress?.ultraAtFiveOrLess) }
+];
+
+function getTitleDefinition(titleName) {
+  const builtIn = HIDDEN_TITLE_DEFINITIONS.find(title => title.name === titleName);
+  if (builtIn) return builtIn;
+
+  const specialRarity = [
+    "The Chosen Mixer", "Master Beast Tamer"
+  ].includes(titleName) ? "Mythic" :
+  ["Worldbreaker", "The All-Seeing", "Timewalker", "Starforged", "Soulkeeper", "Ultra Hunter", "Relic Keeper", "World Summoner", "Legendary Hunter"].includes(titleName)
+    ? "Legendary"
+    : "Epic";
+
+  return { name: titleName, rarity: specialRarity };
+}
+
+function formatTitle(titleName) {
+  const definition = getTitleDefinition(titleName);
+  return `${TITLE_RARITY_ICONS[definition.rarity] || "⚪"} ${titleName}`;
+}
+
+function checkTitleUnlocks(player) {
+  const newlyUnlocked = [];
+  if (!Array.isArray(player.unlockedTitles)) player.unlockedTitles = [];
+
+  for (const definition of HIDDEN_TITLE_DEFINITIONS) {
+    if (!player.unlockedTitles.includes(definition.name) && definition.check(player)) {
+      player.unlockedTitles.push(definition.name);
+      newlyUnlocked.push(definition);
+    }
+  }
+
+  return newlyUnlocked;
+}
+
+async function announceTitleUnlocks(message, unlocks) {
+  if (!unlocks || unlocks.length === 0) return;
+
+  for (const unlock of unlocks) {
+    await message.channel.send(
+      `🏆 **SECRET TITLE UNLOCKED!**\n\n` +
+      `${TITLE_RARITY_ICONS[unlock.rarity] || "⚪"} **${unlock.name}**\n\n` +
+      `Use \`!title ${unlock.name}\` to equip it.`
+    );
+  }
+}
+
 function loadData() {
   const data = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
 
@@ -485,6 +605,18 @@ function getPlayer(data, userId) {
       pets: [],
       equippedPetId: null,
       nextPetId: 1,
+      titleProgress: {
+        eggsFound: 0,
+        eggsHatched: 0,
+        ultraAttempts: 0,
+        captureItemsUsed: 0,
+        masterCharmUsed: 0,
+        baitUsed: 0,
+        failedCaptureStreak: 0,
+        failedAtNinety: false,
+        mixerWithoutCharm: false,
+        ultraAtFiveOrLess: false
+      },
       relics: {
         abyssalInk: 0,
         ancientDragonScale: 0,
@@ -560,6 +692,16 @@ function getPlayer(data, userId) {
   }
 
   if (!Array.isArray(player.pets)) player.pets = [];
+  if (!player.titleProgress || typeof player.titleProgress !== "object") player.titleProgress = {};
+  const titleProgressDefaults = {
+    eggsFound: 0, eggsHatched: 0, ultraAttempts: 0,
+    captureItemsUsed: 0, masterCharmUsed: 0, baitUsed: 0,
+    failedCaptureStreak: 0, failedAtNinety: false,
+    mixerWithoutCharm: false, ultraAtFiveOrLess: false
+  };
+  for (const [key, value] of Object.entries(titleProgressDefaults)) {
+    if (player.titleProgress[key] === undefined) player.titleProgress[key] = value;
+  }
   if (player.equippedPetId === undefined) player.equippedPetId = null;
   if (!Number.isInteger(player.nextPetId) || player.nextPetId < 1) {
     player.nextPetId = player.pets.reduce((max, pet) => Math.max(max, Number(pet.id) || 0), 0) + 1;
@@ -823,6 +965,7 @@ function maybeFindEgg(player) {
   const rarity = rollEggRarity(player);
   if (!rarity) return null;
   player.eggs.push({ rarity, foundAt: Date.now() });
+  player.titleProgress.eggsFound = (player.titleProgress.eggsFound || 0) + 1;
   return rarity;
 }
 
@@ -1027,7 +1170,13 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
   const chanceInfo = calculateCaptureChance(player, monster, itemKey);
   const roll = Math.floor(Math.random() * 100) + 1;
 
-  if (itemKey) player.captureItems[itemKey]--;
+  if (itemKey) {
+    player.captureItems[itemKey]--;
+    player.titleProgress.captureItemsUsed = (player.titleProgress.captureItemsUsed || 0) + 1;
+    if (itemKey === "masterCharm") {
+      player.titleProgress.masterCharmUsed = (player.titleProgress.masterCharmUsed || 0) + 1;
+    }
+  }
 
   const caught = chanceInfo.guaranteed || roll <= chanceInfo.total;
   const event = getActiveEvent();
@@ -1055,6 +1204,11 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
     );
     const incubatorUnlockText = getNewIncubatorUnlockText(player, previousPoints);
     const isMixerMonster = cleanMonsterName(monster.name) === "Mixer Monster";
+    player.titleProgress.failedCaptureStreak = 0;
+    if (isMixerMonster && itemKey !== "masterCharm") {
+      player.titleProgress.mixerWithoutCharm = true;
+    }
+
     const mixerUnlocks = isMixerMonster
       ? unlockSecretReward(
           player,
@@ -1063,7 +1217,9 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
         )
       : [];
 
+    const automaticTitleUnlocks = checkTitleUnlocks(player);
     saveData(data);
+    await announceTitleUnlocks(message, automaticTitleUnlocks);
 
     if (isMixerMonster) {
       await message.channel.send(
@@ -1510,10 +1666,8 @@ function unlockedAchievements(player) {
 }
 
 function getAvailableTitles(player) {
-  return [...new Set([
-    ...unlockedAchievements(player),
-    ...(player.unlockedTitles || [])
-  ])];
+  checkTitleUnlocks(player);
+  return [...new Set(player.unlockedTitles || [])];
 }
 
 function unlockSecretReward(player, achievementName, titleName) {
@@ -1950,6 +2104,10 @@ async function performUltraCaptureAttempt(message, monsterKey, itemKey = null) {
   participant.attempts++;
   participant.lastAttempt = Date.now();
   state.participants[message.author.id] = participant;
+  player.titleProgress.ultraAttempts = (player.titleProgress.ultraAttempts || 0) + 1;
+  if (chanceInfo.total <= 5 && (chanceInfo.guaranteed || roll <= chanceInfo.total)) {
+    player.titleProgress.ultraAtFiveOrLess = true;
+  }
 
   const personalEffect = getUltraPersonalEffect(state, message.author.id);
   personalEffect.markedPenalty = 0;
@@ -1961,7 +2119,9 @@ async function performUltraCaptureAttempt(message, monsterKey, itemKey = null) {
   }
 
   state.failedAttempts = (state.failedAttempts || 0) + 1;
+  const automaticTitleUnlocks = checkTitleUnlocks(player);
   saveData(data);
+  await announceTitleUnlocks(message, automaticTitleUnlocks);
 
   let personalityText = "";
   if (monster.key === "worldeater") {
@@ -2591,8 +2751,10 @@ async function resolveUltraCatch(message, monster, state, roll, chance, itemKey 
 
   const relicResult = maybeAwardUltraRelic(data, catcher, monster);
   catcherUnlocks.push(...evaluateUltraSecretRewards(catcher));
+  const automaticTitleUnlocks = checkTitleUnlocks(catcher);
 
   saveData(data);
+  await announceTitleUnlocks(message, automaticTitleUnlocks);
 
   await message.channel.send(
     buildMonsterEmbed(
@@ -3233,7 +3395,9 @@ ${captureChoicesText(choices)}
       summoner.ultraSummonedKeys.push(monster.key);
     }
     const summonUnlocks = evaluateUltraSecretRewards(summoner);
+    const automaticTitleUnlocks = checkTitleUnlocks(summoner);
     saveData(summonData);
+    await announceTitleUnlocks(message, automaticTitleUnlocks);
 
     return message.reply(
       `💎 You sacrificed **${monster.relicName}**.\n` +
@@ -3409,9 +3573,12 @@ ${captureChoicesText(choices)}
     player.activeBait = null;
     player.lastHunt = now;
     player.huntCount++;
+    if (usedBait) player.titleProgress.baitUsed = (player.titleProgress.baitUsed || 0) + 1;
 
     updateQuestProgress(player, "hunt");
+    const automaticTitleUnlocks = checkTitleUnlocks(player);
     saveData(data);
+    await announceTitleUnlocks(message, automaticTitleUnlocks);
 
     const choices = buildCaptureChoices(player, monster);
     const validNumbers = choices.map(choice => choice.number);
@@ -3609,12 +3776,15 @@ ${captureChoicesText(choices)}
     player.pets.push(ownedPet);
     player.incubatingEggs.splice(incubationIndex, 1);
     player.points += hatchPoints + dexBonus;
+    player.titleProgress.eggsHatched = (player.titleProgress.eggsHatched || 0) + 1;
 
     if (player.equippedPetId === null) player.equippedPetId = ownedPet.id;
 
     const incubatorUnlockText = getNewIncubatorUnlockText(player, previousPoints);
     const petCollectionUnlocks = evaluatePetCollectionRewards(player);
+    const automaticTitleUnlocks = checkTitleUnlocks(player);
     saveData(data);
+    await announceTitleUnlocks(message, automaticTitleUnlocks);
 
     const hatchMessage = await message.reply(
       `${EGG_TYPES[rarity]?.icon || "🥚"} **The ${rarity} Egg begins to shake...**`
@@ -3681,27 +3851,30 @@ ${captureChoicesText(choices)}
     );
   }
 
-  if (command === "!petdex") {
+  if (command === "!petdex" || command.startsWith("!petdex ")) {
     const ownedKeys = new Set(player.pets.map(pet => pet.key));
+    const habitatNames = Object.keys(PET_COLLECTIONS);
+    const habitatsPerPage = 2;
+    const totalPages = Math.ceil(habitatNames.length / habitatsPerPage);
+    const requestedPage = Number(content.slice("!petdex".length).trim() || "1");
+    const page = Number.isInteger(requestedPage) ? Math.max(1, Math.min(totalPages, requestedPage)) : 1;
+    const pageHabitats = habitatNames.slice((page - 1) * habitatsPerPage, page * habitatsPerPage);
 
-    const habitatSections = Object.keys(PET_COLLECTIONS).map(habitat => {
+    const habitatSections = pageHabitats.map(habitat => {
       const habitatPets = pets.filter(pet => pet.habitat === habitat);
       const reward = PET_COLLECTIONS[habitat];
-      const entries = habitatPets
-        .map(definition =>
-          `${ownedKeys.has(definition.key) ? "✅" : "⬜"} ${getPetDisplayIcon(definition)} **${definition.name}** — ${definition.rarity}`
-        )
-        .join("\n");
-
-      return `${reward.icon} **${habitat} Companions**\n${entries}`;
+      const collected = habitatPets.filter(pet => ownedKeys.has(pet.key)).length;
+      const entries = habitatPets.map(definition =>
+        `${ownedKeys.has(definition.key) ? "✅" : "⬜"} ${getPetDisplayIcon(definition)} **${definition.name}** — ${definition.rarity}`
+      ).join("\n");
+      return `${reward.icon} **${habitat} Companions — ${collected}/${habitatPets.length}**\n${entries}`;
     }).join("\n\n");
 
     return message.reply(
-      `📖 **Pet Dex**\n` +
-      `Collected: **${ownedKeys.size}/${pets.length}**\n\n` +
-      `🏆 **Habitat Collection Progress**\n${petCollectionProgressText(player)}\n\n` +
+      `📖 **${formatPlayerName(player, message.author.username)}'s Pet Dex**\n` +
+      `Collected: **${ownedKeys.size}/${pets.length} companions** | Page **${page}/${totalPages}**\n\n` +
       `${habitatSections}\n\n` +
-      `Collect all **32 companions** to unlock the title **Master Beast Tamer**.`
+      `Use \`!petdex ${page < totalPages ? page + 1 : 1}\` to ${page < totalPages ? "view the next page" : "return to page 1"}.`
     );
   }
 
@@ -3737,7 +3910,9 @@ ${captureChoicesText(choices)}
     const owned = resolveOwnedPet(player, content.slice(10));
     if (!owned) return message.reply("Pet not found. Use `!pets` to view your pet numbers.");
     player.equippedPetId = owned.id;
+    const automaticTitleUnlocks = checkTitleUnlocks(player);
     saveData(data);
+    await announceTitleUnlocks(message, automaticTitleUnlocks);
     const definition = getOwnedPetDefinition(owned);
     return message.reply(`${getPetDisplayIcon(definition)} You equipped **${definition.name}**!\nPassive: **${petPassiveText(player)}**\nIts icon will now appear beside your name in Monster Hunt messages.`);
   }
@@ -3961,14 +4136,34 @@ ${captureChoicesText(choices)}
     return message.reply(text);
   }
 
-  if (command === "!title") {
+  if (command === "!title" || command === "!titles" || command.startsWith("!titles ")) {
+    const newlyUnlocked = checkTitleUnlocks(player);
+    saveData(data);
+    await announceTitleUnlocks(message, newlyUnlocked);
+
     const unlocked = getAvailableTitles(player);
-    if (unlocked.length === 0) return message.reply("You haven't unlocked any titles yet!");
+    if (unlocked.length === 0) {
+      return message.reply(
+        "🎖️ You have not discovered any secret titles yet. Keep hunting, hatching, exploring, and facing the unknown."
+      );
+    }
+
+    const pageSize = 10;
+    const requestedPage = command.startsWith("!titles ")
+      ? Number(content.slice("!titles".length).trim())
+      : 1;
+    const totalPages = Math.max(1, Math.ceil(unlocked.length / pageSize));
+    const page = Number.isInteger(requestedPage)
+      ? Math.max(1, Math.min(totalPages, requestedPage))
+      : 1;
+    const pageTitles = unlocked.slice((page - 1) * pageSize, page * pageSize);
 
     return message.reply(
-      `🎖️ **Your Available Titles**\n\n` +
-      unlocked.map(t => `• ${t}`).join("\n") +
-      `\n\nUse \`!title Title Name\` to equip one.`
+      `🎖️ **${formatPlayerName(player, message.author.username)}'s Discovered Titles**\n` +
+      `Page **${page}/${totalPages}**\n\n` +
+      pageTitles.map(title => `${player.title === title ? "⭐" : "•"} ${formatTitle(title)}`).join("\n") +
+      `\n\n⭐ = Equipped\nUse \`!title Title Name\` to equip one.` +
+      `${page < totalPages ? `\nUse \`!titles ${page + 1}\` for the next page.` : ""}`
     );
   }
 
@@ -3977,44 +4172,57 @@ ${captureChoicesText(choices)}
     const unlocked = getAvailableTitles(player);
     const match = unlocked.find(t => t.toLowerCase() === wantedTitle.toLowerCase());
 
-    if (!match) return message.reply("You haven't unlocked that title yet. Use `!achievements` to see your progress.");
+    if (!match) return message.reply("You have not discovered that title. Undiscovered titles and their requirements remain secret.");
 
     player.title = match;
     saveData(data);
 
-    return message.reply(`🎖️ You equipped the title **${match}**!`);
+    return message.reply(`🎖️ You equipped ${formatTitle(match)}!`);
   }
 
-  if (command === "!dex") {
+  if (command === "!dex" || command.startsWith("!dex ")) {
+    const input = content.slice("!dex".length).trim();
     const stats = getDexStats(data);
-    let text = "📖 **Monster Dex**\n\n";
+    const monsterNames = Object.keys(stats);
 
-    for (const [name, info] of Object.entries(stats)) {
-      text += `**${name}** — ${info.rarity} | Caught: ${info.caught}\n`;
+    if (input && !/^\d+$/.test(input)) {
+      const search = input.toLowerCase();
+      const matchName = monsterNames.find(name => name.toLowerCase() === search);
+      if (!matchName) return message.reply("That monster is not in the Dex.");
+
+      const info = stats[matchName];
+      return message.reply(
+        `📖 **${matchName}**\n\n` +
+        `Rarity: **${info.rarity}**\n` +
+        `Base Capture Chance: **${info.chance}%**\n` +
+        `Your Encounters: **${getKnowledgeCount(player, matchName)}**\n` +
+        `Your Knowledge Bonus: **+${getKnowledgeBonus(getKnowledgeCount(player, matchName))}%**\n` +
+        `Times Caught Server-Wide: **${info.caught}**\n` +
+        `First Caught By: ${info.firstCaughtBy ? formatPlayerMention(data, info.firstCaughtBy) : "Nobody yet"}`
+      );
     }
 
-    text += `\nUse \`!dex monster name\` for details.`;
+    const pageSize = 10;
+    const requestedPage = Number(input || "1");
+    const totalPages = Math.max(1, Math.ceil(monsterNames.length / pageSize));
+    const page = Number.isInteger(requestedPage)
+      ? Math.max(1, Math.min(totalPages, requestedPage))
+      : 1;
+    const pageNames = monsterNames.slice((page - 1) * pageSize, page * pageSize);
 
-    return message.reply(text);
-  }
-
-  if (command.startsWith("!dex ")) {
-    const search = content.slice(5).trim().toLowerCase();
-    const stats = getDexStats(data);
-    const matchName = Object.keys(stats).find(name => name.toLowerCase() === search);
-
-    if (!matchName) return message.reply("That monster is not in the Dex.");
-
-    const info = stats[matchName];
+    const lines = pageNames.map(name => {
+      const info = stats[name];
+      const personallyCaught = (player.lifetimeCaught || []).some(monster => cleanMonsterName(monster.name) === cleanMonsterName(name));
+      return `${personallyCaught ? "✅" : "⬜"} **${name}** — ${info.rarity} | Server Catches: ${info.caught}`;
+    });
 
     return message.reply(
-      `📖 **${matchName}**\n\n` +
-      `Rarity: **${info.rarity}**\n` +
-      `Base Capture Chance: **${info.chance}%**\n` +
-      `Your Encounters: **${getKnowledgeCount(player, matchName)}**\n` +
-      `Your Knowledge Bonus: **+${getKnowledgeBonus(getKnowledgeCount(player, matchName))}%**\n` +
-      `Times Caught Server-Wide: **${info.caught}**\n` +
-      `First Caught By: ${info.firstCaughtBy ? formatPlayerMention(data, info.firstCaughtBy) : "Nobody yet"}`
+      `📖 **Monster Dex**\n` +
+      `Page **${page}/${totalPages}**\n\n` +
+      `${lines.join("\n")}\n\n` +
+      `✅ = In your lifetime collection\n` +
+      `Use \`!dex ${page < totalPages ? page + 1 : 1}\` to ${page < totalPages ? "view the next page" : "return to page 1"}.\n` +
+      `Use \`!dex monster name\` for full details.`
     );
   }
 
@@ -4339,6 +4547,12 @@ ${captureChoicesText(choices)}
         pets: [],
         equippedPetId: null,
         nextPetId: 1,
+        titleProgress: {
+          eggsFound: 0, eggsHatched: 0, ultraAttempts: 0,
+          captureItemsUsed: 0, masterCharmUsed: 0, baitUsed: 0,
+          failedCaptureStreak: 0, failedAtNinety: false,
+          mixerWithoutCharm: false, ultraAtFiveOrLess: false
+        },
         relics: Object.fromEntries(RELIC_KEYS.map(relicKey => [relicKey, 0]))
       };
     }
