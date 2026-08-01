@@ -194,6 +194,23 @@ const CAPTURE_ITEMS = {
 const MONSTER_NOTIFY_ROLE = "1531471045805084743";
 const MONSTER_CHANNEL_ID = "1508543158521168093";
 
+// ==================== ONE-TIME SEASON 2 LAUNCH ====================
+// Opens both launch channels for both launch roles at 12:00 PM Mountain Time.
+const SEASON_LAUNCH_DATE = "2026-08-02";
+const SEASON_LAUNCH_TIMEZONE = "America/Denver";
+
+const SEASON_LAUNCH_ROLE_IDS = [
+  "1521532551339180122", // Monster Hunter
+  "1531471045805084743"  // Monster Hunt Notifications
+];
+
+const SEASON_LAUNCH_CHANNEL_IDS = [
+  "1521536122239586456", // Rules
+  "1533218205496115471"  // Monster Hunt Room
+];
+
+const SEASON_LAUNCH_ANNOUNCEMENT_CHANNEL_ID = "1533218205496115471";
+
 if (!fs.existsSync(DATA_FILE)) {
   fs.writeFileSync(
     DATA_FILE,
@@ -407,6 +424,21 @@ function loadData() {
   if (data.worldShatterUnlocked === undefined) data.worldShatterUnlocked = false;
   if (data.ultraWeeklySchedule === undefined) data.ultraWeeklySchedule = null;
   if (data.ultraAdminPauseUntil === undefined) data.ultraAdminPauseUntil = 0;
+
+  if (!data.seasonLaunch || typeof data.seasonLaunch !== "object") {
+    data.seasonLaunch = {
+      channelsOpened: false,
+      announcementSent: false
+    };
+  }
+
+  if (data.seasonLaunch.channelsOpened === undefined) {
+    data.seasonLaunch.channelsOpened = false;
+  }
+
+  if (data.seasonLaunch.announcementSent === undefined) {
+    data.seasonLaunch.announcementSent = false;
+  }
 
   return data;
 }
@@ -2660,8 +2692,150 @@ async function checkReadyEggNotifications() {
   if (changed) saveData(data);
 }
 
+
+function getMountainDateTimeParts(date = new Date()) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: SEASON_LAUNCH_TIMEZONE,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23"
+    })
+      .formatToParts(date)
+      .filter(part => part.type !== "literal")
+      .map(part => [part.type, part.value])
+  );
+
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    hour: Number(parts.hour),
+    minute: Number(parts.minute)
+  };
+}
+
+async function fetchLaunchChannels() {
+  const channels = [];
+
+  for (const channelId of SEASON_LAUNCH_CHANNEL_IDS) {
+    const channel = await client.channels.fetch(channelId).catch(() => null);
+
+    if (!channel || !channel.isTextBased?.() || !channel.guild) {
+      console.error(`Season launch: channel ${channelId} could not be found or is not a guild text channel.`);
+      continue;
+    }
+
+    channels.push(channel);
+  }
+
+  return channels;
+}
+
+async function openSeasonLaunchChannels() {
+  const channels = await fetchLaunchChannels();
+
+  if (channels.length !== SEASON_LAUNCH_CHANNEL_IDS.length) {
+    throw new Error(
+      `Only ${channels.length}/${SEASON_LAUNCH_CHANNEL_IDS.length} launch channels could be loaded.`
+    );
+  }
+
+  for (const channel of channels) {
+    for (const roleId of SEASON_LAUNCH_ROLE_IDS) {
+      await channel.permissionOverwrites.edit(roleId, {
+        ViewChannel: true,
+        SendMessages: true,
+        ReadMessageHistory: true,
+        AddReactions: true
+      });
+    }
+
+    console.log(`Season launch: opened #${channel.name} (${channel.id}).`);
+  }
+}
+
+async function sendSeasonLaunchAnnouncement() {
+  const channel = await client.channels
+    .fetch(SEASON_LAUNCH_ANNOUNCEMENT_CHANNEL_ID)
+    .catch(() => null);
+
+  if (!channel?.isTextBased?.()) {
+    throw new Error("Season launch announcement channel could not be found.");
+  }
+
+  await channel.send({
+    content:
+      `<@&${MONSTER_NOTIFY_ROLE}>\n\n` +
+      `🌌━━━━━━━━━━━━━━━━━━━━━━🌌\n\n` +
+      `🐉 **MONSTER HUNT: SEASON 2 HAS BEGUN!** 🐉\n\n` +
+      `The world is alive once again...\n\n` +
+      `🌲 **40 brand-new monsters** await discovery.\n` +
+      `🥚 Find mysterious **Eggs**.\n` +
+      `🐾 Hatch and train powerful **Companions**.\n` +
+      `⭐ Earn Companion XP and strengthen pet abilities.\n` +
+      `🏆 Unlock exclusive **Titles and Achievements**.\n` +
+      `📖 Complete your **Monster Dex and Pet Dex**.\n` +
+      `🌌 Discover creatures hidden beyond the known world.\n` +
+      `⚔️ Face **Ultra Monsters** with unique abilities.\n\n` +
+      `🎯 **Use \`!hunt\` to begin your first adventure.**\n\n` +
+      `❓ **Need help or a refresher?**\n` +
+      `📖 Start with \`!monsterhelp\`\n` +
+      `🐉 Read the rules with \`!monsterrules\`\n` +
+      `🥚 Learn about eggs and pets with \`!pethelp\`\n\n` +
+      `Good luck, Hunters...\n` +
+      `May fortune be on your side. 🌌\n\n` +
+      `🌌━━━━━━━━━━━━━━━━━━━━━━🌌`,
+    allowedMentions: {
+      roles: [MONSTER_NOTIFY_ROLE]
+    }
+  });
+
+  console.log("Season launch: announcement sent.");
+}
+
+async function checkOneTimeSeasonLaunch() {
+  const now = getMountainDateTimeParts();
+
+  if (now.date !== SEASON_LAUNCH_DATE) return;
+
+  const currentMinutes = now.hour * 60 + now.minute;
+  const launchMinutes = 12 * 60;
+
+  if (currentMinutes < launchMinutes) return;
+
+  const data = loadData();
+
+  if (!data.seasonLaunch.channelsOpened) {
+    await openSeasonLaunchChannels();
+    data.seasonLaunch.channelsOpened = true;
+    saveData(data);
+  }
+
+  if (!data.seasonLaunch.announcementSent) {
+    await sendSeasonLaunchAnnouncement();
+    data.seasonLaunch.announcementSent = true;
+    saveData(data);
+  }
+}
+
 client.once("ready", () => {
   console.log(`Logged in as ${client.user.tag}`);
+
+  // Checks every minute for the one-time Season 2 launch.
+  cron.schedule("* * * * *", async () => {
+    try {
+      await checkOneTimeSeasonLaunch();
+    } catch (error) {
+      console.error("One-time Season 2 launch check failed:", error);
+    }
+  });
+
+  // Catch up immediately if Railway starts after the scheduled launch time.
+  checkOneTimeSeasonLaunch().catch(error =>
+    console.error("Initial Season 2 launch check failed:", error)
+  );
 
   // Check once per minute for eggs that have completed incubation.
   cron.schedule("* * * * *", async () => {
