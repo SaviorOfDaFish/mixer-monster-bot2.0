@@ -192,7 +192,7 @@ const CAPTURE_ITEMS = {
 };
 
 const MONSTER_NOTIFY_ROLE = "1531471045805084743";
-const MONSTER_CHANNEL_ID = "1508543158521168093";
+const MONSTER_CHANNEL_ID = "1533218205496115471";
 
 // ==================== ONE-TIME SEASON 2 LAUNCH ====================
 // Opens both launch channels for both launch roles at 12:00 PM Mountain Time.
@@ -2894,6 +2894,10 @@ client.once("ready", () => {
   cron.schedule(
     "0 12 * * *",
     async () => {
+      // On launch day, the one-time Season 2 launch system replaces
+      // the normal noon reminder with the channel unlock and launch message.
+      if (getMountainDateTimeParts().date === SEASON_LAUNCH_DATE) return;
+
       const guild = client.guilds.cache.first();
       if (!guild) return;
 
