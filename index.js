@@ -69,26 +69,89 @@ const NEW_PET_SPECIES_BONUS = 5;
 const PET_PERSONALITIES = ["Cheerful", "Curious", "Loyal", "Mischievous", "Sleepy", "Brave"];
 
 const pets = [
-  { key: "sproutling", name: "Sproutling", icon: "🌱", rarity: "Common", ability: "itemFinder", baseBonus: 3, description: "Occasionally finds capture items after successful hunts." },
-  { key: "embercub", name: "Ember Cub", icon: "🔥", rarity: "Common", ability: "points", baseBonus: 2, description: "Earns bonus points from successful hunts." },
-  { key: "frostpup", name: "Frost Pup", icon: "❄️", rarity: "Common", ability: "capture", baseBonus: 1, description: "Slightly increases normal monster capture chance." },
-  { key: "tideotter", name: "Tide Otter", icon: "🦦", rarity: "Common", ability: "eggFinder", baseBonus: 1, description: "Slightly increases the chance to discover eggs." },
+  // 🌲 FOREST
+  { key: "briar_pup", name: "Briar Pup", icon: "🌿", habitat: "Forest", rarity: "Common", ability: "capture", baseBonus: 1, description: "Slightly increases normal monster capture chance." },
+  { key: "myceling", name: "Myceling", icon: "🍄", habitat: "Forest", rarity: "Rare", ability: "eggFinder", baseBonus: 2, description: "Increases the chance to discover eggs." },
+  { key: "rootling_guardian", name: "Rootling Guardian", icon: "🌳", habitat: "Forest", rarity: "Epic", ability: "itemFinder", baseBonus: 6, description: "Finds useful hunting supplies after successful hunts." },
+  { key: "verdant_sentinel", name: "Verdant Sentinel", icon: "🦉", habitat: "Forest", rarity: "Legendary", ability: "shiny", baseBonus: 3, description: "Greatly increases shiny monster odds." },
 
-  { key: "spiritfox", name: "Spirit Fox", icon: "🦊", rarity: "Rare", ability: "shiny", baseBonus: 1, description: "Slightly increases shiny monster odds." },
-  { key: "mysticowl", name: "Mystic Owl", icon: "🦉", rarity: "Rare", ability: "eggFinder", baseBonus: 2, description: "Increases the chance to discover eggs." },
-  { key: "direwolfpup", name: "Dire Wolf Pup", icon: "🐺", rarity: "Rare", ability: "cooldown", baseBonus: 2, description: "Reduces the normal hunt cooldown." },
-  { key: "tinygolem", name: "Tiny Golem", icon: "🪨", rarity: "Rare", ability: "itemFinder", baseBonus: 5, description: "Finds useful items after successful hunts." },
+  // 🌊 OCEAN
+  { key: "reef_snapper", name: "Reef Snapper", icon: "🪸", habitat: "Ocean", rarity: "Common", ability: "points", baseBonus: 2, description: "Earns bonus points from successful hunts." },
+  { key: "abyss_prowler", name: "Abyss Prowler", icon: "🌊", habitat: "Ocean", rarity: "Rare", ability: "cooldown", baseBonus: 2, description: "Reduces the normal hunt cooldown." },
+  { key: "inkfiend_hatchling", name: "Inkfiend Hatchling", icon: "🦑", habitat: "Ocean", rarity: "Epic", ability: "itemFinder", baseBonus: 7, description: "Frequently finds useful hunting supplies." },
+  { key: "leviacub", name: "Leviacub", icon: "🐉", habitat: "Ocean", rarity: "Legendary", ability: "points", baseBonus: 6, description: "Earns a large point bonus from successful hunts." },
 
-  { key: "stormhatchling", name: "Storm Hatchling", icon: "🐲", rarity: "Epic", ability: "capture", baseBonus: 2, description: "Increases normal monster capture chance." },
-  { key: "ghostwisp", name: "Ghost Wisp", icon: "👻", rarity: "Epic", ability: "shiny", baseBonus: 2, description: "Increases shiny monster odds." },
-  { key: "reefdrake", name: "Reef Drake", icon: "🐉", rarity: "Epic", ability: "points", baseBonus: 4, description: "Earns additional points from successful hunts." },
-  { key: "voidling", name: "Voidling", icon: "🌌", rarity: "Epic", ability: "eggFinder", baseBonus: 3, description: "Greatly increases the chance to discover eggs." },
+  // 🏔️ MOUNTAIN
+  { key: "pebble_maw", name: "Pebble Maw", icon: "🪨", habitat: "Mountain", rarity: "Common", ability: "itemFinder", baseBonus: 3, description: "Occasionally finds capture items after successful hunts." },
+  { key: "crystal_burrower", name: "Crystal Burrower", icon: "💎", habitat: "Mountain", rarity: "Rare", ability: "eggFinder", baseBonus: 2, description: "Increases the chance to discover eggs." },
+  { key: "ironhide_cub", name: "Ironhide Cub", icon: "🦍", habitat: "Mountain", rarity: "Epic", ability: "capture", baseBonus: 2, description: "Increases normal monster capture chance." },
+  { key: "titan_spawn", name: "Titan Spawn", icon: "⛰️", habitat: "Mountain", rarity: "Legendary", ability: "points", baseBonus: 7, description: "Earns a large point bonus from successful hunts." },
 
-  { key: "phoenixhatchling", name: "Phoenix Hatchling", icon: "🦅", rarity: "Legendary", ability: "shiny", baseBonus: 3, description: "Greatly increases shiny monster odds." },
-  { key: "celestialdragonling", name: "Celestial Dragonling", icon: "🌠", rarity: "Legendary", ability: "eggFinder", baseBonus: 4, description: "Greatly increases egg discovery and rare egg odds." },
-  { key: "ancientguardian", name: "Ancient Guardian", icon: "🌳", rarity: "Legendary", ability: "capture", baseBonus: 3, description: "Greatly increases normal monster capture chance." },
-  { key: "minileviathan", name: "Mini Leviathan", icon: "🐋", rarity: "Legendary", ability: "itemFinder", baseBonus: 8, description: "Frequently brings back valuable hunting supplies." }
+  // 🌋 VOLCANO
+  { key: "cinderling", name: "Cinderling", icon: "🔥", habitat: "Volcano", rarity: "Common", ability: "points", baseBonus: 2, description: "Earns bonus points from successful hunts." },
+  { key: "ashfang", name: "Ashfang", icon: "🌋", habitat: "Volcano", rarity: "Rare", ability: "itemFinder", baseBonus: 5, description: "Finds useful items after successful hunts." },
+  { key: "ember_drake", name: "Ember Drake", icon: "🐉", habitat: "Volcano", rarity: "Epic", ability: "eggFinder", baseBonus: 3, description: "Greatly increases the chance to discover eggs." },
+  { key: "infernal_wyrmling", name: "Infernal Wyrmling", icon: "🌋", habitat: "Volcano", rarity: "Legendary", ability: "shiny", baseBonus: 3, description: "Greatly increases shiny monster odds." },
+
+  // ❄️ ARCTIC
+  { key: "ice_crawler", name: "Ice Crawler", icon: "❄️", habitat: "Arctic", rarity: "Common", ability: "cooldown", baseBonus: 1, description: "Slightly reduces the normal hunt cooldown." },
+  { key: "frost_wretch", name: "Frost Wretch", icon: "🐺", habitat: "Arctic", rarity: "Rare", ability: "capture", baseBonus: 2, description: "Increases normal monster capture chance." },
+  { key: "glacier_horror", name: "Glacier Horror", icon: "🐻", habitat: "Arctic", rarity: "Epic", ability: "points", baseBonus: 5, description: "Earns additional points from successful hunts." },
+  { key: "white_tyrant_cub", name: "White Tyrant Cub", icon: "👑", habitat: "Arctic", rarity: "Legendary", ability: "capture", baseBonus: 4, description: "Greatly increases normal monster capture chance." },
+
+  // 🌌 VOID
+  { key: "living_eye", name: "Living Eye", icon: "👁️", habitat: "Void", rarity: "Common", ability: "eggFinder", baseBonus: 1, description: "Slightly increases the chance to discover eggs." },
+  { key: "night_skitter", name: "Night Skitter", icon: "🕷️", habitat: "Void", rarity: "Rare", ability: "shiny", baseBonus: 1, description: "Slightly increases shiny monster odds." },
+  { key: "void_watcher", name: "Void Watcher", icon: "🌌", habitat: "Void", rarity: "Epic", ability: "eggFinder", baseBonus: 3, description: "Greatly increases the chance to discover eggs." },
+  { key: "astral_spawn", name: "Astral Spawn", icon: "🌠", habitat: "Void", rarity: "Legendary", ability: "shiny", baseBonus: 4, description: "Massively increases shiny monster odds." },
+
+  // ☁️ SKY
+  { key: "storm_imp", name: "Storm Imp", icon: "⚡", habitat: "Sky", rarity: "Common", ability: "itemFinder", baseBonus: 3, description: "Occasionally finds capture items after successful hunts." },
+  { key: "cloud_ripper", name: "Cloud Ripper", icon: "☁️", habitat: "Sky", rarity: "Rare", ability: "cooldown", baseBonus: 3, description: "Reduces the normal hunt cooldown." },
+  { key: "tempest_hatchling", name: "Tempest Hatchling", icon: "🌩️", habitat: "Sky", rarity: "Epic", ability: "capture", baseBonus: 3, description: "Greatly increases normal monster capture chance." },
+  { key: "storm_emperor_cub", name: "Storm Emperor Cub", icon: "👑", habitat: "Sky", rarity: "Legendary", ability: "cooldown", baseBonus: 5, description: "Greatly reduces the normal hunt cooldown." },
+
+  // 🪦 UNDEAD
+  { key: "bone_gnawer", name: "Bone Gnawer", icon: "🦴", habitat: "Undead", rarity: "Common", ability: "points", baseBonus: 2, description: "Earns bonus points from successful hunts." },
+  { key: "grave_whisper", name: "Grave Whisper", icon: "👻", habitat: "Undead", rarity: "Rare", ability: "eggFinder", baseBonus: 2, description: "Increases the chance to discover eggs." },
+  { key: "crypt_fiend", name: "Crypt Fiend", icon: "⚔️", habitat: "Undead", rarity: "Epic", ability: "itemFinder", baseBonus: 7, description: "Frequently finds valuable hunting supplies." },
+  { key: "hollow_prince", name: "Hollow Prince", icon: "👑", habitat: "Undead", rarity: "Legendary", ability: "points", baseBonus: 8, description: "Earns a massive point bonus from successful hunts." }
 ];
+
+const PET_COLLECTIONS = {
+  Forest: { icon: "🌲", achievement: "Forest Companion Collection", title: "Forest Keeper" },
+  Ocean: { icon: "🌊", achievement: "Ocean Companion Collection", title: "Tidecaller" },
+  Mountain: { icon: "🏔️", achievement: "Mountain Companion Collection", title: "Peak Walker" },
+  Volcano: { icon: "🌋", achievement: "Volcano Companion Collection", title: "Flamebound" },
+  Arctic: { icon: "❄️", achievement: "Arctic Companion Collection", title: "Winter's Chosen" },
+  Void: { icon: "🌌", achievement: "Void Companion Collection", title: "Void Touched" },
+  Sky: { icon: "☁️", achievement: "Sky Companion Collection", title: "Storm Rider" },
+  Undead: { icon: "🪦", achievement: "Undead Companion Collection", title: "Grave Warden" }
+};
+
+const GRAND_PET_COLLECTION_REWARD = {
+  achievement: "Complete Companion Collection",
+  title: "Master Beast Tamer"
+};
+
+const LEGACY_PET_KEY_MIGRATION = {
+  sproutling: "briar_pup",
+  embercub: "cinderling",
+  frostpup: "ice_crawler",
+  tideotter: "reef_snapper",
+  spiritfox: "myceling",
+  mysticowl: "grave_whisper",
+  direwolfpup: "frost_wretch",
+  tinygolem: "pebble_maw",
+  stormhatchling: "tempest_hatchling",
+  ghostwisp: "void_watcher",
+  reefdrake: "inkfiend_hatchling",
+  voidling: "night_skitter",
+  phoenixhatchling: "infernal_wyrmling",
+  celestialdragonling: "astral_spawn",
+  ancientguardian: "verdant_sentinel",
+  minileviathan: "leviacub"
+};
 
 const CAPTURE_ITEMS = {
   berry: {
@@ -445,6 +508,10 @@ function getPlayer(data, userId) {
     player.nextPetId = player.pets.reduce((max, pet) => Math.max(max, Number(pet.id) || 0), 0) + 1;
   }
   for (const ownedPet of player.pets) {
+    if (LEGACY_PET_KEY_MIGRATION[ownedPet.key]) {
+      ownedPet.key = LEGACY_PET_KEY_MIGRATION[ownedPet.key];
+    }
+
     // Convert the previous hunt-based Bond progress into Companion XP.
     if (ownedPet.companionXp === undefined) {
       ownedPet.companionXp = Math.max(0, Number(ownedPet.bondXp || 0) * COMPANION_XP_PER_SUCCESSFUL_HUNT);
@@ -628,10 +695,14 @@ function choosePetFromEgg(rarity) {
 
   // Legendary Eggs have one especially elusive companion.
   const weighted = [
-    { key: "ancientguardian", weight: 45 },
-    { key: "minileviathan", weight: 30 },
-    { key: "phoenixhatchling", weight: 20 },
-    { key: "celestialdragonling", weight: 5 }
+    { key: "verdant_sentinel", weight: 15 },
+    { key: "leviacub", weight: 15 },
+    { key: "titan_spawn", weight: 15 },
+    { key: "infernal_wyrmling", weight: 15 },
+    { key: "white_tyrant_cub", weight: 15 },
+    { key: "storm_emperor_cub", weight: 10 },
+    { key: "hollow_prince", weight: 10 },
+    { key: "astral_spawn", weight: 5 }
   ];
 
   let roll = Math.random() * 100;
@@ -640,7 +711,7 @@ function choosePetFromEgg(rarity) {
     if (roll < 0) return getPetDefinition(entry.key);
   }
 
-  return getPetDefinition("ancientguardian");
+  return getPetDefinition("verdant_sentinel");
 }
 
 function rollEggRarity(player) {
@@ -1339,6 +1410,46 @@ function unlockSecretReward(player, achievementName, titleName) {
   }
 
   return unlocked;
+}
+
+function evaluatePetCollectionRewards(player) {
+  const unlocked = [];
+  const ownedKeys = new Set((player.pets || []).map(pet => pet.key));
+
+  for (const [habitat, reward] of Object.entries(PET_COLLECTIONS)) {
+    const habitatKeys = pets
+      .filter(pet => pet.habitat === habitat)
+      .map(pet => pet.key);
+
+    if (habitatKeys.length > 0 && habitatKeys.every(key => ownedKeys.has(key))) {
+      unlocked.push(...unlockSecretReward(player, reward.achievement, reward.title));
+    }
+  }
+
+  if (pets.every(pet => ownedKeys.has(pet.key))) {
+    unlocked.push(...unlockSecretReward(
+      player,
+      GRAND_PET_COLLECTION_REWARD.achievement,
+      GRAND_PET_COLLECTION_REWARD.title
+    ));
+  }
+
+  return unlocked;
+}
+
+function petCollectionProgressText(player) {
+  const ownedKeys = new Set((player.pets || []).map(pet => pet.key));
+
+  return Object.entries(PET_COLLECTIONS).map(([habitat, reward]) => {
+    const habitatPets = pets.filter(pet => pet.habitat === habitat);
+    const collected = habitatPets.filter(pet => ownedKeys.has(pet.key)).length;
+    const complete = collected === habitatPets.length;
+
+    return (
+      `${complete ? "✅" : "⬜"} ${reward.icon} **${habitat}: ${collected}/${habitatPets.length}**` +
+      `${complete ? ` — Title: **${reward.title}**` : ""}`
+    );
+  }).join("\n");
 }
 
 function evaluateUltraSecretRewards(player) {
@@ -3057,18 +3168,21 @@ ${captureChoicesText(choices)}
     if (player.equippedPetId === null) player.equippedPetId = ownedPet.id;
 
     const incubatorUnlockText = getNewIncubatorUnlockText(player, previousPoints);
+    const petCollectionUnlocks = evaluatePetCollectionRewards(player);
     saveData(data);
 
     return message.reply(
       `${definition.icon} **YOUR ${rarity.toUpperCase()} EGG HATCHED!**\n\n` +
       `You received **${definition.name}**!\n` +
       `Rarity: **${definition.rarity}**\n` +
+      `Habitat: **${definition.habitat}**\n` +
       `Personality: **${ownedPet.personality}**\n` +
       `Companion Level: **1**\n` +
       `Passive: **${petPassiveTextForOwned(ownedPet)}**\n\n` +
       `💰 **Hatch Reward:** +${hatchPoints} Hunter Points` +
       `${dexBonus ? `\n📖 **NEW PET DEX SPECIES:** +${dexBonus} Hunter Points` : ""}` +
-      `${incubatorUnlockText}\n\n` +
+      `${incubatorUnlockText}` +
+      `${formatSecretUnlocks(petCollectionUnlocks)}\n\n` +
       `${player.equippedPetId === ownedPet.id
         ? "It has been equipped as your first companion!"
         : `Use \`!equippet ${player.pets.length}\` to equip it.`}`
@@ -3100,8 +3214,26 @@ ${captureChoicesText(choices)}
 
   if (command === "!petdex") {
     const ownedKeys = new Set(player.pets.map(pet => pet.key));
-    const list = pets.map(definition => `${ownedKeys.has(definition.key) ? "✅" : "⬜"} ${definition.icon} **${definition.name}** — ${definition.rarity}`).join("\n");
-    return message.reply(`📖 **Pet Dex**\nCollected: **${ownedKeys.size}/${pets.length}**\n\n${list}`);
+
+    const habitatSections = Object.keys(PET_COLLECTIONS).map(habitat => {
+      const habitatPets = pets.filter(pet => pet.habitat === habitat);
+      const reward = PET_COLLECTIONS[habitat];
+      const entries = habitatPets
+        .map(definition =>
+          `${ownedKeys.has(definition.key) ? "✅" : "⬜"} ${definition.icon} **${definition.name}** — ${definition.rarity}`
+        )
+        .join("\n");
+
+      return `${reward.icon} **${habitat} Companions**\n${entries}`;
+    }).join("\n\n");
+
+    return message.reply(
+      `📖 **Pet Dex**\n` +
+      `Collected: **${ownedKeys.size}/${pets.length}**\n\n` +
+      `🏆 **Habitat Collection Progress**\n${petCollectionProgressText(player)}\n\n` +
+      `${habitatSections}\n\n` +
+      `Collect all **32 companions** to unlock the title **Master Beast Tamer**.`
+    );
   }
 
   if (command.startsWith("!pet ")) {
@@ -3113,6 +3245,8 @@ ${captureChoicesText(choices)}
 
 ` +
       `Rarity: **${definition.rarity}**
+` +
+      `Habitat: **${definition.habitat}**
 ` +
       `Personality: **${owned.personality}**
 ` +
