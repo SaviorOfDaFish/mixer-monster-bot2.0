@@ -3681,27 +3681,59 @@ ${captureChoicesText(choices)}
     );
   }
 
-  if (command === "!petdex") {
+  if (command === "!petdex" || command.startsWith("!petdex ")) {
     const ownedKeys = new Set(player.pets.map(pet => pet.key));
+    const habitatNames = Object.keys(PET_COLLECTIONS);
+    const habitatsPerPage = 2;
+    const totalPages = Math.ceil(habitatNames.length / habitatsPerPage);
 
-    const habitatSections = Object.keys(PET_COLLECTIONS).map(habitat => {
+    const requestedPage = Number(content.slice("!petdex".length).trim() || "1");
+    const page = Number.isInteger(requestedPage)
+      ? Math.max(1, Math.min(totalPages, requestedPage))
+      : 1;
+
+    const pageHabitats = habitatNames.slice(
+      (page - 1) * habitatsPerPage,
+      page * habitatsPerPage
+    );
+
+    const habitatSections = pageHabitats.map(habitat => {
       const habitatPets = pets.filter(pet => pet.habitat === habitat);
       const reward = PET_COLLECTIONS[habitat];
+      const collected = habitatPets.filter(pet => ownedKeys.has(pet.key)).length;
+      const complete = collected === habitatPets.length;
+
       const entries = habitatPets
         .map(definition =>
-          `${ownedKeys.has(definition.key) ? "✅" : "⬜"} ${getPetDisplayIcon(definition)} **${definition.name}** — ${definition.rarity}`
+          `${ownedKeys.has(definition.key) ? "✅" : "⬜"} ` +
+          `${getPetDisplayIcon(definition)} **${definition.name}** — ${definition.rarity}`
         )
         .join("\n");
 
-      return `${reward.icon} **${habitat} Companions**\n${entries}`;
+      return (
+        `${reward.icon} **${habitat} Companions — ${collected}/${habitatPets.length}**\n` +
+        `${entries}\n` +
+        `${complete
+          ? `🏆 Collection complete! Title: **${reward.title}**`
+          : `Complete this habitat to unlock **${reward.title}**.`}`
+      );
     }).join("\n\n");
 
+    const completedHabitats = habitatNames.filter(habitat => {
+      const habitatPets = pets.filter(pet => pet.habitat === habitat);
+      return habitatPets.every(pet => ownedKeys.has(pet.key));
+    }).length;
+
     return message.reply(
-      `📖 **Pet Dex**\n` +
-      `Collected: **${ownedKeys.size}/${pets.length}**\n\n` +
-      `🏆 **Habitat Collection Progress**\n${petCollectionProgressText(player)}\n\n` +
+      `📖 **${formatPlayerName(player, message.author.username)}'s Pet Dex**\n` +
+      `Collected: **${ownedKeys.size}/${pets.length} companions**\n` +
+      `Completed Habitats: **${completedHabitats}/${habitatNames.length}**\n` +
+      `Page: **${page}/${totalPages}**\n\n` +
       `${habitatSections}\n\n` +
-      `Collect all **32 companions** to unlock the title **Master Beast Tamer**.`
+      `👑 Collect all **32 companions** to unlock **Master Beast Tamer**.\n` +
+      `${page < totalPages
+        ? `Use \`!petdex ${page + 1}\` for the next page.`
+        : `Use \`!petdex 1\` to return to the first page.`}`
     );
   }
 
