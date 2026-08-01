@@ -559,6 +559,26 @@ function getPetDisplayIcon(definitionOrKey) {
     : definition.icon;
 }
 
+function getPetArtworkUrl(definitionOrKey) {
+  const definition = typeof definitionOrKey === "string"
+    ? getPetDefinition(definitionOrKey)
+    : definitionOrKey;
+
+  if (!definition) return null;
+
+  const customEmoji = client.emojis.cache.find(
+    emoji => emoji.name?.toLowerCase() === definition.key.toLowerCase()
+  );
+
+  if (!customEmoji) return null;
+
+  return `https://cdn.discordapp.com/emojis/${customEmoji.id}.png?size=256&quality=lossless`;
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function getEquippedPet(player) {
   if (!player || player.equippedPetId === null || player.equippedPetId === undefined) return null;
   return player.pets.find(pet => String(pet.id) === String(player.equippedPetId)) || null;
@@ -3190,22 +3210,46 @@ ${captureChoicesText(choices)}
     const petCollectionUnlocks = evaluatePetCollectionRewards(player);
     saveData(data);
 
-    return message.reply(
-      `${getPetDisplayIcon(definition)} **YOUR ${rarity.toUpperCase()} EGG HATCHED!**\n\n` +
-      `You received **${definition.name}**!\n` +
-      `Rarity: **${definition.rarity}**\n` +
-      `Habitat: **${definition.habitat}**\n` +
-      `Personality: **${ownedPet.personality}**\n` +
-      `Companion Level: **1**\n` +
-      `Passive: **${petPassiveTextForOwned(ownedPet)}**\n\n` +
-      `💰 **Hatch Reward:** +${hatchPoints} Hunter Points` +
-      `${dexBonus ? `\n📖 **NEW PET DEX SPECIES:** +${dexBonus} Hunter Points` : ""}` +
-      `${incubatorUnlockText}` +
-      `${formatSecretUnlocks(petCollectionUnlocks)}\n\n` +
-      `${player.equippedPetId === ownedPet.id
-        ? "It has been equipped as your first companion!"
-        : `Use \`!equippet ${player.pets.length}\` to equip it.`}`
+    const hatchMessage = await message.reply(
+      `${EGG_TYPES[rarity]?.icon || "🥚"} **The ${rarity} Egg begins to shake...**`
     );
+
+    await wait(1000);
+
+    await hatchMessage.edit(
+      `✨ **Cracks spread across the ${rarity} Egg...**\n` +
+      `Something inside is trying to break free!`
+    );
+
+    await wait(1000);
+
+    const artworkUrl = getPetArtworkUrl(definition);
+    const hatchEmbed = new EmbedBuilder()
+      .setTitle(`🥚 YOUR ${rarity.toUpperCase()} EGG HATCHED!`)
+      .setDescription(
+        `${getPetDisplayIcon(definition)} **${definition.name}** has joined your companions!\n\n` +
+        `**Rarity:** ${definition.rarity}\n` +
+        `**Habitat:** ${definition.habitat}\n` +
+        `**Personality:** ${ownedPet.personality}\n` +
+        `**Companion Level:** 1\n` +
+        `✨ **Passive:** ${petPassiveTextForOwned(ownedPet)}\n\n` +
+        `💰 **Hatch Reward:** +${hatchPoints} Hunter Points` +
+        `${dexBonus ? `\n📖 **NEW PET DEX SPECIES:** +${dexBonus} Hunter Points` : ""}` +
+        `${incubatorUnlockText}` +
+        `${formatSecretUnlocks(petCollectionUnlocks)}\n\n` +
+        `${player.equippedPetId === ownedPet.id
+          ? "⭐ It has been equipped as your first companion!"
+          : `Use \`!equippet ${player.pets.length}\` to equip it.`}`
+      );
+
+    if (artworkUrl) {
+      hatchEmbed.setImage(artworkUrl);
+    }
+
+    return hatchMessage.edit({
+      content: "",
+      embeds: [hatchEmbed]
+    });
   }
 
   if (command === "!pets") {
