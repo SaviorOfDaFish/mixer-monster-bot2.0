@@ -1703,11 +1703,9 @@ function generateDailyQuests() {
     }));
 }
 
-function getResetDate() {
-  const now = new Date();
-
+function getResetDate(date = new Date()) {
   const mountainTime = new Date(
-    now.toLocaleString("en-US", {
+    date.toLocaleString("en-US", {
       timeZone: "America/Denver"
     })
   );
@@ -1719,6 +1717,22 @@ function getResetDate() {
   }
 
   return mountainTime.toDateString();
+}
+
+function hasClaimedDailyRewardToday(player) {
+  const currentResetDate = getResetDate();
+
+  // New format: the reset-date string is stored directly.
+  if (typeof player.dailyReward === "string") {
+    return player.dailyReward === currentResetDate;
+  }
+
+  // Backward compatibility for existing save data that stored a timestamp.
+  if (typeof player.dailyReward === "number" && player.dailyReward > 0) {
+    return getResetDate(new Date(player.dailyReward)) === currentResetDate;
+  }
+
+  return false;
 }
 
 function resetDaily(player) {
@@ -4200,21 +4214,22 @@ ${captureChoicesText(choices)}
   }
 
   if (command === "!dailyreward") {
-  if (!canClaimDaily()) {
-    return message.reply(
-      "🌙 Daily rewards can only be claimed between 5:00 AM and 11:59 PM MST."
-    );
-  }
+    if (!canClaimDaily()) {
+      return message.reply(
+        "🌙 Daily rewards reset every day at 5:00 AM Mountain Time. Come back after 5:00 AM!"
+      );
+    }
 
-  const now = Date.now();
-    const cooldown = 24 * 60 * 60 * 1000;
-    const timeLeft = cooldown - (now - player.dailyReward);
-
-    if (timeLeft > 0) return message.reply("🎁 You already claimed today's reward! Come back tomorrow.");
+    if (hasClaimedDailyRewardToday(player)) {
+      return message.reply(
+        "🎁 You already claimed today's reward! It resets at 5:00 AM Mountain Time."
+      );
+    }
 
     const reward = giveRandomDailyReward(player);
 
-    player.dailyReward = now;
+    // Store the current 5:00 AM Mountain Time reset date instead of a rolling timestamp.
+    player.dailyReward = getResetDate();
     saveData(data);
 
     return message.reply(`🎁 **Daily Reward!**\n\nYou received:\n${reward}`);
