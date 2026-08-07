@@ -48,6 +48,8 @@ const CRITICAL_CATCH_BONUS_POINTS = 10;
 const PET_COMBINE_XP = { Common: 50, Rare: 75, Epic: 125, Legendary: 200 };
 const PET_INHERIT_CHANCE = { Common: 15, Rare: 20, Epic: 25, Legendary: 30 };
 const PET_XP_BASE = { Common: 50, Rare: 65, Epic: 80, Legendary: 100 };
+const PET_ABILITY_COMBINE_XP = { Common: 25, Rare: 40, Epic: 65, Legendary: 100 };
+const HATCH_SACRIFICE_WINDOW = 5 * 60 * 1000;
 
 // ==================== HIDDEN COMMUNITY WORLD PROGRESS ====================
 // These thresholds are intentionally ADMIN-ONLY. Do not expose them in player help/announcements.
@@ -774,6 +776,7 @@ function getPlayer(data, userId) {
       nextPetId: 1,
       lastFetch: 0,
       fetchState: null,
+      pendingHatchChoice: null,
       cooldownReminders: { hunt: false, fetch: false },
       reminderState: { huntDueAt: 0, huntSent: false, fetchDueAt: 0, fetchSent: false, channelId: null },
       weeklyStats: { points: 0, catches: 0, shinies: 0, legendaries: 0, startRank: null },
@@ -878,6 +881,10 @@ function getPlayer(data, userId) {
   }
   if (player.lastFetch === undefined) player.lastFetch = 0;
   if (player.fetchState === undefined) player.fetchState = null;
+  if (player.pendingHatchChoice === undefined) player.pendingHatchChoice = null;
+  if (player.pendingHatchChoice && Number(player.pendingHatchChoice.expiresAt || 0) <= Date.now()) {
+    player.pendingHatchChoice = null;
+  }
   if (!player.cooldownReminders || typeof player.cooldownReminders !== "object") player.cooldownReminders = { hunt: false, fetch: false };
   if (player.cooldownReminders.hunt === undefined) player.cooldownReminders.hunt = false;
   if (player.cooldownReminders.fetch === undefined) player.cooldownReminders.fetch = false;
@@ -1123,6 +1130,77 @@ function getPetAbilityEntries(ownedPet) {
     entries.push({ ability: inherited.ability, level: getInheritedAbilityLevelInfo(inherited).level, baseBonus: inherited.baseBonus || 1, natural: false, rarity: inherited.sourceRarity || "Common", inherited });
   }
   return entries;
+}
+
+function getKnownPetAbility(ownedPet, ability) {
+  const definition = getOwnedPetDefinition(ownedPet);
+  if (!ownedPet || !definition) return null;
+
+  if (definition.ability === ability) {
+    return {
+      natural: true,
+      ability,
+      definition
+    };
+  }
+
+  const inherited = (ownedPet.inheritedAbilities || []).find(entry => entry.ability === ability);
+  if (inherited) {
+    return {
+      natural: false,
+      ability,
+      inherited
+    };
+  }
+
+  return null;
+}
+
+function addSameAbilityCombineXp(ownedPet, ability, sacrificeRarity) {
+  const known = getKnownPetAbility(ownedPet, ability);
+  if (!known) return null;
+
+  const amount = PET_ABILITY_COMBINE_XP[sacrificeRarity] || PET_ABILITY_COMBINE_XP.Common;
+
+  // Natural abilities level with Companion XP, so matching a natural ability
+  // strengthens the companion itself. Inherited abilities have their own XP bar.
+  if (known.natural) {
+    const before = getCompanionLevelInfo(ownedPet).level;
+    ownedPet.companionXp = Math.max(0, Number(ownedPet.companionXp || 0)) + amount;
+    const after = getCompanionLevelInfo(ownedPet).level;
+
+    return {
+      type: "natural",
+      amount,
+      before,
+      after,
+      text:
+        `🧬 **ABILITY TRAINING!**\n` +
+        `This companion already knows **${abilityDisplayName(ability)}** as its natural ability.\n` +
+        `The sacrificed pet was converted into **${amount} Companion XP** instead.\n\n` +
+        `${companionXpBar(ownedPet)}` +
+        `${after > before ? `\n🎉 **LEVEL UP!** Its ${abilityDisplayName(ability)} ability grew stronger!` : ""}`
+    };
+  }
+
+  const before = getInheritedAbilityLevelInfo(known.inherited).level;
+  known.inherited.xp = Math.max(0, Number(known.inherited.xp || 0)) + amount;
+  const after = getInheritedAbilityLevelInfo(known.inherited).level;
+  const info = getInheritedAbilityLevelInfo(known.inherited);
+
+  return {
+    type: "inherited",
+    amount,
+    before,
+    after,
+    text:
+      `🧬 **ABILITY TRAINING!**\n` +
+      `This companion already knows **${abilityDisplayName(ability)}**.\n` +
+      `The sacrificed pet strengthened the existing ability by **${amount} Ability XP**!\n\n` +
+      `**${abilityDisplayName(ability)} — Ability Lv. ${info.level}** | ` +
+      `${info.level >= MAX_COMPANION_LEVEL ? "**MAX**" : `**${info.xpIntoLevel}/${info.xpNeeded} XP**`}` +
+      `${after > before ? `\n🎉 **ABILITY LEVEL UP!** ${abilityDisplayName(ability)} reached Level ${after}!` : ""}`
+  };
 }
 
 function getPetBonus(player, ability) {
@@ -3825,7 +3903,7 @@ async function sendOverhaulAnnouncementOnce() {
   await channel.send(
     `# 🐉 MONSTER HUNT UPDATE!\n\n` +
     `🐾 Send your equipped pet adventuring with \`!fetch\`\n` +
-    `🧬 Combine pets for Companion XP or inherited abilities with \`!combine\`\n` +
+    `🧬 Combine pets for Companion XP, Ability XP, or inherited abilities with \`!combine\`\n` +
     `📈 Pet abilities now grow every level, with rarer pets requiring more XP\n` +
     `🔥 Comeback bonuses help hunters close large leaderboard gaps\n` +
     `🏆 Weekly competition begins Monday at **5:00 AM Mountain Time**\n` +
@@ -4131,6 +4209,105 @@ client.on("messageCreate", async (message) => {
     );
   }
 
+  if (command === "!keep") {
+    const choice = player.pendingHatchChoice;
+
+    if (!choice || Number(choice.expiresAt || 0) <= Date.now()) {
+      player.pendingHatchChoice = null;
+      saveData(data);
+      return message.reply(
+        "🐾 You do not have a newly hatched companion waiting for a keep/sacrifice choice."
+      );
+    }
+
+    const hatchedPet = player.pets.find(
+      pet => String(pet.id) === String(choice.petId)
+    );
+    const definition = getOwnedPetDefinition(hatchedPet);
+
+    player.pendingHatchChoice = null;
+    saveData(data);
+
+    return message.reply(
+      `💚 **COMPANION KEPT!**\n` +
+      `${definition ? `${getPetDisplayIcon(definition)} **${definition.name}**` : "Your newly hatched companion"} ` +
+      `will remain in your pet collection.`
+    );
+  }
+
+  if (command === "!sacrifice") {
+    const choice = player.pendingHatchChoice;
+
+    if (!choice || Number(choice.expiresAt || 0) <= Date.now()) {
+      player.pendingHatchChoice = null;
+      saveData(data);
+      return message.reply(
+        "⏳ You do not have a recent hatch available to sacrifice. " +
+        "The quick sacrifice option lasts **5 minutes** after hatching."
+      );
+    }
+
+    const hatchedPet = player.pets.find(
+      pet => String(pet.id) === String(choice.petId)
+    );
+
+    if (!hatchedPet) {
+      player.pendingHatchChoice = null;
+      saveData(data);
+      return message.reply(
+        "That newly hatched pet is no longer in your collection."
+      );
+    }
+
+    const equippedPet = getEquippedPet(player);
+    const equippedDefinition = getOwnedPetDefinition(equippedPet);
+    const hatchDefinition = getOwnedPetDefinition(hatchedPet);
+
+    if (!equippedPet || !equippedDefinition) {
+      return message.reply(
+        "⭐ Equip the companion you want to strengthen first, then use `!sacrifice` again."
+      );
+    }
+
+    if (String(equippedPet.id) === String(hatchedPet.id)) {
+      return message.reply(
+        "⚠️ Your newly hatched pet is currently equipped. " +
+        "Equip a different companion first if you want to sacrifice this hatch."
+      );
+    }
+
+    if (!hatchDefinition) {
+      return message.reply("That hatch could not be identified.");
+    }
+
+    const xp = PET_COMBINE_XP[hatchDefinition.rarity] || 50;
+    const before = getCompanionLevelInfo(equippedPet).level;
+
+    equippedPet.companionXp =
+      Math.max(0, Number(equippedPet.companionXp || 0)) + xp;
+
+    const after = getCompanionLevelInfo(equippedPet).level;
+
+    player.pets = player.pets.filter(
+      pet => String(pet.id) !== String(hatchedPet.id)
+    );
+    player.pendingHatchChoice = null;
+
+    saveData(data);
+
+    return message.reply(
+      `✨ **HATCH SACRIFICED!**\n\n` +
+      `${getPetDisplayIcon(hatchDefinition)} **${hatchDefinition.name}** was converted into ` +
+      `**${xp} Companion XP** for your equipped companion:\n` +
+      `${getPetDisplayIcon(equippedDefinition)} **${equippedDefinition.name}**\n\n` +
+      `${companionXpBar(equippedPet)}` +
+      `${after > before
+        ? `\n🎉 **LEVEL UP!** ${equippedDefinition.name} reached Level ${after}!`
+        : ""}\n\n` +
+      `The sacrificed hatch does **not** transfer its ability through this quick option.`
+    );
+  }
+
   if (command === "!fetch") {
     const ownedPet = getEquippedPet(player), definition = getOwnedPetDefinition(ownedPet);
     if (!ownedPet || !definition) return message.reply("Equip a pet before using `!fetch`.");
@@ -4148,29 +4325,213 @@ client.on("messageCreate", async (message) => {
 
   if (command.startsWith("!combine ")) {
     const args = content.slice("!combine ".length).trim().split(/\s+/);
-    if (args.length < 2) return message.reply("Use `!combine keepPet# sacrificePet#`. Example: `!combine 1 3`.");
-    const keeper = resolveOwnedPet(player,args[0]), sacrifice = resolveOwnedPet(player,args[1]);
-    if (!keeper || !sacrifice || keeper === sacrifice) return message.reply("Choose two different valid pet numbers from `!pets`.");
-    if (String(player.equippedPetId) === String(sacrifice.id)) return message.reply("You cannot sacrifice your currently equipped pet. Equip another pet first.");
-    const keepDef=getOwnedPetDefinition(keeper), sacrificeDef=getOwnedPetDefinition(sacrifice);
-    if (!keepDef || !sacrificeDef) return message.reply("One of those pets could not be found.");
-    const same = keeper.key === sacrifice.key;
-    const capacity = petAbilityCapacity(player), currentAbilities = 1+(keeper.inheritedAbilities||[]).length;
-    if (!same && currentAbilities >= capacity) return message.reply(`🧬 This pet currently has **${currentAbilities}/${capacity} ability slots**. Earn another 100 Hunter Points before adding another inherited ability.`);
-    if (!same && getPetAbilityEntries(keeper).some(x=>x.ability===sacrificeDef.ability)) return message.reply("That pet already knows this ability.");
-    const chance=PET_INHERIT_CHANCE[sacrificeDef.rarity]||15, xp=PET_COMBINE_XP[sacrificeDef.rarity]||50;
-    const prompt = await message.reply(`⚠️ **PET COMBINATION CONFIRMATION**\nKeep: **${keepDef.name}**\nSacrifice forever: **${sacrificeDef.name}**\n${same ? `Result: **+${xp} Companion XP**` : `Result: **${chance}% chance** to inherit ${abilityDisplayName(sacrificeDef.ability)}. Failure grants **${Math.floor(xp/3)} XP**.`}\n\nType **CONFIRM** within 30 seconds.`);
+
+    if (args.length < 2) {
+      return message.reply(
+        "Use `!combine keepPet# sacrificePet#`. Example: `!combine 1 3`."
+      );
+    }
+
+    const keeper = resolveOwnedPet(player, args[0]);
+    const sacrifice = resolveOwnedPet(player, args[1]);
+
+    if (!keeper || !sacrifice || keeper === sacrifice) {
+      return message.reply("Choose two different valid pet numbers from `!pets`.");
+    }
+
+    if (String(player.equippedPetId) === String(sacrifice.id)) {
+      return message.reply(
+        "You cannot sacrifice your currently equipped pet. Equip another pet first."
+      );
+    }
+
+    const keepDef = getOwnedPetDefinition(keeper);
+    const sacrificeDef = getOwnedPetDefinition(sacrifice);
+
+    if (!keepDef || !sacrificeDef) {
+      return message.reply("One of those pets could not be found.");
+    }
+
+    const sameSpecies = keeper.key === sacrifice.key;
+    const knownAbility = getKnownPetAbility(keeper, sacrificeDef.ability);
+    const capacity = petAbilityCapacity(player);
+    const currentAbilities = 1 + (keeper.inheritedAbilities || []).length;
+
+    let combineMode;
+    let confirmationResult;
+
+    if (sameSpecies) {
+      const xp = PET_COMBINE_XP[sacrificeDef.rarity] || 50;
+      combineMode = "sameSpecies";
+      confirmationResult =
+        `Result: **+${xp} Companion XP** to ${keepDef.name}.`;
+    } else if (knownAbility) {
+      const xp = PET_ABILITY_COMBINE_XP[sacrificeDef.rarity] || 25;
+      combineMode = "sameAbility";
+
+      confirmationResult = knownAbility.natural
+        ? `Result: ${keepDef.name} already knows **${abilityDisplayName(sacrificeDef.ability)}** naturally, so the duplicate ability becomes **+${xp} Companion XP**.`
+        : `Result: ${keepDef.name} already knows **${abilityDisplayName(sacrificeDef.ability)}**, so the duplicate ability becomes **+${xp} Ability XP** for that ability.`;
+    } else {
+      if (currentAbilities >= capacity) {
+        return message.reply(
+          `🧬 This pet currently has **${currentAbilities}/${capacity} ability slots**. ` +
+          `Earn another 100 Hunter Points before adding another inherited ability.`
+        );
+      }
+
+      const chance = PET_INHERIT_CHANCE[sacrificeDef.rarity] || 15;
+      const xp = PET_COMBINE_XP[sacrificeDef.rarity] || 50;
+      combineMode = "inherit";
+
+      confirmationResult =
+        `Result: **${chance}% chance** to inherit **${abilityDisplayName(sacrificeDef.ability)}**. ` +
+        `Failure grants **${Math.floor(xp / 3)} Companion XP**.`;
+    }
+
+    const prompt = await message.reply(
+      `⚠️ **PET COMBINATION CONFIRMATION**\n\n` +
+      `Keep: **${keepDef.name}**\n` +
+      `Sacrifice forever: **${sacrificeDef.name}**\n\n` +
+      `${confirmationResult}\n\n` +
+      `Type **CONFIRM** within 30 seconds.`
+    );
+
     try {
-      const c=await message.channel.awaitMessages({filter:r=>r.author.id===message.author.id&&r.content.trim().toUpperCase()==="CONFIRM",max:1,time:30000,errors:["time"]});
-      await c.first().delete().catch(()=>null);
-    } catch { return prompt.reply("Combination canceled."); }
-    const fresh=loadData(), fp=getPlayer(fresh,message.author.id), fk=fp.pets.find(x=>String(x.id)===String(keeper.id)), fsac=fp.pets.find(x=>String(x.id)===String(sacrifice.id));
-    if(!fk||!fsac) return message.reply("The pets changed before confirmation. No combination occurred.");
-    const fDef=getOwnedPetDefinition(fsac); let result;
-    if(fk.key===fsac.key){ fk.companionXp=(fk.companionXp||0)+(PET_COMBINE_XP[fDef.rarity]||50); result=`🧬 **COMPANION ENHANCED!** ${keepDef.name} gained **${PET_COMBINE_XP[fDef.rarity]||50} Companion XP**.\n${companionXpBar(fk)}`; }
-    else if(Math.random()*100 < (PET_INHERIT_CHANCE[fDef.rarity]||15)){ fk.inheritedAbilities.push({ability:fDef.ability,baseBonus:fDef.baseBonus,sourcePetKey:fDef.key,sourceRarity:fDef.rarity,xp:0,inheritedAt:Date.now()}); result=`🧬 **ABILITY INHERITED!**\n${keepDef.name} learned **${abilityDisplayName(fDef.ability)}** at **Ability Level 1 — 0 XP**.`; }
-    else { const consolation=Math.floor((PET_COMBINE_XP[fDef.rarity]||50)/3); fk.companionXp=(fk.companionXp||0)+consolation; result=`💨 **Inheritance Failed**\nThe ability did not transfer, but ${keepDef.name} absorbed **${consolation} Companion XP**.`; }
-    fp.pets=fp.pets.filter(x=>String(x.id)!==String(fsac.id)); saveData(fresh); return message.reply(result);
+      const collected = await message.channel.awaitMessages({
+        filter: reply =>
+          reply.author.id === message.author.id &&
+          reply.content.trim().toUpperCase() === "CONFIRM",
+        max: 1,
+        time: 30000,
+        errors: ["time"]
+      });
+
+      await collected.first().delete().catch(() => null);
+    } catch {
+      return prompt.reply("Combination canceled.");
+    }
+
+    const fresh = loadData();
+    const freshPlayer = getPlayer(fresh, message.author.id);
+    const freshKeeper = freshPlayer.pets.find(
+      pet => String(pet.id) === String(keeper.id)
+    );
+    const freshSacrifice = freshPlayer.pets.find(
+      pet => String(pet.id) === String(sacrifice.id)
+    );
+
+    if (!freshKeeper || !freshSacrifice) {
+      return message.reply(
+        "The pets changed before confirmation. No combination occurred."
+      );
+    }
+
+    if (String(freshPlayer.equippedPetId) === String(freshSacrifice.id)) {
+      return message.reply(
+        "That pet became your equipped companion before confirmation, so it was NOT sacrificed."
+      );
+    }
+
+    const freshKeeperDef = getOwnedPetDefinition(freshKeeper);
+    const freshSacrificeDef = getOwnedPetDefinition(freshSacrifice);
+
+    if (!freshKeeperDef || !freshSacrificeDef) {
+      return message.reply("One of those pets could no longer be found.");
+    }
+
+    let result;
+
+    if (freshKeeper.key === freshSacrifice.key) {
+      const xp = PET_COMBINE_XP[freshSacrificeDef.rarity] || 50;
+      const before = getCompanionLevelInfo(freshKeeper).level;
+
+      freshKeeper.companionXp =
+        Math.max(0, Number(freshKeeper.companionXp || 0)) + xp;
+
+      const after = getCompanionLevelInfo(freshKeeper).level;
+
+      result =
+        `🧬 **COMPANION ENHANCED!**\n` +
+        `${freshKeeperDef.name} absorbed another ${freshSacrificeDef.name} and gained ` +
+        `**${xp} Companion XP**.\n\n` +
+        `${companionXpBar(freshKeeper)}` +
+        `${after > before ? `\n🎉 **LEVEL UP!** ${freshKeeperDef.name} reached Level ${after}!` : ""}`;
+    } else {
+      const duplicateAbility = getKnownPetAbility(
+        freshKeeper,
+        freshSacrificeDef.ability
+      );
+
+      if (duplicateAbility) {
+        const training = addSameAbilityCombineXp(
+          freshKeeper,
+          freshSacrificeDef.ability,
+          freshSacrificeDef.rarity
+        );
+
+        result = training?.text ||
+          "The sacrificed pet's familiar ability was converted into XP.";
+      } else {
+        const freshCapacity = petAbilityCapacity(freshPlayer);
+        const freshCurrentAbilities =
+          1 + (freshKeeper.inheritedAbilities || []).length;
+
+        if (freshCurrentAbilities >= freshCapacity) {
+          return message.reply(
+            "Your ability capacity changed before confirmation. No pet was sacrificed."
+          );
+        }
+
+        const chance = PET_INHERIT_CHANCE[freshSacrificeDef.rarity] || 15;
+
+        if (Math.random() * 100 < chance) {
+          freshKeeper.inheritedAbilities.push({
+            ability: freshSacrificeDef.ability,
+            baseBonus: freshSacrificeDef.baseBonus,
+            sourcePetKey: freshSacrificeDef.key,
+            sourceRarity: freshSacrificeDef.rarity,
+            xp: 0,
+            inheritedAt: Date.now()
+          });
+
+          result =
+            `🧬 **ABILITY INHERITED!**\n` +
+            `${freshKeeperDef.name} learned **${abilityDisplayName(freshSacrificeDef.ability)}**!\n\n` +
+            `The new ability begins at **Ability Level 1 — 0 XP**.\n` +
+            `A companion can only know each ability once; future pets with this same ability will strengthen it with XP instead.`;
+        } else {
+          const consolation = Math.floor(
+            (PET_COMBINE_XP[freshSacrificeDef.rarity] || 50) / 3
+          );
+
+          freshKeeper.companionXp =
+            Math.max(0, Number(freshKeeper.companionXp || 0)) + consolation;
+
+          result =
+            `💨 **INHERITANCE FAILED**\n` +
+            `The ability did not transfer, but ${freshKeeperDef.name} absorbed ` +
+            `**${consolation} Companion XP**.\n\n` +
+            `${companionXpBar(freshKeeper)}`;
+        }
+      }
+    }
+
+    freshPlayer.pets = freshPlayer.pets.filter(
+      pet => String(pet.id) !== String(freshSacrifice.id)
+    );
+
+    // If the sacrificed pet happened to be the current post-hatch choice,
+    // clear that choice so !sacrifice cannot target it again.
+    if (
+      freshPlayer.pendingHatchChoice &&
+      String(freshPlayer.pendingHatchChoice.petId) === String(freshSacrifice.id)
+    ) {
+      freshPlayer.pendingHatchChoice = null;
+    }
+
+    saveData(fresh);
+    return message.reply(result);
   }
 
   if (command === "!monsternotify on") {
@@ -4749,7 +5110,19 @@ ${captureChoicesText(choices)}
     addWeeklyProgress(data, player, hatchTotalPoints);
     player.titleProgress.eggsHatched = (player.titleProgress.eggsHatched || 0) + 1;
 
-    if (player.equippedPetId === null) player.equippedPetId = ownedPet.id;
+    const hadEquippedPetBeforeHatch = player.equippedPetId !== null;
+
+    if (player.equippedPetId === null) {
+      player.equippedPetId = ownedPet.id;
+      player.pendingHatchChoice = null;
+    } else {
+      player.pendingHatchChoice = {
+        petId: ownedPet.id,
+        hatchedAt: Date.now(),
+        expiresAt: Date.now() + HATCH_SACRIFICE_WINDOW,
+        channelId: message.channel.id
+      };
+    }
 
     const incubatorUnlockText = getNewIncubatorUnlockText(player, previousPoints);
     const petCollectionUnlocks = evaluatePetCollectionRewards(player);
@@ -4815,7 +5188,17 @@ ${captureChoicesText(choices)}
         `${formatSecretUnlocks(petCollectionUnlocks)}\n\n` +
         `${player.equippedPetId === ownedPet.id
           ? "⭐ It has been equipped as your first companion!"
-          : `Use \`!equippet ${player.pets.length}\` to equip it.`}`
+          : `Use \`!equippet ${player.pets.length}\` to equip it.`}` +
+        `${hadEquippedPetBeforeHatch
+          ? `\n\n━━━━━━━━━━━━━━━━━━━━\n` +
+            `⚖️ **KEEP OR SACRIFICE?**\n` +
+            `You have **5 minutes** to decide what to do with this new hatch.\n\n` +
+            `💚 Type **\`!keep\`** to keep it in your collection.\n` +
+            `✨ Type **\`!sacrifice\`** to permanently convert it into ` +
+            `**${PET_COMBINE_XP[rarity] || 50} Companion XP** for your currently equipped pet.\n\n` +
+            `*Quick sacrifice gives XP only — it does NOT transfer the hatch's ability.*\n` +
+            `If you do nothing, the pet is automatically kept.`
+          : ""}`
       );
 
     if (artworkUrl) {
