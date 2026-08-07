@@ -1010,17 +1010,50 @@ function awardInheritedAbilityXp(ownedPet, amount) {
   return leveled;
 }
 
+function formatAllPetAbilityProgress(ownedPet) {
+  const definition = getOwnedPetDefinition(ownedPet);
+  if (!ownedPet || !definition) return "";
+
+  const naturalInfo = getCompanionLevelInfo(ownedPet);
+  const naturalXp = naturalInfo.level >= MAX_COMPANION_LEVEL
+    ? "MAX"
+    : `${naturalInfo.xpIntoLevel}/${naturalInfo.xpNeeded} XP`;
+
+  const lines = [
+    `✨ **${abilityDisplayName(definition.ability)}** — Ability Lv. **${naturalInfo.level}** | **${naturalXp}**`
+  ];
+
+  for (const inherited of ownedPet.inheritedAbilities || []) {
+    const info = getInheritedAbilityLevelInfo(inherited);
+    const xp = info.level >= MAX_COMPANION_LEVEL
+      ? "MAX"
+      : `${info.xpIntoLevel}/${info.xpNeeded} XP`;
+
+    lines.push(
+      `🧬 **${abilityDisplayName(inherited.ability)}** — Ability Lv. **${info.level}** | **${xp}**`
+    );
+  }
+
+  return lines.join("\n");
+}
+
 function awardCompanionXp(player, amount, reason = "Companion XP") {
   const ownedPet = getEquippedPet(player);
   const definition = getOwnedPetDefinition(ownedPet);
   if (!ownedPet || !definition || amount <= 0) return "";
+
   const before = getCompanionLevelInfo(ownedPet).level;
   ownedPet.companionXp = Math.max(0, Number(ownedPet.companionXp || 0)) + amount;
   const after = getCompanionLevelInfo(ownedPet).level;
-  const abilityLevels = awardInheritedAbilityXp(ownedPet, reason.includes("Fetch") ? ABILITY_XP_PER_FETCH : ABILITY_XP_PER_HUNT);
-  return `${getPetDisplayIcon(definition)} **${definition.name} gained ${amount} Companion XP!** (${reason})\n${companionXpBar(ownedPet)}` +
+
+  const inheritedXpAmount = reason.includes("Fetch") ? ABILITY_XP_PER_FETCH : ABILITY_XP_PER_HUNT;
+  const abilityLevels = awardInheritedAbilityXp(ownedPet, inheritedXpAmount);
+
+  return `${getPetDisplayIcon(definition)} **${definition.name} gained ${amount} Companion XP!** (${reason})\n` +
+    `${companionXpBar(ownedPet)}\n\n` +
+    `**Ability Progress**\n${formatAllPetAbilityProgress(ownedPet)}` +
     `${after > before ? `\n🎉 **LEVEL UP! ${definition.name} reached Level ${after}!**\n✨ Its natural ${abilityDisplayName(definition.ability)} ability grew stronger.` : ""}` +
-    `${abilityLevels.length ? `\n🧬 ${abilityLevels.join("\n🧬 ")}` : ""}`;
+    `${abilityLevels.length ? `\n🧬 **ABILITY LEVEL UP!** ${abilityLevels.join("\n🧬 **ABILITY LEVEL UP!** ")}` : ""}`;
 }
 
 function abilityDisplayName(ability) {
@@ -1353,25 +1386,73 @@ function fetchFlavor(definition, personality, returning = false) {
 
 function rollFetchRewards(data, player, ownedPet, definition) {
   const rewards = [];
-  const count = Math.random() < 0.25 ? 3 : (Math.random() < 0.60 ? 2 : 1);
+
+  // Fetch quantity is intentionally conservative.
+  // Rarer pets improve QUALITY much more than quantity.
+  const quantityRoll = Math.random() * 100;
+  const quantityChances = {
+    Common:    { two: 5,  three: 0.25 },
+    Rare:      { two: 8,  three: 0.5 },
+    Epic:      { two: 12, three: 1 },
+    Legendary: { two: 16, three: 2 }
+  };
+  const quantity = quantityChances[definition.rarity] || quantityChances.Common;
+  const count = quantityRoll < quantity.three
+    ? 3
+    : (quantityRoll < quantity.three + quantity.two ? 2 : 1);
+
+  // Higher rarity shifts the roll toward better-quality rewards.
+  const qualityBoost = {
+    Common: 0,
+    Rare: 4,
+    Epic: 8,
+    Legendary: 12
+  }[definition.rarity] || 0;
+
   const ability = definition.ability;
+
   for (let i = 0; i < count; i++) {
-    let roll = Math.random() * 100;
-    if (["eggFinder"].includes(ability)) roll -= 8;
-    if (["itemFinder", "capture"].includes(ability)) roll += 5;
+    let roll = Math.random() * 100 + qualityBoost;
+
+    // Hidden specialties affect WHAT is found, not how many items return.
+    if (ability === "eggFinder") roll -= 12;
+    if (ability === "itemFinder") roll += 3;
+    if (ability === "capture") roll += 2;
+
+    roll = Math.max(0, Math.min(100, roll));
+
     if (roll < 8) {
       const rarity = rollEggRarity(player) || "Common";
       player.eggs.push({ rarity, foundAt: Date.now(), source: "Fetch" });
       player.titleProgress.eggsFound = (player.titleProgress.eggsFound || 0) + 1;
       rewards.push(`${EGG_TYPES[rarity]?.icon || "🥚"} **${rarity} Egg**`);
-    } else if (roll < 34) { player.captureItems.berry++; rewards.push(CAPTURE_ITEMS.berry.name); }
-    else if (roll < 50) { player.captureItems.honey++; rewards.push(CAPTURE_ITEMS.honey.name); }
-    else if (roll < 61) { player.bait.rare++; rewards.push("🔵 Rare Bait"); }
-    else if (roll < 70) { player.captureItems.net++; rewards.push(CAPTURE_ITEMS.net.name); }
-    else if (roll < 78) { player.bait.epic++; rewards.push("🟣 Epic Bait"); }
-    else if (roll < 84) { player.bait.legendary++; rewards.push("🟠 Legendary Bait"); }
-    else if (roll < 86) { player.captureItems.masterCharm++; rewards.push(CAPTURE_ITEMS.masterCharm.name); }
-    else { const pts = 5 + Math.floor(Math.random() * 6); player.points += pts; addWeeklyProgress(data, player, pts); rewards.push(`⭐ **${pts} Hunter Points**`); }
+    } else if (roll < 38) {
+      player.captureItems.berry++;
+      rewards.push(CAPTURE_ITEMS.berry.name);
+    } else if (roll < 57) {
+      player.captureItems.honey++;
+      rewards.push(CAPTURE_ITEMS.honey.name);
+    } else if (roll < 70) {
+      player.bait.rare++;
+      rewards.push("🔵 Rare Bait");
+    } else if (roll < 80) {
+      player.captureItems.net++;
+      rewards.push(CAPTURE_ITEMS.net.name);
+    } else if (roll < 88) {
+      player.bait.epic++;
+      rewards.push("🟣 Epic Bait");
+    } else if (roll < 94) {
+      player.bait.legendary++;
+      rewards.push("🟠 Legendary Bait");
+    } else if (roll < 96) {
+      player.captureItems.masterCharm++;
+      rewards.push(CAPTURE_ITEMS.masterCharm.name);
+    } else {
+      const pts = 5 + Math.floor(Math.random() * 6);
+      player.points += pts;
+      addWeeklyProgress(data, player, pts);
+      rewards.push(`⭐ **${pts} Hunter Points**`);
+    }
   }
   return rewards;
 }
