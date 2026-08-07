@@ -3487,7 +3487,7 @@ async function sendOverhaulAnnouncementOnce() {
     `🏆 Weekly competition begins Monday at **5:00 AM Mountain Time**\n` +
     `🥚 Eggs have more discovery sources and empty incubators quietly help\n` +
     `💯 Natural 100 creates a Critical Catch; Natural 1 creates a Perfect Catch\n` +
-    `🔔 Use \`!remindme all\` for personal hunt and fetch cooldown tags\n\n` +
+    `🔔 Use \`!remind all\` for personal hunt and fetch cooldown tags\n\n` +
     `**All existing progress has been preserved.**`
   );
   data.overhaulAnnouncementSent = true;
@@ -3745,17 +3745,41 @@ client.on("messageCreate", async (message) => {
 
   resetDaily(player);
 
-  if (command === "!remindme" || command === "!reminders") {
-    return message.reply(`🔔 **Cooldown Reminders**\nHunt: **${player.cooldownReminders.hunt ? "ON" : "OFF"}**\nFetch: **${player.cooldownReminders.fetch ? "ON" : "OFF"}**\n\nUse \`!remindme hunt\`, \`!remindme fetch\`, \`!remindme all\`, or \`!remindme off\`.`);
+  if (["!remind", "!remindme", "!reminders"].includes(command)) {
+    return message.reply(
+      `🔔 **Cooldown Reminders**\n\n` +
+      `🏹 Hunt: **${player.cooldownReminders.hunt ? "ON" : "OFF"}**\n` +
+      `🐾 Fetch: **${player.cooldownReminders.fetch ? "ON" : "OFF"}**\n\n` +
+      `Use \`!remind hunt\`, \`!remind fetch\`, \`!remind all\`, or \`!remind off\`.\n` +
+      `\`!remindme\` also works as an alias.`
+    );
   }
-  if (command.startsWith("!remindme ")) {
-    const choice = command.slice("!remindme ".length).trim();
-    if (!["hunt","fetch","all","off"].includes(choice)) return message.reply("Use `!remindme hunt`, `!remindme fetch`, `!remindme all`, or `!remindme off`.");
-    if (choice === "off") player.cooldownReminders = { hunt:false, fetch:false };
-    else if (choice === "all") player.cooldownReminders = { hunt:true, fetch:true };
-    else player.cooldownReminders[choice] = !player.cooldownReminders[choice];
-    player.reminderState.channelId = message.channel.id; saveData(data);
-    return message.reply(`🔔 Cooldown reminders updated. Hunt: **${player.cooldownReminders.hunt ? "ON":"OFF"}** | Fetch: **${player.cooldownReminders.fetch ? "ON":"OFF"}**`);
+
+  if (command.startsWith("!remind ") || command.startsWith("!remindme ")) {
+    const prefix = command.startsWith("!remindme ") ? "!remindme " : "!remind ";
+    const choice = command.slice(prefix.length).trim();
+
+    if (!["hunt", "fetch", "all", "off"].includes(choice)) {
+      return message.reply("Use `!remind hunt`, `!remind fetch`, `!remind all`, or `!remind off`.");
+    }
+
+    if (choice === "off") {
+      player.cooldownReminders = { hunt: false, fetch: false };
+    } else if (choice === "all") {
+      player.cooldownReminders = { hunt: true, fetch: true };
+    } else {
+      player.cooldownReminders[choice] = !player.cooldownReminders[choice];
+    }
+
+    player.reminderState.channelId = message.channel.id;
+    saveData(data);
+
+    return message.reply(
+      `🔔 **Cooldown Reminders Updated!**\n\n` +
+      `🏹 Hunt: **${player.cooldownReminders.hunt ? "ON" : "OFF"}**\n` +
+      `🐾 Fetch: **${player.cooldownReminders.fetch ? "ON" : "OFF"}**\n\n` +
+      `I'll tag only you in this channel when your enabled cooldowns are ready.`
+    );
   }
 
   if (command === "!fetch") {
