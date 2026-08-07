@@ -4441,22 +4441,52 @@ ${captureChoicesText(choices)}
       return message.reply("🐾 You have not hatched any pets yet. Find eggs during successful hunts!");
     }
 
-    const list = player.pets.map((owned, index) => {
+    // Keep the original compact pet-list appearance while safely splitting
+    // very large collections across multiple Discord messages.
+    const entries = player.pets.map((owned, index) => {
       const definition = getOwnedPetDefinition(owned);
-      const marker = player.equippedPetId === owned.id ? "⭐" : `${index + 1}.`;
+      const info = getCompanionLevelInfo(owned);
+      const marker = `${index + 1}. ${player.equippedPetId === owned.id ? "⭐ " : ""}`;
+      const xpText = info.level >= MAX_COMPANION_LEVEL
+        ? "MAX"
+        : `${info.xpIntoLevel}/${info.xpNeeded}`;
 
       return (
-        `${marker} ${definition ? getPetDisplayIcon(definition) : "🐾"} **${definition?.name || owned.key}** — ` +
-        `${definition?.rarity || "Unknown"} | Level ${getCompanionLevelInfo(owned).level} | Bond ${getPetBondLevel(owned)} | ${owned.personality}\n` +
-        `   ✨ Passive: **${petPassiveTextForOwned(owned)}**\n` +
-        `   ⭐ XP: **${getCompanionLevelInfo(owned).level >= MAX_COMPANION_LEVEL ? "MAX" : `${getCompanionLevelInfo(owned).xpIntoLevel}/${getCompanionLevelInfo(owned).xpNeeded}`}**`
+        `${marker}${definition ? getPetDisplayIcon(definition) : "🐾"} **${definition?.name || owned.key}** — ` +
+        `${definition?.rarity || "Unknown"} | Level ${info.level} | Bond ${getPetBondLevel(owned)} | ${owned.personality} ` +
+        `✨ Passive: **${petPassiveTextForOwned(owned)}** ⭐ XP: **${xpText}**`
       );
-    }).join("\n\n");
+    });
 
-    return message.reply(
-      `🐾 **${formatPlayerName(player, message.author.username)}'s Pets**\n\n${list}\n\n` +
-      `⭐ = Equipped\n🧬 Ability capacity: **${petAbilityCapacity(player)} total abilities per pet**\nUse \`!pet number\` for details, \`!equippet number\` to equip, or \`!combine keep# sacrifice#\`.`
-    );
+    const header = `🐾 **${formatPlayerName(player, message.author.username)}'s Pets**\n\n`;
+    const footer =
+      `\n\n⭐ = Equipped\n` +
+      `Use \`!pet number\` for details or \`!equippet number\` to equip one.\n` +
+      `Use \`!combine keep# sacrifice#\` to combine companions.`;
+
+    const chunks = [];
+    let current = header;
+
+    for (const entry of entries) {
+      const addition = `${current === header ? "" : "\n\n"}${entry}`;
+      const reservedFooterLength = chunks.length === 0 ? footer.length : 0;
+
+      if (current.length + addition.length + reservedFooterLength > 1950 && current !== header) {
+        chunks.push(current);
+        current = entry;
+      } else {
+        current += addition;
+      }
+    }
+
+    chunks.push(current);
+    chunks[chunks.length - 1] += footer;
+
+    await message.reply(chunks[0]);
+    for (let i = 1; i < chunks.length; i++) {
+      await message.channel.send(chunks[i]);
+    }
+    return;
   }
 
   if (command === "!petdex" || command.startsWith("!petdex ")) {
