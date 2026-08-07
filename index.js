@@ -16,7 +16,31 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent
-  ]
+  ],
+  // Give Discord REST requests more time before they are aborted.
+  rest: {
+    timeout: 30000
+  }
+});
+
+// Prevent temporary Discord client/API errors from crashing the entire bot.
+client.on("error", error => {
+  console.error("Discord client error:", error);
+});
+
+// Helpful logging for Discord warnings without stopping the bot.
+client.on("warn", warning => {
+  console.warn("Discord client warning:", warning);
+});
+
+// Log REST rate limits so they can be diagnosed if Discord starts slowing requests.
+client.rest.on("rateLimited", info => {
+  console.warn("Discord REST rate limit:", info);
+});
+
+// Keep rejected async work from silently killing the process.
+process.on("unhandledRejection", reason => {
+  console.error("Unhandled Promise Rejection:", reason);
 });
 
 const DATA_DIRECTORY = fs.existsSync("/data") ? "/data" : __dirname;
@@ -3916,7 +3940,7 @@ async function sendOverhaulAnnouncementOnce() {
   saveData(data);
 }
 
-client.once("ready", () => {
+client.once("clientReady", () => {
   console.log(`Logged in as ${client.user.tag}`);
   sendOverhaulAnnouncementOnce().catch(error => console.error("Overhaul announcement failed:", error));
 
