@@ -34,6 +34,21 @@ const ULTRA_ESCAPE_REWARD = 10;
 const ULTRA_RANDOM_EVENTS_PER_WEEK = 3;
 const ULTRA_SUMMON_DELAY = 5 * 60 * 1000;
 
+// ==================== SEASON 2 QUALITY-OF-LIFE OVERHAUL ====================
+const FETCH_COOLDOWN = 2 * 60 * 60 * 1000;
+const FETCH_DURATION = 10 * 60 * 1000;
+const FETCH_COMPANION_XP = 5;
+const ABILITY_XP_PER_HUNT = 5;
+const ABILITY_XP_PER_FETCH = 5;
+const WEEKLY_COMPETITION_START_AT = Date.UTC(2026, 7, 10, 11, 0, 0); // Aug 10, 2026, 5:00 AM Mountain Daylight Time
+const WEEKLY_WINNER_BAIT_REWARD = 1;
+const PERFECT_CATCH_TITLE = "Perfectly Executed";
+const CRITICAL_CATCH_TITLE = "Against All Odds";
+const CRITICAL_CATCH_BONUS_POINTS = 10;
+const PET_COMBINE_XP = { Common: 50, Rare: 75, Epic: 125, Legendary: 200 };
+const PET_INHERIT_CHANCE = { Common: 15, Rare: 20, Epic: 25, Legendary: 30 };
+const PET_XP_BASE = { Common: 50, Rare: 65, Epic: 80, Legendary: 100 };
+
 const MIXER_MONSTER_ENCOUNTER_CHANCE = 0.25;
 const MIXER_MONSTER = {
   key: "mixermonster",
@@ -481,7 +496,9 @@ const HIDDEN_TITLE_DEFINITIONS = [
   { name: "Professional Escape Artist", rarity: "Rare", check: p => (p.titleProgress?.failedCaptureStreak || 0) >= 10 },
   { name: "Almost Certain", rarity: "Epic", check: p => Boolean(p.titleProgress?.failedAtNinety) },
   { name: "The One Percent", rarity: "Mythic", check: p => Boolean(p.titleProgress?.mixerWithoutCharm) },
-  { name: "Against the Cosmos", rarity: "Mythic", check: p => Boolean(p.titleProgress?.ultraAtFiveOrLess) }
+  { name: "Against the Cosmos", rarity: "Mythic", check: p => Boolean(p.titleProgress?.ultraAtFiveOrLess) },
+  { name: CRITICAL_CATCH_TITLE, rarity: "Mythic", check: p => Boolean(p.titleProgress?.criticalCatch) },
+  { name: PERFECT_CATCH_TITLE, rarity: "Mythic", check: p => Boolean(p.titleProgress?.perfectCatch) }
 ];
 
 function getTitleDefinition(titleName) {
@@ -544,7 +561,16 @@ function loadData() {
   if (data.worldShatterUnlocked === undefined) data.worldShatterUnlocked = false;
   if (data.ultraWeeklySchedule === undefined) data.ultraWeeklySchedule = null;
   if (data.ultraAdminPauseUntil === undefined) data.ultraAdminPauseUntil = 0;
+  if (!data.weeklyCompetition || typeof data.weeklyCompetition !== "object") {
+    data.weeklyCompetition = {
+      startsAt: WEEKLY_COMPETITION_START_AT,
+      active: false,
+      weekStartedAt: 0,
+      lastResultsAt: 0
+    };
+  }
 
+  if (data.overhaulAnnouncementSent === undefined) data.overhaulAnnouncementSent = false;
   if (!Array.isArray(data.seasonMoments)) data.seasonMoments = [];
   if (!data.seasonMomentFlags || typeof data.seasonMomentFlags !== "object") {
     data.seasonMomentFlags = {};
@@ -700,6 +726,11 @@ function getPlayer(data, userId) {
       pets: [],
       equippedPetId: null,
       nextPetId: 1,
+      lastFetch: 0,
+      fetchState: null,
+      cooldownReminders: { hunt: false, fetch: false },
+      reminderState: { huntDueAt: 0, huntSent: false, fetchDueAt: 0, fetchSent: false, channelId: null },
+      weeklyStats: { points: 0, catches: 0, shinies: 0, legendaries: 0, startRank: null },
       titleProgress: {
         eggsFound: 0,
         eggsHatched: 0,
@@ -710,7 +741,9 @@ function getPlayer(data, userId) {
         failedCaptureStreak: 0,
         failedAtNinety: false,
         mixerWithoutCharm: false,
-        ultraAtFiveOrLess: false
+        ultraAtFiveOrLess: false,
+        criticalCatch: false,
+        perfectCatch: false
       },
       relics: {
         abyssalInk: 0,
@@ -797,6 +830,16 @@ function getPlayer(data, userId) {
   for (const [key, value] of Object.entries(titleProgressDefaults)) {
     if (player.titleProgress[key] === undefined) player.titleProgress[key] = value;
   }
+  if (player.lastFetch === undefined) player.lastFetch = 0;
+  if (player.fetchState === undefined) player.fetchState = null;
+  if (!player.cooldownReminders || typeof player.cooldownReminders !== "object") player.cooldownReminders = { hunt: false, fetch: false };
+  if (player.cooldownReminders.hunt === undefined) player.cooldownReminders.hunt = false;
+  if (player.cooldownReminders.fetch === undefined) player.cooldownReminders.fetch = false;
+  if (!player.reminderState || typeof player.reminderState !== "object") player.reminderState = { huntDueAt: 0, huntSent: false, fetchDueAt: 0, fetchSent: false, channelId: null };
+  if (!player.weeklyStats || typeof player.weeklyStats !== "object") player.weeklyStats = { points: 0, catches: 0, shinies: 0, legendaries: 0, startRank: null };
+  for (const key of ["points", "catches", "shinies", "legendaries"]) if (!Number.isFinite(player.weeklyStats[key])) player.weeklyStats[key] = 0;
+  if (player.titleProgress.criticalCatch === undefined) player.titleProgress.criticalCatch = false;
+  if (player.titleProgress.perfectCatch === undefined) player.titleProgress.perfectCatch = false;
   if (player.equippedPetId === undefined) player.equippedPetId = null;
   if (!Number.isInteger(player.nextPetId) || player.nextPetId < 1) {
     player.nextPetId = player.pets.reduce((max, pet) => Math.max(max, Number(pet.id) || 0), 0) + 1;
@@ -815,6 +858,18 @@ function getPlayer(data, userId) {
     if (ownedPet.affectionEvents === undefined) ownedPet.affectionEvents = 0;
     if (ownedPet.timesHelped === undefined) ownedPet.timesHelped = 0;
     if (!ownedPet.personality) ownedPet.personality = "Curious";
+    if (!Array.isArray(ownedPet.inheritedAbilities)) ownedPet.inheritedAbilities = [];
+    for (const inherited of ownedPet.inheritedAbilities) {
+      if (!Number.isFinite(inherited.xp)) inherited.xp = 0;
+      if (!inherited.sourceRarity) inherited.sourceRarity = "Common";
+    }
+    if (!ownedPet.progressionV2) {
+      const legacy = getLegacyCompanionLevelInfo(ownedPet.companionXp || 0);
+      const definition = getOwnedPetDefinition(ownedPet);
+      ownedPet.companionXp = companionTotalXpForLevel(legacy.level, definition?.rarity || "Common") +
+        Math.floor((legacy.xpNeeded ? legacy.xpIntoLevel / legacy.xpNeeded : 0) * companionXpRequiredForLevel(legacy.level, definition?.rarity || "Common"));
+      ownedPet.progressionV2 = true;
+    }
   }
   if (player.relics === undefined) player.relics = {};
   for (const relicKey of RELIC_KEYS) {
@@ -878,26 +933,40 @@ function getEquippedPet(player) {
   return player.pets.find(pet => String(pet.id) === String(player.equippedPetId)) || null;
 }
 
-function companionXpRequiredForLevel(level) {
-  return 40 + Math.max(0, level - 1) * 20;
-}
-
-function getCompanionLevelInfo(ownedPet) {
+function getLegacyCompanionLevelInfo(totalXp) {
   let level = 1;
-  let xpIntoLevel = Math.max(0, Number(ownedPet?.companionXp || 0));
-
+  let xpIntoLevel = Math.max(0, Number(totalXp || 0));
   while (level < MAX_COMPANION_LEVEL) {
-    const needed = companionXpRequiredForLevel(level);
+    const needed = 40 + Math.max(0, level - 1) * 20;
     if (xpIntoLevel < needed) break;
     xpIntoLevel -= needed;
     level++;
   }
+  return { level, xpIntoLevel, xpNeeded: level >= MAX_COMPANION_LEVEL ? 0 : 40 + Math.max(0, level - 1) * 20 };
+}
 
-  return {
-    level,
-    xpIntoLevel,
-    xpNeeded: level >= MAX_COMPANION_LEVEL ? 0 : companionXpRequiredForLevel(level)
-  };
+function companionXpRequiredForLevel(level, rarity = "Common") {
+  return (PET_XP_BASE[rarity] || PET_XP_BASE.Common) + Math.max(0, level - 1) * 10;
+}
+
+function companionTotalXpForLevel(level, rarity = "Common") {
+  let total = 0;
+  for (let current = 1; current < level; current++) total += companionXpRequiredForLevel(current, rarity);
+  return total;
+}
+
+function getCompanionLevelInfo(ownedPet) {
+  const definition = getOwnedPetDefinition(ownedPet);
+  const rarity = definition?.rarity || "Common";
+  let level = 1;
+  let xpIntoLevel = Math.max(0, Number(ownedPet?.companionXp || 0));
+  while (level < MAX_COMPANION_LEVEL) {
+    const needed = companionXpRequiredForLevel(level, rarity);
+    if (xpIntoLevel < needed) break;
+    xpIntoLevel -= needed;
+    level++;
+  }
+  return { level, xpIntoLevel, xpNeeded: level >= MAX_COMPANION_LEVEL ? 0 : companionXpRequiredForLevel(level, rarity), rarity };
 }
 
 function getPetBondLevel(ownedPet) {
@@ -908,38 +977,80 @@ function getPetBondLevel(ownedPet) {
 function companionXpBar(ownedPet, length = 10) {
   const info = getCompanionLevelInfo(ownedPet);
   if (info.level >= MAX_COMPANION_LEVEL) return `Level **${info.level}** | **MAX LEVEL**\n${"█".repeat(length)}`;
-
   const filled = Math.max(0, Math.min(length, Math.floor((info.xpIntoLevel / info.xpNeeded) * length)));
-  return (
-    `Level **${info.level}** | **${info.xpIntoLevel}/${info.xpNeeded} XP**\n` +
-    `${"█".repeat(filled)}${"░".repeat(length - filled)}`
-  );
+  return `Level **${info.level}** | **${info.xpIntoLevel}/${info.xpNeeded} XP**\n${"█".repeat(filled)}${"░".repeat(length - filled)}`;
+}
+
+function abilityXpRequiredForLevel(level, rarity = "Common") {
+  return (PET_XP_BASE[rarity] || PET_XP_BASE.Common) + Math.max(0, level - 1) * 10;
+}
+
+function getInheritedAbilityLevelInfo(inherited) {
+  let level = 1;
+  let xpIntoLevel = Math.max(0, Number(inherited?.xp || 0));
+  const rarity = inherited?.sourceRarity || "Common";
+  while (level < MAX_COMPANION_LEVEL) {
+    const needed = abilityXpRequiredForLevel(level, rarity);
+    if (xpIntoLevel < needed) break;
+    xpIntoLevel -= needed;
+    level++;
+  }
+  return { level, xpIntoLevel, xpNeeded: level >= MAX_COMPANION_LEVEL ? 0 : abilityXpRequiredForLevel(level, rarity) };
+}
+
+function awardInheritedAbilityXp(ownedPet, amount) {
+  if (!ownedPet || !Array.isArray(ownedPet.inheritedAbilities) || amount <= 0) return [];
+  const leveled = [];
+  for (const inherited of ownedPet.inheritedAbilities) {
+    const before = getInheritedAbilityLevelInfo(inherited).level;
+    inherited.xp = Math.max(0, Number(inherited.xp || 0)) + amount;
+    const after = getInheritedAbilityLevelInfo(inherited).level;
+    if (after > before) leveled.push(`${abilityDisplayName(inherited.ability)} reached Ability Level ${after}`);
+  }
+  return leveled;
 }
 
 function awardCompanionXp(player, amount, reason = "Companion XP") {
   const ownedPet = getEquippedPet(player);
   const definition = getOwnedPetDefinition(ownedPet);
   if (!ownedPet || !definition || amount <= 0) return "";
-
   const before = getCompanionLevelInfo(ownedPet).level;
   ownedPet.companionXp = Math.max(0, Number(ownedPet.companionXp || 0)) + amount;
   const after = getCompanionLevelInfo(ownedPet).level;
+  const abilityLevels = awardInheritedAbilityXp(ownedPet, reason.includes("Fetch") ? ABILITY_XP_PER_FETCH : ABILITY_XP_PER_HUNT);
+  return `${getPetDisplayIcon(definition)} **${definition.name} gained ${amount} Companion XP!** (${reason})\n${companionXpBar(ownedPet)}` +
+    `${after > before ? `\n🎉 **LEVEL UP! ${definition.name} reached Level ${after}!**\n✨ Its natural ${abilityDisplayName(definition.ability)} ability grew stronger.` : ""}` +
+    `${abilityLevels.length ? `\n🧬 ${abilityLevels.join("\n🧬 ")}` : ""}`;
+}
 
-  return (
-    `${getPetDisplayIcon(definition)} **${definition.name} gained ${amount} Companion XP!** (${reason})\n` +
-    `${companionXpBar(ownedPet)}` +
-    `${after > before ? `\n🎉 **LEVEL UP! ${definition.name} reached Level ${after}!**` : ""}` +
-    `${getPetBondLevel(ownedPet) > Math.min(MAX_PET_BOND_LEVEL, 1 + Math.floor((before - 1) / 5))
-      ? `\n💞 Its Bond increased to **${getPetBondLevel(ownedPet)}** and its passive became stronger!`
-      : ""}`
-  );
+function abilityDisplayName(ability) {
+  return ({ eggFinder: "Egg Finder", shiny: "Shiny Finder", capture: "Capture", cooldown: "Cooldown", points: "Bonus Points", itemFinder: "Item Finder" })[ability] || ability;
+}
+
+function abilityBonusAtLevel(ability, baseBonus, level) {
+  const extraLevels = Math.max(0, level - 1);
+  if (ability === "shiny") return +(baseBonus + extraLevels * 0.25).toFixed(2);
+  if (ability === "eggFinder") return +(baseBonus + extraLevels * 0.5).toFixed(2);
+  if (ability === "cooldown") return +(baseBonus + Math.floor(extraLevels / 2)).toFixed(2);
+  return +(baseBonus + extraLevels).toFixed(2);
+}
+
+function getPetAbilityEntries(ownedPet) {
+  const definition = getOwnedPetDefinition(ownedPet);
+  if (!ownedPet || !definition) return [];
+  const naturalLevel = getCompanionLevelInfo(ownedPet).level;
+  const entries = [{ ability: definition.ability, level: naturalLevel, baseBonus: definition.baseBonus, natural: true, rarity: definition.rarity }];
+  for (const inherited of ownedPet.inheritedAbilities || []) {
+    entries.push({ ability: inherited.ability, level: getInheritedAbilityLevelInfo(inherited).level, baseBonus: inherited.baseBonus || 1, natural: false, rarity: inherited.sourceRarity || "Common", inherited });
+  }
+  return entries;
 }
 
 function getPetBonus(player, ability) {
   const ownedPet = getEquippedPet(player);
-  const definition = getOwnedPetDefinition(ownedPet);
-  if (!ownedPet || !definition || definition.ability !== ability) return 0;
-  return definition.baseBonus + getPetBondLevel(ownedPet) - 1;
+  return getPetAbilityEntries(ownedPet)
+    .filter(entry => entry.ability === ability)
+    .reduce((sum, entry) => sum + abilityBonusAtLevel(entry.ability, entry.baseBonus, entry.level), 0);
 }
 
 function getPlayerPetIcon(player) {
@@ -963,11 +1074,8 @@ function getPlayerHuntCooldown(player) {
   return Math.max(30 * 60 * 1000, HUNT_COOLDOWN - reductionMinutes * 60 * 1000);
 }
 
-function petPassiveText(player) {
-  const ownedPet = getEquippedPet(player);
-  const definition = getOwnedPetDefinition(ownedPet);
-  if (!ownedPet || !definition) return "No pet equipped.";
-  const bonus = getPetBonus(player, definition.ability);
+function formatAbilityEffect(entry) {
+  const bonus = abilityBonusAtLevel(entry.ability, entry.baseBonus, entry.level);
   const labels = {
     eggFinder: `+${bonus}% egg discovery chance`,
     shiny: `+${bonus}% shiny chance`,
@@ -976,22 +1084,18 @@ function petPassiveText(player) {
     points: `+${bonus} points on successful catches`,
     itemFinder: `+${bonus}% companion item-find chance`
   };
-  return labels[definition.ability] || definition.description;
+  return labels[entry.ability] || abilityDisplayName(entry.ability);
+}
+
+function petPassiveText(player) {
+  const ownedPet = getEquippedPet(player);
+  if (!ownedPet) return "No pet equipped.";
+  return getPetAbilityEntries(ownedPet).map(entry => `${entry.natural ? "✨" : "🧬"} ${abilityDisplayName(entry.ability)} Lv. ${entry.level}: ${formatAbilityEffect(entry)}`).join("\n");
 }
 
 function petPassiveTextForOwned(ownedPet) {
-  const definition = getOwnedPetDefinition(ownedPet);
-  if (!ownedPet || !definition) return "Unknown passive.";
-  const bonus = definition.baseBonus + getPetBondLevel(ownedPet) - 1;
-  const labels = {
-    eggFinder: `+${bonus}% egg discovery chance`,
-    shiny: `+${bonus}% shiny chance`,
-    capture: `+${bonus}% normal capture chance`,
-    cooldown: `${bonus * 5} minute hunt cooldown reduction`,
-    points: `+${bonus} points on successful catches`,
-    itemFinder: `+${bonus}% companion item-find chance`
-  };
-  return labels[definition.ability] || definition.description;
+  if (!ownedPet) return "Unknown passive.";
+  return getPetAbilityEntries(ownedPet).map(entry => `${entry.natural ? "Natural" : "Inherited"} ${abilityDisplayName(entry.ability)} Lv. ${entry.level}: ${formatAbilityEffect(entry)}`).join(" | ");
 }
 
 function getIncubatorSlots(player) {
@@ -1048,11 +1152,15 @@ function choosePetFromEgg(rarity) {
 }
 
 function rollEggRarity(player) {
-  const bonus = getPetBonus(player, "eggFinder");
-  if (Math.random() * 100 < EGG_DROP_CHANCES.Legendary + Math.floor(bonus / 4)) return "Legendary";
-  if (Math.random() * 100 < EGG_DROP_CHANCES.Epic + Math.floor(bonus / 3)) return "Epic";
-  if (Math.random() * 100 < EGG_DROP_CHANCES.Rare + Math.floor(bonus / 2)) return "Rare";
-  if (Math.random() * 100 < EGG_DROP_CHANCES.Common + bonus) return "Common";
+  const petBonus = getPetBonus(player, "eggFinder");
+  const emptySlots = Math.max(0, getIncubatorSlots(player) - (player.incubatingEggs || []).length);
+  const nestBonus = Math.min(8, emptySlots * 2);
+  const bonus = petBonus + nestBonus;
+  // A modest global increase keeps unlocked incubators useful without flooding inventories.
+  if (Math.random() * 100 < 12 + Math.floor(bonus / 4)) return "Legendary";
+  if (Math.random() * 100 < 24 + Math.floor(bonus / 3)) return "Epic";
+  if (Math.random() * 100 < 36 + Math.floor(bonus / 2)) return "Rare";
+  if (Math.random() * 100 < 60 + bonus) return "Common";
   return null;
 }
 
@@ -1178,13 +1286,105 @@ function resolveCaptureItem(input) {
   )?.[0] || null;
 }
 
-function calculateCaptureChance(player, monster, itemKey = null) {
+function getLeaderPoints(data, excludedId = null) {
+  return Math.max(0, ...Object.entries(data.players || {}).filter(([id]) => id !== excludedId).map(([, p]) => Number(p.points || 0)));
+}
+
+function getComebackTier(data, player, userId = null) {
+  const behind = Math.max(0, getLeaderPoints(data, userId) - Number(player.points || 0));
+  if (behind >= 200) return { behind, pointMultiplier: 1.75, catchBonus: 8, label: "+75%" };
+  if (behind >= 100) return { behind, pointMultiplier: 1.40, catchBonus: 5, label: "+40%" };
+  if (behind >= 50) return { behind, pointMultiplier: 1.20, catchBonus: 2, label: "+20%" };
+  return { behind, pointMultiplier: 1, catchBonus: 0, label: null };
+}
+
+function isWeeklyCompetitionActive(data) {
+  return Boolean(data.weeklyCompetition?.active && Date.now() >= data.weeklyCompetition.startsAt);
+}
+
+function addWeeklyProgress(data, player, points, monster = null) {
+  if (!isWeeklyCompetitionActive(data)) return;
+  player.weeklyStats.points += Math.max(0, points || 0);
+  if (monster) {
+    player.weeklyStats.catches++;
+    if (monster.shiny) player.weeklyStats.shinies++;
+    if (monster.rarity === "Legendary") player.weeklyStats.legendaries++;
+  }
+}
+
+function petAbilityCapacity(player) {
+  return 1 + Math.floor(Math.max(0, Number(player.points || 0)) / 100);
+}
+
+function perfectCatchLoot(player) {
+  const roll = Math.random() * 100;
+  if (roll < 35) { player.captureItems.berry++; return CAPTURE_ITEMS.berry.name; }
+  if (roll < 58) { player.captureItems.honey++; return CAPTURE_ITEMS.honey.name; }
+  if (roll < 73) { player.captureItems.net++; return CAPTURE_ITEMS.net.name; }
+  if (roll < 85) { player.bait.rare++; return "🔵 Rare Bait"; }
+  if (roll < 93) { player.bait.epic++; return "🟣 Epic Bait"; }
+  if (roll < 98) { player.bait.legendary++; return "🟠 Legendary Bait"; }
+  if (roll < 99.5) { player.captureItems.masterCharm++; return CAPTURE_ITEMS.masterCharm.name; }
+  const rarity = rollEggRarity(player) || "Common";
+  player.eggs.push({ rarity, foundAt: Date.now(), source: "Perfect Catch" });
+  player.titleProgress.eggsFound = (player.titleProgress.eggsFound || 0) + 1;
+  return `${EGG_TYPES[rarity]?.icon || "🥚"} ${rarity} Egg`;
+}
+
+function fetchFlavor(definition, personality, returning = false) {
+  const starts = {
+    Cheerful: `${definition.name} bounds away with unstoppable enthusiasm!`,
+    Curious: `${definition.name} follows a mysterious trail into the distance.`,
+    Loyal: `${definition.name} gives you one last determined look before setting out.`,
+    Mischievous: `${definition.name} vanishes suspiciously quickly. This is probably fine.`,
+    Sleepy: `${definition.name} yawns, stretches, and slowly wanders off to search.`,
+    Brave: `${definition.name} charges into the wilds without a second thought!`
+  };
+  const returns = {
+    Cheerful: `${definition.name} comes racing back, proudly showing off its haul!`,
+    Curious: `${definition.name} returns after investigating every strange sound along the way.`,
+    Loyal: `${definition.name} returns directly to your side with supplies carefully protected.`,
+    Mischievous: `${definition.name} returns looking far too innocent and drops its findings at your feet.`,
+    Sleepy: `${definition.name} returns with supplies... and immediately curls up for a nap.`,
+    Brave: `${definition.name} marches back triumphantly from its adventure!`
+  };
+  return (returning ? returns : starts)[personality] || (returning ? returns.Curious : starts.Curious);
+}
+
+function rollFetchRewards(data, player, ownedPet, definition) {
+  const rewards = [];
+  const count = Math.random() < 0.25 ? 3 : (Math.random() < 0.60 ? 2 : 1);
+  const ability = definition.ability;
+  for (let i = 0; i < count; i++) {
+    let roll = Math.random() * 100;
+    if (["eggFinder"].includes(ability)) roll -= 8;
+    if (["itemFinder", "capture"].includes(ability)) roll += 5;
+    if (roll < 8) {
+      const rarity = rollEggRarity(player) || "Common";
+      player.eggs.push({ rarity, foundAt: Date.now(), source: "Fetch" });
+      player.titleProgress.eggsFound = (player.titleProgress.eggsFound || 0) + 1;
+      rewards.push(`${EGG_TYPES[rarity]?.icon || "🥚"} **${rarity} Egg**`);
+    } else if (roll < 34) { player.captureItems.berry++; rewards.push(CAPTURE_ITEMS.berry.name); }
+    else if (roll < 50) { player.captureItems.honey++; rewards.push(CAPTURE_ITEMS.honey.name); }
+    else if (roll < 61) { player.bait.rare++; rewards.push("🔵 Rare Bait"); }
+    else if (roll < 70) { player.captureItems.net++; rewards.push(CAPTURE_ITEMS.net.name); }
+    else if (roll < 78) { player.bait.epic++; rewards.push("🟣 Epic Bait"); }
+    else if (roll < 84) { player.bait.legendary++; rewards.push("🟠 Legendary Bait"); }
+    else if (roll < 86) { player.captureItems.masterCharm++; rewards.push(CAPTURE_ITEMS.masterCharm.name); }
+    else { const pts = 5 + Math.floor(Math.random() * 6); player.points += pts; addWeeklyProgress(data, player, pts); rewards.push(`⭐ **${pts} Hunter Points**`); }
+  }
+  return rewards;
+}
+
+function calculateCaptureChance(player, monster, itemKey = null, data = null, userId = null) {
   const event = getActiveEvent();
+  const comeback = getComebackTier(data || loadData(), player, userId);
   const isMixerMonster = cleanMonsterName(monster.name) === "Mixer Monster";
   const encounters = getKnowledgeCount(player, monster);
   const knowledgeBonus = isMixerMonster ? 0 : getKnowledgeBonus(encounters);
   const eventBonus = isMixerMonster ? 0 : (event?.captureBoost ? 10 : 0);
   const petBonus = isMixerMonster ? 0 : getPetBonus(player, "capture");
+  const comebackBonus = isMixerMonster ? 0 : comeback.catchBonus;
   const item = itemKey ? CAPTURE_ITEMS[itemKey] : null;
 
   if (item?.guaranteed) {
@@ -1195,13 +1395,14 @@ function calculateCaptureChance(player, monster, itemKey = null) {
       eventBonus,
       itemBonus: item.bonus,
       petBonus,
+      comebackBonus,
       guaranteed: true
     };
   }
 
   const total = Math.min(
     MAX_CAPTURE_CHANCE,
-    monster.chance + knowledgeBonus + eventBonus + petBonus + (item?.bonus || 0)
+    monster.chance + knowledgeBonus + eventBonus + petBonus + comebackBonus + (item?.bonus || 0)
   );
 
   return {
@@ -1211,6 +1412,7 @@ function calculateCaptureChance(player, monster, itemKey = null) {
     eventBonus,
     itemBonus: item?.bonus || 0,
     petBonus,
+    comebackBonus,
     guaranteed: false
   };
 }
@@ -1262,8 +1464,10 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
   }
 
   const monster = player.currentMonster;
-  const chanceInfo = calculateCaptureChance(player, monster, itemKey);
+  const chanceInfo = calculateCaptureChance(player, monster, itemKey, data, userId);
   const roll = Math.floor(Math.random() * 100) + 1;
+  const criticalCatch = roll === 100;
+  const perfectCatch = roll === 1;
 
   if (itemKey) {
     player.captureItems[itemKey]--;
@@ -1273,22 +1477,31 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
     }
   }
 
-  const caught = chanceInfo.guaranteed || roll <= chanceInfo.total;
+  const caught = criticalCatch || chanceInfo.guaranteed || roll <= chanceInfo.total;
   const event = getActiveEvent();
 
   if (caught) {
     let pointsEarned = monster.points;
     if (event?.doublePoints) pointsEarned *= 2;
     pointsEarned += getPetBonus(player, "points");
+    const comeback = getComebackTier(data, player, userId);
+    const baseBeforeComeback = pointsEarned;
+    pointsEarned = Math.max(pointsEarned, Math.ceil(pointsEarned * comeback.pointMultiplier));
+    if (criticalCatch) pointsEarned += CRITICAL_CATCH_BONUS_POINTS;
+    const comebackExtra = pointsEarned - baseBeforeComeback - (criticalCatch ? CRITICAL_CATCH_BONUS_POINTS : 0);
 
     const previousPoints = player.points;
     player.points += pointsEarned;
+    addWeeklyProgress(data, player, pointsEarned, monster);
     player.caught.push(monster);
     player.lifetimeCaught.push({ ...monster });
     player.currentMonster = null;
     updateQuestProgress(player, "catch", monster);
 
     const bonusRewards = giveCatchBonusBait(player, monster);
+    const perfectLoot = perfectCatch ? perfectCatchLoot(player) : null;
+    if (criticalCatch) player.titleProgress.criticalCatch = true;
+    if (perfectCatch) player.titleProgress.perfectCatch = true;
     const eggFound = maybeFindEgg(player);
     const reaction = companionReaction(player, monster);
     const affectionEvent = rollPetAffectionEvent(player);
@@ -1362,6 +1575,8 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
       });
     }
 
+    if (criticalCatch) addSeasonMoment(data, { type: "critical_catch", playerId: userId, icon: "💯", text: `${hunterName} rolled a Natural 100 and made a Critical Catch on ${cleanMonsterName(monster.name)}!` });
+    if (perfectCatch) addSeasonMoment(data, { type: "perfect_catch", playerId: userId, icon: "🎯", text: `${hunterName} rolled a Natural 1 and made a Perfect Catch on ${cleanMonsterName(monster.name)}!` });
     recordPointMilestoneMoments(data, message.author.id, previousPoints, player.points);
     saveData(data);
     await announceTitleUnlocks(message, automaticTitleUnlocks);
@@ -1385,6 +1600,9 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
         `${itemKey ? `**Item Used:** ${CAPTURE_ITEMS[itemKey].name}\n` : "**Method:** Normal Throw\n"}` +
         `**Final Capture Chance:** ${chanceInfo.total}%\n` +
         `**Roll:** ${roll}\n` +
+        `${criticalCatch ? `\n💯 **CRITICAL CATCH!** A Natural 100 overrides the odds!\n🏆 **Critical Bonus: +${CRITICAL_CATCH_BONUS_POINTS} points**\n` : ""}` +
+        `${perfectCatch ? `\n🎯 **PERFECT CATCH!** Natural 1 bonus loot: **${perfectLoot}**\n` : ""}` +
+        `${comebackExtra > 0 ? `🔥 **Comeback Bonus: +${comebackExtra} points**\n` : ""}` +
         `**+${pointsEarned} points**` +
         `${eggFound ? `\n\n🥚 **EGG FOUND!**\n${EGG_TYPES[eggFound]?.icon || "🥚"} You discovered a **${eggFound} Egg**!` : ""}` +
         `${reaction.text ? `\n\n🐾 **Companion Reaction**\n${reaction.text}` : ""}` +
@@ -3179,8 +3397,106 @@ async function checkOneTimeSeasonLaunch() {
   }
 }
 
+async function processFetchReturnsAndReminders() {
+  const data = loadData();
+  let changed = false;
+  for (const [userId, playerRaw] of Object.entries(data.players || {})) {
+    const player = getPlayer(data, userId);
+    const channelId = player.reminderState?.channelId || player.fetchState?.channelId || MONSTER_CHANNEL_ID;
+    const channel = client.channels.cache.get(channelId) || client.channels.cache.get(MONSTER_CHANNEL_ID);
+    if (player.fetchState && !player.fetchState.completed && Date.now() >= player.fetchState.readyAt) {
+      const ownedPet = player.pets.find(p => String(p.id) === String(player.fetchState.petId));
+      const definition = getOwnedPetDefinition(ownedPet);
+      if (ownedPet && definition && channel?.isTextBased()) {
+        const rewards = rollFetchRewards(data, player, ownedPet, definition);
+        const xpText = awardCompanionXp(player, FETCH_COMPANION_XP, "Fetch Adventure");
+        const embed = new EmbedBuilder()
+          .setTitle(`🐾 ${definition.name} Returned!`)
+          .setDescription(`${fetchFlavor(definition, ownedPet.personality, true)}\n\n**Found:**\n${rewards.map(x => `• ${x}`).join("\n")}\n\n⭐ ${xpText}`);
+        const art = getPetArtworkUrl(definition); if (art) embed.setImage(art);
+        await channel.send({ content: `<@${userId}>`, embeds: [embed] }).catch(() => null);
+      }
+      player.fetchState.completed = true;
+      changed = true;
+    }
+    for (const type of ["hunt", "fetch"]) {
+      const dueKey = `${type}DueAt`, sentKey = `${type}Sent`;
+      if (player.cooldownReminders?.[type] && player.reminderState?.[dueKey] && !player.reminderState[sentKey] && Date.now() >= player.reminderState[dueKey]) {
+        if (channel?.isTextBased()) {
+          await channel.send(type === "hunt" ? `<@${userId}> 🏹 Your **\`!hunt\` cooldown is over!** The wilds are ready again.` : `<@${userId}> 🐾 Your pet is ready to use **\`!fetch\`** again!`).catch(() => null);
+        }
+        player.reminderState[sentKey] = true;
+        changed = true;
+      }
+    }
+  }
+  if (changed) saveData(data);
+}
+
+function currentRanks(data) {
+  return Object.entries(data.players || {}).sort((a,b) => (b[1].points||0)-(a[1].points||0)).reduce((acc,[id],i) => (acc[id]=i+1,acc),{});
+}
+
+async function processWeeklyCompetition() {
+  const data = loadData();
+  const weekly = data.weeklyCompetition;
+  const channel = client.channels.cache.get(MONSTER_CHANNEL_ID);
+  if (!weekly.active && Date.now() >= weekly.startsAt) {
+    weekly.active = true; weekly.weekStartedAt = weekly.startsAt; weekly.lastResultsAt = 0;
+    const ranks = currentRanks(data);
+    for (const [id,p] of Object.entries(data.players || {})) p.weeklyStats = { points:0,catches:0,shinies:0,legendaries:0,startRank:ranks[id]||null };
+    saveData(data);
+    if (channel?.isTextBased()) await channel.send(`# 🏆 WEEKLY MONSTER HUNT HAS BEGUN!\n\nEveryone starts at **0 Weekly Points** while Season Points remain untouched.\nResults will be announced next Monday after the **5:00 AM Mountain Time** reset. Good luck, Hunters! 🏹`).catch(()=>null);
+    return;
+  }
+  if (!weekly.active) return;
+  const weekMs = 7*24*60*60*1000;
+  if (Date.now() < weekly.weekStartedAt + weekMs) return;
+  const entries = Object.entries(data.players || {}).sort((a,b)=>(b[1].weeklyStats?.points||0)-(a[1].weeklyStats?.points||0));
+  const ranksNow = currentRanks(data);
+  const winner = entries[0];
+  let text = `# 🏆 Weekly Monster Hunt Results!\n\n`;
+  entries.slice(0,3).forEach(([id,p],i)=> text += `${["🥇","🥈","🥉"][i]} <@${id}> — **${p.weeklyStats?.points||0} points**\n`);
+  if (winner && (winner[1].weeklyStats?.points||0)>0) { winner[1].bait.epic += WEEKLY_WINNER_BAIT_REWARD; text += `\n🏅 <@${winner[0]}> earned **1 Epic Bait** and the honor of **Hunter of the Week!**`; }
+  const shiny = [...entries].sort((a,b)=>(b[1].weeklyStats?.shinies||0)-(a[1].weeklyStats?.shinies||0))[0];
+  const legends = [...entries].sort((a,b)=>(b[1].weeklyStats?.legendaries||0)-(a[1].weeklyStats?.legendaries||0))[0];
+  const comeback = [...entries].sort((a,b)=>((a[1].weeklyStats?.startRank||ranksNow[a[0]]||0)-ranksNow[a[0]])-((b[1].weeklyStats?.startRank||ranksNow[b[0]]||0)-ranksNow[b[0]]))[0];
+  if (shiny && (shiny[1].weeklyStats?.shinies||0)>0) text += `\n✨ Most Shinies: <@${shiny[0]}> — **${shiny[1].weeklyStats.shinies}**`;
+  if (legends && (legends[1].weeklyStats?.legendaries||0)>0) text += `\n🐉 Most Legendaries: <@${legends[0]}> — **${legends[1].weeklyStats.legendaries}**`;
+  if (comeback) text += `\n📈 Biggest Comeback: <@${comeback[0]}>`;
+  text += `\n\nA brand-new weekly hunt begins now. Weekly scores reset; Season Points remain.`;
+  if (channel?.isTextBased()) await channel.send(text).catch(()=>null);
+  const ranks = currentRanks(data);
+  for (const [id,p] of Object.entries(data.players || {})) p.weeklyStats = { points:0,catches:0,shinies:0,legendaries:0,startRank:ranks[id]||null };
+  weekly.lastResultsAt = Date.now(); weekly.weekStartedAt += weekMs;
+  while (weekly.weekStartedAt + weekMs <= Date.now()) weekly.weekStartedAt += weekMs;
+  saveData(data);
+}
+
+async function sendOverhaulAnnouncementOnce() {
+  const data = loadData();
+  if (data.overhaulAnnouncementSent) return;
+  const channel = client.channels.cache.get(MONSTER_CHANNEL_ID);
+  if (!channel?.isTextBased()) return;
+  await channel.send(
+    `# 🐉 MONSTER HUNT UPDATE!\n\n` +
+    `🐾 Send your equipped pet adventuring with \`!fetch\`\n` +
+    `🧬 Combine pets for Companion XP or inherited abilities with \`!combine\`\n` +
+    `📈 Pet abilities now grow every level, with rarer pets requiring more XP\n` +
+    `🔥 Comeback bonuses help hunters close large leaderboard gaps\n` +
+    `🏆 Weekly competition begins Monday at **5:00 AM Mountain Time**\n` +
+    `🥚 Eggs have more discovery sources and empty incubators quietly help\n` +
+    `💯 Natural 100 creates a Critical Catch; Natural 1 creates a Perfect Catch\n` +
+    `🔔 Use \`!remindme all\` for personal hunt and fetch cooldown tags\n\n` +
+    `**All existing progress has been preserved.**`
+  );
+  data.overhaulAnnouncementSent = true;
+  saveData(data);
+}
+
 client.once("ready", () => {
   console.log(`Logged in as ${client.user.tag}`);
+  sendOverhaulAnnouncementOnce().catch(error => console.error("Overhaul announcement failed:", error));
 
   // Checks every minute for the one-time Season 2 launch.
   cron.schedule("* * * * *", async () => {
@@ -3209,6 +3525,13 @@ client.once("ready", () => {
   checkReadyEggNotifications().catch(error =>
     console.error("Initial egg-ready notification check failed:", error)
   );
+
+  cron.schedule("* * * * *", async () => {
+    try { await processFetchReturnsAndReminders(); await processWeeklyCompetition(); }
+    catch (error) { console.error("Fetch/reminder/weekly monitor failed:", error); }
+  });
+  processFetchReturnsAndReminders().catch(error => console.error("Initial fetch/reminder check failed:", error));
+  processWeeklyCompetition().catch(error => console.error("Initial weekly check failed:", error));
 
   //
   // 🌅 7:00 AM MST Reminder
@@ -3421,6 +3744,61 @@ client.on("messageCreate", async (message) => {
   }
 
   resetDaily(player);
+
+  if (command === "!remindme" || command === "!reminders") {
+    return message.reply(`🔔 **Cooldown Reminders**\nHunt: **${player.cooldownReminders.hunt ? "ON" : "OFF"}**\nFetch: **${player.cooldownReminders.fetch ? "ON" : "OFF"}**\n\nUse \`!remindme hunt\`, \`!remindme fetch\`, \`!remindme all\`, or \`!remindme off\`.`);
+  }
+  if (command.startsWith("!remindme ")) {
+    const choice = command.slice("!remindme ".length).trim();
+    if (!["hunt","fetch","all","off"].includes(choice)) return message.reply("Use `!remindme hunt`, `!remindme fetch`, `!remindme all`, or `!remindme off`.");
+    if (choice === "off") player.cooldownReminders = { hunt:false, fetch:false };
+    else if (choice === "all") player.cooldownReminders = { hunt:true, fetch:true };
+    else player.cooldownReminders[choice] = !player.cooldownReminders[choice];
+    player.reminderState.channelId = message.channel.id; saveData(data);
+    return message.reply(`🔔 Cooldown reminders updated. Hunt: **${player.cooldownReminders.hunt ? "ON":"OFF"}** | Fetch: **${player.cooldownReminders.fetch ? "ON":"OFF"}**`);
+  }
+
+  if (command === "!fetch") {
+    const ownedPet = getEquippedPet(player), definition = getOwnedPetDefinition(ownedPet);
+    if (!ownedPet || !definition) return message.reply("Equip a pet before using `!fetch`.");
+    if (player.fetchState && !player.fetchState.completed) return message.reply(`🐾 ${definition.name} is still fetching and will return <t:${Math.floor(player.fetchState.readyAt/1000)}:R>.`);
+    const left = FETCH_COOLDOWN - (Date.now() - (player.lastFetch || 0));
+    if (left > 0) return message.reply(`⏳ Your pet can fetch again in **${formatTime(left)}**.`);
+    player.lastFetch = Date.now();
+    player.fetchState = { petId: ownedPet.id, startedAt: Date.now(), readyAt: Date.now()+FETCH_DURATION, completed:false, channelId: message.channel.id };
+    player.reminderState.channelId = message.channel.id; player.reminderState.fetchDueAt = Date.now()+FETCH_COOLDOWN; player.reminderState.fetchSent = false;
+    saveData(data);
+    const embed = new EmbedBuilder().setTitle(`🐾 ${definition.name} Went Fetching!`).setDescription(`${fetchFlavor(definition, ownedPet.personality, false)}\n\nIt will return <t:${Math.floor(player.fetchState.readyAt/1000)}:R> with whatever it finds.`);
+    const art=getPetArtworkUrl(definition); if(art) embed.setImage(art);
+    return message.reply({embeds:[embed]});
+  }
+
+  if (command.startsWith("!combine ")) {
+    const args = content.slice("!combine ".length).trim().split(/\s+/);
+    if (args.length < 2) return message.reply("Use `!combine keepPet# sacrificePet#`. Example: `!combine 1 3`.");
+    const keeper = resolveOwnedPet(player,args[0]), sacrifice = resolveOwnedPet(player,args[1]);
+    if (!keeper || !sacrifice || keeper === sacrifice) return message.reply("Choose two different valid pet numbers from `!pets`.");
+    if (String(player.equippedPetId) === String(sacrifice.id)) return message.reply("You cannot sacrifice your currently equipped pet. Equip another pet first.");
+    const keepDef=getOwnedPetDefinition(keeper), sacrificeDef=getOwnedPetDefinition(sacrifice);
+    if (!keepDef || !sacrificeDef) return message.reply("One of those pets could not be found.");
+    const same = keeper.key === sacrifice.key;
+    const capacity = petAbilityCapacity(player), currentAbilities = 1+(keeper.inheritedAbilities||[]).length;
+    if (!same && currentAbilities >= capacity) return message.reply(`🧬 This pet currently has **${currentAbilities}/${capacity} ability slots**. Earn another 100 Hunter Points before adding another inherited ability.`);
+    if (!same && getPetAbilityEntries(keeper).some(x=>x.ability===sacrificeDef.ability)) return message.reply("That pet already knows this ability.");
+    const chance=PET_INHERIT_CHANCE[sacrificeDef.rarity]||15, xp=PET_COMBINE_XP[sacrificeDef.rarity]||50;
+    const prompt = await message.reply(`⚠️ **PET COMBINATION CONFIRMATION**\nKeep: **${keepDef.name}**\nSacrifice forever: **${sacrificeDef.name}**\n${same ? `Result: **+${xp} Companion XP**` : `Result: **${chance}% chance** to inherit ${abilityDisplayName(sacrificeDef.ability)}. Failure grants **${Math.floor(xp/3)} XP**.`}\n\nType **CONFIRM** within 30 seconds.`);
+    try {
+      const c=await message.channel.awaitMessages({filter:r=>r.author.id===message.author.id&&r.content.trim().toUpperCase()==="CONFIRM",max:1,time:30000,errors:["time"]});
+      await c.first().delete().catch(()=>null);
+    } catch { return prompt.reply("Combination canceled."); }
+    const fresh=loadData(), fp=getPlayer(fresh,message.author.id), fk=fp.pets.find(x=>String(x.id)===String(keeper.id)), fsac=fp.pets.find(x=>String(x.id)===String(sacrifice.id));
+    if(!fk||!fsac) return message.reply("The pets changed before confirmation. No combination occurred.");
+    const fDef=getOwnedPetDefinition(fsac); let result;
+    if(fk.key===fsac.key){ fk.companionXp=(fk.companionXp||0)+(PET_COMBINE_XP[fDef.rarity]||50); result=`🧬 **COMPANION ENHANCED!** ${keepDef.name} gained **${PET_COMBINE_XP[fDef.rarity]||50} Companion XP**.\n${companionXpBar(fk)}`; }
+    else if(Math.random()*100 < (PET_INHERIT_CHANCE[fDef.rarity]||15)){ fk.inheritedAbilities.push({ability:fDef.ability,baseBonus:fDef.baseBonus,sourcePetKey:fDef.key,sourceRarity:fDef.rarity,xp:0,inheritedAt:Date.now()}); result=`🧬 **ABILITY INHERITED!**\n${keepDef.name} learned **${abilityDisplayName(fDef.ability)}** at **Ability Level 1 — 0 XP**.`; }
+    else { const consolation=Math.floor((PET_COMBINE_XP[fDef.rarity]||50)/3); fk.companionXp=(fk.companionXp||0)+consolation; result=`💨 **Inheritance Failed**\nThe ability did not transfer, but ${keepDef.name} absorbed **${consolation} Companion XP**.`; }
+    fp.pets=fp.pets.filter(x=>String(x.id)!==String(fsac.id)); saveData(fresh); return message.reply(result);
+  }
 
   if (command === "!monsternotify on") {
     const role = message.guild.roles.cache.get(MONSTER_NOTIFY_ROLE);
@@ -3764,11 +4142,14 @@ ${captureChoicesText(choices)}
     const usedBait = player.activeBait;
     const monster = getRandomMonster(player);
     const encounters = addEncounterKnowledge(player, monster);
-    const chanceInfo = calculateCaptureChance(player, monster);
+    const chanceInfo = calculateCaptureChance(player, monster, null, data, message.author.id);
 
     player.currentMonster = monster;
     player.activeBait = null;
     player.lastHunt = now;
+    player.reminderState.channelId = message.channel.id;
+    player.reminderState.huntDueAt = now + huntCooldown;
+    player.reminderState.huntSent = false;
     player.huntCount++;
     if (usedBait) player.titleProgress.baitUsed = (player.titleProgress.baitUsed || 0) + 1;
 
@@ -3973,6 +4354,7 @@ ${captureChoicesText(choices)}
     player.pets.push(ownedPet);
     player.incubatingEggs.splice(incubationIndex, 1);
     player.points += hatchPoints + dexBonus;
+    addWeeklyProgress(data, player, hatchPoints + dexBonus);
     player.titleProgress.eggsHatched = (player.titleProgress.eggsHatched || 0) + 1;
 
     if (player.equippedPetId === null) player.equippedPetId = ownedPet.id;
@@ -4073,7 +4455,7 @@ ${captureChoicesText(choices)}
 
     return message.reply(
       `🐾 **${formatPlayerName(player, message.author.username)}'s Pets**\n\n${list}\n\n` +
-      `⭐ = Equipped\nUse \`!pet number\` for details or \`!equippet number\` to equip one.`
+      `⭐ = Equipped\n🧬 Ability capacity: **${petAbilityCapacity(player)} total abilities per pet**\nUse \`!pet number\` for details, \`!equippet number\` to equip, or \`!combine keep# sacrifice#\`.`
     );
   }
 
@@ -4523,6 +4905,10 @@ ${captureChoicesText(choices)}
       text += `${index + 1}. <@${userId}>${title} — **${stats.points} points** | ${stats.caught.length} caught\n`;
     });
 
+    if (isWeeklyCompetitionActive(data)) {
+      const weekly = Object.entries(data.players).sort((a,b)=>(b[1].weeklyStats?.points||0)-(a[1].weeklyStats?.points||0)).slice(0,5);
+      text += `\n🏅 **This Week**\n`; weekly.forEach(([id,p],i)=> text += `${i+1}. <@${id}> — **${p.weeklyStats?.points||0} weekly points**\n`);
+    } else { text += `\n🏅 Weekly competition begins Monday at **5:00 AM Mountain Time**.`; }
     return message.reply(text);
   }
 
