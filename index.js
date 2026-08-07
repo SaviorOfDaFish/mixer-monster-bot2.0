@@ -49,6 +49,50 @@ const PET_COMBINE_XP = { Common: 50, Rare: 75, Epic: 125, Legendary: 200 };
 const PET_INHERIT_CHANCE = { Common: 15, Rare: 20, Epic: 25, Legendary: 30 };
 const PET_XP_BASE = { Common: 50, Rare: 65, Epic: 80, Legendary: 100 };
 
+// ==================== HIDDEN COMMUNITY WORLD PROGRESS ====================
+// These thresholds are intentionally ADMIN-ONLY. Do not expose them in player help/announcements.
+const COMMUNITY_WORLD_THRESHOLDS = [3000, 5000, 7500, 10000, 15000];
+const FETCH_WORLD_RELIC_CHANCE = 0.35; // 0.35% per completed Fetch, only while undiscovered Relics remain.
+const COMMUNITY_BLESSING_DURATION = 24 * 60 * 60 * 1000;
+
+const COMMUNITY_BLESSINGS = {
+  fragmentOfOblivion: {
+    name: "Oblivion's Fortune",
+    icon: "🌑",
+    type: "points",
+    description: "+25% Hunter Points",
+    pointMultiplier: 1.25
+  },
+  livingEye: {
+    name: "All-Seeing Favor",
+    icon: "👁️",
+    type: "shiny",
+    description: "Increased Shiny Chance",
+    shinyBonus: 5
+  },
+  distortedHourglass: {
+    name: "Time's Mercy",
+    icon: "⌛",
+    type: "cooldown",
+    description: "30-minute reduction to normal !hunt cooldowns",
+    cooldownReductionMs: 30 * 60 * 1000
+  },
+  fallenStarCore: {
+    name: "Starborn Nests",
+    icon: "⭐",
+    type: "eggs",
+    description: "Increased Egg Discovery",
+    eggBonus: 8
+  },
+  soulEmber: {
+    name: "Ember of Fortune",
+    icon: "🔥",
+    type: "fetch",
+    description: "Improved Fetch Luck",
+    fetchQualityBonus: 10
+  }
+};
+
 const MIXER_MONSTER_ENCOUNTER_CHANCE = 0.25;
 const MIXER_MONSTER = {
   key: "mixermonster",
@@ -559,6 +603,8 @@ function loadData() {
     }
   }
   if (data.worldShatterUnlocked === undefined) data.worldShatterUnlocked = false;
+  if (!Array.isArray(data.worldCommunityMilestonesAwarded)) data.worldCommunityMilestonesAwarded = [];
+  if (!data.communityBlessings || typeof data.communityBlessings !== "object") data.communityBlessings = {};
   if (data.ultraWeeklySchedule === undefined) data.ultraWeeklySchedule = null;
   if (data.ultraAdminPauseUntil === undefined) data.ultraAdminPauseUntil = 0;
   if (!data.weeklyCompetition || typeof data.weeklyCompetition !== "object") {
@@ -1102,9 +1148,14 @@ function formatPlayerName(player, username) {
   return `${icon ? `${icon} ` : ""}${username}`;
 }
 
-function getPlayerHuntCooldown(player) {
+function getPlayerHuntCooldown(player, data = null) {
   const reductionMinutes = getPetBonus(player, "cooldown") * 5;
-  return Math.max(30 * 60 * 1000, HUNT_COOLDOWN - reductionMinutes * 60 * 1000);
+  const blessing = getActiveCommunityBlessing(data || loadData(), "cooldown");
+  const blessingReduction = blessing?.definition?.cooldownReductionMs || 0;
+  return Math.max(
+    30 * 60 * 1000,
+    HUNT_COOLDOWN - reductionMinutes * 60 * 1000 - blessingReduction
+  );
 }
 
 function formatAbilityEffect(entry) {
@@ -1184,11 +1235,13 @@ function choosePetFromEgg(rarity) {
   return getPetDefinition("verdant_sentinel");
 }
 
-function rollEggRarity(player) {
+function rollEggRarity(player, data = null) {
   const petBonus = getPetBonus(player, "eggFinder");
   const emptySlots = Math.max(0, getIncubatorSlots(player) - (player.incubatingEggs || []).length);
   const nestBonus = Math.min(8, emptySlots * 2);
-  const bonus = petBonus + nestBonus;
+  const blessing = getActiveCommunityBlessing(data || loadData(), "eggs");
+  const blessingBonus = blessing?.definition?.eggBonus || 0;
+  const bonus = petBonus + nestBonus + blessingBonus;
   // A modest global increase keeps unlocked incubators useful without flooding inventories.
   if (Math.random() * 100 < 12 + Math.floor(bonus / 4)) return "Legendary";
   if (Math.random() * 100 < 24 + Math.floor(bonus / 3)) return "Epic";
@@ -1197,8 +1250,8 @@ function rollEggRarity(player) {
   return null;
 }
 
-function maybeFindEgg(player) {
-  const rarity = rollEggRarity(player);
+function maybeFindEgg(player, data = null) {
+  const rarity = rollEggRarity(player, data);
   if (!rarity) return null;
   player.eggs.push({ rarity, foundAt: Date.now() });
   player.titleProgress.eggsFound = (player.titleProgress.eggsFound || 0) + 1;
@@ -1319,6 +1372,185 @@ function resolveCaptureItem(input) {
   )?.[0] || null;
 }
 
+function getCommunitySeasonPoints(data) {
+  return Object.values(data.players || {}).reduce(
+    (sum, player) => sum + Math.max(0, Number(player.points || 0)),
+    0
+  );
+}
+
+function cleanupExpiredCommunityBlessings(data) {
+  if (!data.communityBlessings || typeof data.communityBlessings !== "object") {
+    data.communityBlessings = {};
+  }
+
+  const now = Date.now();
+  for (const [relicKey, blessing] of Object.entries(data.communityBlessings)) {
+    if (!blessing || Number(blessing.expiresAt || 0) <= now) {
+      delete data.communityBlessings[relicKey];
+    }
+  }
+}
+
+function getActiveCommunityBlessing(data, type) {
+  cleanupExpiredCommunityBlessings(data);
+  return Object.entries(data.communityBlessings || {})
+    .map(([relicKey, saved]) => ({
+      relicKey,
+      saved,
+      definition: COMMUNITY_BLESSINGS[relicKey]
+    }))
+    .find(entry =>
+      entry.definition &&
+      entry.definition.type === type &&
+      Number(entry.saved?.expiresAt || 0) > Date.now()
+    ) || null;
+}
+
+function applyCommunityPointBlessing(data, points) {
+  const base = Math.max(0, Number(points || 0));
+  const blessing = getActiveCommunityBlessing(data, "points");
+  if (!blessing) return base;
+  return Math.max(base, Math.ceil(base * (blessing.definition.pointMultiplier || 1)));
+}
+
+function getUndiscoveredWorldRelics(data) {
+  return ultraRareMonsters.filter(monster => !data.worldProgress?.[monster.relicKey]);
+}
+
+function discoverWorldRelic(data, relicMonster, source = "community", player = null) {
+  if (!relicMonster || data.worldProgress?.[relicMonster.relicKey]) return null;
+
+  data.worldProgress[relicMonster.relicKey] = true;
+
+  if (player) {
+    player.relics[relicMonster.relicKey] = (player.relics[relicMonster.relicKey] || 0) + 1;
+  }
+
+  const discoveredCount = RELIC_KEYS.filter(key => data.worldProgress?.[key]).length;
+  const allDiscovered = discoveredCount === RELIC_KEYS.length;
+
+  if (allDiscovered) {
+    data.worldShatterUnlocked = true;
+  }
+
+  let blessing = null;
+  if (source === "community" && !allDiscovered) {
+    const definition = COMMUNITY_BLESSINGS[relicMonster.relicKey];
+    if (definition) {
+      blessing = {
+        relicKey: relicMonster.relicKey,
+        name: definition.name,
+        type: definition.type,
+        description: definition.description,
+        startedAt: Date.now(),
+        expiresAt: Date.now() + COMMUNITY_BLESSING_DURATION
+      };
+      data.communityBlessings[relicMonster.relicKey] = blessing;
+    }
+  }
+
+  return {
+    monster: relicMonster,
+    source,
+    discoveredCount,
+    allDiscovered,
+    blessing
+  };
+}
+
+function maybeDiscoverRelicFromFetch(data, player) {
+  const undiscovered = getUndiscoveredWorldRelics(data);
+  if (undiscovered.length === 0) return null;
+  if (Math.random() * 100 >= FETCH_WORLD_RELIC_CHANCE) return null;
+
+  const relicMonster = undiscovered[Math.floor(Math.random() * undiscovered.length)];
+  return discoverWorldRelic(data, relicMonster, "fetch", player);
+}
+
+async function announceWorldRelicDiscovery(channel, result, userId = null) {
+  if (!result || !channel?.isTextBased()) return;
+
+  const monster = result.monster;
+  const progress = `${result.discoveredCount}/${RELIC_KEYS.length}`;
+
+  if (result.source === "community") {
+    if (result.allDiscovered) {
+      await channel.send(
+        `# ⚠️ THE WORLD HAS STOPPED MOVING.\n\n` +
+        `For one impossible moment, every monster falls silent.\n` +
+        `Every companion looks toward the horizon.\n\n` +
+        `${monster.relicName} has awakened through the combined efforts of the entire Monster Hunt community.\n\n` +
+        `🌍 **WORLD PROGRESS: ${progress}**\n\n` +
+        `The five World Relics begin to resonate.\n` +
+        `Ancient seals crack somewhere beyond sight...\n\n` +
+        `**Something is coming.**`
+      ).catch(() => null);
+      return;
+    }
+
+    const blessing = COMMUNITY_BLESSINGS[monster.relicKey];
+    await channel.send(
+      `# 🌍 THE WORLD TREMBLES...\n\n` +
+      `Across every habitat, monsters suddenly grow restless. Companions stop in their tracks and stare toward the horizon...\n\n` +
+      `Then a pulse of ancient energy erupts from somewhere deep beneath the world.\n\n` +
+      `💎 **A WORLD RELIC HAS BEEN DISCOVERED!**\n` +
+      `${monster.relicName}\n\n` +
+      `The relic was not discovered by a single Hunter.\n` +
+      `**It was awakened by the combined efforts of the entire Monster Hunt community.**\n\n` +
+      `🌍 **WORLD PROGRESS: ${progress}**\n\n` +
+      `✨ **COMMUNITY BLESSING ACTIVATED — 24 HOURS**\n` +
+      `${blessing?.icon || "✨"} **${blessing?.name || "World Blessing"}:** ${blessing?.description || "The world favors the Hunters."}\n\n` +
+      `Whatever is sleeping beyond the world has noticed you.`
+    ).catch(() => null);
+    return;
+  }
+
+  if (result.source === "fetch") {
+    await channel.send(
+      `# 🌍 A WORLD RELIC HAS BEEN DISCOVERED!\n\n` +
+      `${userId ? `<@${userId}>'s companion` : "A companion"} returned carrying something that should not have been found...\n\n` +
+      `💎 **${monster.relicName}**\n` +
+      `*${monster.relicDescription}*\n\n` +
+      `🌍 **WORLD PROGRESS: ${progress}**\n\n` +
+      `${result.allDiscovered
+        ? `The final unknown Relic has been uncovered. Ancient seals begin to crack...`
+        : `Something beyond the world stirs.`}`
+    ).catch(() => null);
+  }
+}
+
+async function processCommunityWorldProgress() {
+  const data = loadData();
+  cleanupExpiredCommunityBlessings(data);
+
+  const totalPoints = getCommunitySeasonPoints(data);
+  const awarded = new Set((data.worldCommunityMilestonesAwarded || []).map(Number));
+  const nextThreshold = COMMUNITY_WORLD_THRESHOLDS.find(value => totalPoints >= value && !awarded.has(value));
+
+  if (!nextThreshold) {
+    saveData(data);
+    return;
+  }
+
+  const undiscovered = getUndiscoveredWorldRelics(data);
+  if (undiscovered.length === 0) {
+    data.worldCommunityMilestonesAwarded.push(nextThreshold);
+    saveData(data);
+    return;
+  }
+
+  // A hidden community milestone always discovers a currently-undiscovered Relic.
+  const relicMonster = undiscovered[Math.floor(Math.random() * undiscovered.length)];
+  const result = discoverWorldRelic(data, relicMonster, "community");
+
+  data.worldCommunityMilestonesAwarded.push(nextThreshold);
+  saveData(data);
+
+  const channel = client.channels.cache.get(MONSTER_CHANNEL_ID);
+  await announceWorldRelicDiscovery(channel, result);
+}
+
 function getLeaderPoints(data, excludedId = null) {
   return Math.max(0, ...Object.entries(data.players || {}).filter(([id]) => id !== excludedId).map(([, p]) => Number(p.points || 0)));
 }
@@ -1385,10 +1617,20 @@ function fetchFlavor(definition, personality, returning = false) {
 }
 
 function rollFetchRewards(data, player, ownedPet, definition) {
+  const relicDiscovery = maybeDiscoverRelicFromFetch(data, player);
+
+  // A World Relic jackpot replaces the normal Fetch haul so the moment stays special
+  // and does not add another large stack of regular supplies.
+  if (relicDiscovery) {
+    return {
+      rewards: [`💎 **${relicDiscovery.monster.relicName}**`],
+      relicDiscovery
+    };
+  }
+
   const rewards = [];
 
-  // Fetch quantity is intentionally conservative.
-  // Rarer pets improve QUALITY much more than quantity.
+  // Fetch quantity stays conservative. Rarity mostly improves QUALITY.
   const quantityRoll = Math.random() * 100;
   const quantityChances = {
     Common:    { two: 5,  three: 0.25 },
@@ -1401,20 +1643,21 @@ function rollFetchRewards(data, player, ownedPet, definition) {
     ? 3
     : (quantityRoll < quantity.three + quantity.two ? 2 : 1);
 
-  // Higher rarity shifts the roll toward better-quality rewards.
-  const qualityBoost = {
+  const rarityQualityBoost = {
     Common: 0,
     Rare: 4,
     Epic: 8,
     Legendary: 12
   }[definition.rarity] || 0;
 
+  const fetchBlessing = getActiveCommunityBlessing(data, "fetch");
+  const blessingQualityBoost = fetchBlessing?.definition?.fetchQualityBonus || 0;
   const ability = definition.ability;
 
   for (let i = 0; i < count; i++) {
-    let roll = Math.random() * 100 + qualityBoost;
+    let roll = Math.random() * 100 + rarityQualityBoost + blessingQualityBoost;
 
-    // Hidden specialties affect WHAT is found, not how many items return.
+    // Hidden specialties influence what the pet tends to find, not quantity.
     if (ability === "eggFinder") roll -= 12;
     if (ability === "itemFinder") roll += 3;
     if (ability === "capture") roll += 2;
@@ -1422,7 +1665,7 @@ function rollFetchRewards(data, player, ownedPet, definition) {
     roll = Math.max(0, Math.min(100, roll));
 
     if (roll < 8) {
-      const rarity = rollEggRarity(player) || "Common";
+      const rarity = rollEggRarity(player, data) || "Common";
       player.eggs.push({ rarity, foundAt: Date.now(), source: "Fetch" });
       player.titleProgress.eggsFound = (player.titleProgress.eggsFound || 0) + 1;
       rewards.push(`${EGG_TYPES[rarity]?.icon || "🥚"} **${rarity} Egg**`);
@@ -1448,13 +1691,15 @@ function rollFetchRewards(data, player, ownedPet, definition) {
       player.captureItems.masterCharm++;
       rewards.push(CAPTURE_ITEMS.masterCharm.name);
     } else {
-      const pts = 5 + Math.floor(Math.random() * 6);
+      const basePts = 5 + Math.floor(Math.random() * 6);
+      const pts = applyCommunityPointBlessing(data, basePts);
       player.points += pts;
       addWeeklyProgress(data, player, pts);
       rewards.push(`⭐ **${pts} Hunter Points**`);
     }
   }
-  return rewards;
+
+  return { rewards, relicDiscovery: null };
 }
 
 function calculateCaptureChance(player, monster, itemKey = null, data = null, userId = null) {
@@ -1569,6 +1814,7 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
     const baseBeforeComeback = pointsEarned;
     pointsEarned = Math.max(pointsEarned, Math.ceil(pointsEarned * comeback.pointMultiplier));
     if (criticalCatch) pointsEarned += CRITICAL_CATCH_BONUS_POINTS;
+    pointsEarned = applyCommunityPointBlessing(data, pointsEarned);
     const comebackExtra = pointsEarned - baseBeforeComeback - (criticalCatch ? CRITICAL_CATCH_BONUS_POINTS : 0);
 
     const previousPoints = player.points;
@@ -1583,7 +1829,7 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
     const perfectLoot = perfectCatch ? perfectCatchLoot(player) : null;
     if (criticalCatch) player.titleProgress.criticalCatch = true;
     if (perfectCatch) player.titleProgress.perfectCatch = true;
-    const eggFound = maybeFindEgg(player);
+    const eggFound = maybeFindEgg(player, data);
     const reaction = companionReaction(player, monster);
     const affectionEvent = rollPetAffectionEvent(player);
     const companionXpText = awardCompanionXp(
@@ -1838,10 +2084,15 @@ function getActiveEvent() {
   return null;
 }
 
-function applyShiny(monster, player = null) {
+function applyShiny(monster, player = null, data = null) {
   const event = getActiveEvent();
+  const blessing = getActiveCommunityBlessing(data || loadData(), "shiny");
+  const blessingBonus = blessing?.definition?.shinyBonus || 0;
 
-  const chance = (event?.shinyBoost ? SHINY_CHANCE * 3 : SHINY_CHANCE) + getPetBonus(player, "shiny");
+  const chance =
+    (event?.shinyBoost ? SHINY_CHANCE * 3 : SHINY_CHANCE) +
+    getPetBonus(player, "shiny") +
+    blessingBonus;
 
   const shinyRoll =
     Math.floor(Math.random() * 100) + 1;
@@ -2067,22 +2318,25 @@ function updateQuestProgress(player, type, monster = null) {
   });
 }
 
-function giveRandomDailyReward(player) {
+function giveRandomDailyReward(player, data = null) {
   const roll = Math.floor(Math.random() * 100) + 1;
 
   if (roll <= 25) {
-    player.points += 5;
-    return "💰 +5 Points";
+    const points = applyCommunityPointBlessing(data || loadData(), 5);
+    player.points += points;
+    return `💰 +${points} Points`;
   }
 
   if (roll <= 45) {
-    player.points += 10;
-    return "💰 +10 Points";
+    const points = applyCommunityPointBlessing(data || loadData(), 10);
+    player.points += points;
+    return `💰 +${points} Points`;
   }
 
   if (roll <= 55) {
-    player.points += 20;
-    return "💰 +20 Points";
+    const points = applyCommunityPointBlessing(data || loadData(), 20);
+    player.points += points;
+    return `💰 +${points} Points`;
   }
 
   if (roll <= 68) {
@@ -3157,16 +3411,19 @@ function maybeAwardUltraRelic(data, player, monster) {
   const roll = Math.floor(Math.random() * 100) + 1;
   if (roll > ULTRA_RELIC_DROP_CHANCE) return null;
 
-  player.relics[monster.relicKey] = (player.relics[monster.relicKey] || 0) + 1;
-  const firstDiscovery = !data.worldProgress[monster.relicKey];
-  data.worldProgress[monster.relicKey] = true;
+  const firstDiscovery = !data.worldProgress?.[monster.relicKey];
 
-  const allDiscovered = RELIC_KEYS.every(key => data.worldProgress[key]);
-  if (allDiscovered && !data.worldShatterUnlocked) {
-    data.worldShatterUnlocked = true;
+  // If this Relic was already discovered, the catcher can still receive another physical copy.
+  if (!firstDiscovery) {
+    player.relics[monster.relicKey] = (player.relics[monster.relicKey] || 0) + 1;
+    return { firstDiscovery: false, worldShatterUnlockedNow: false };
   }
 
-  return { firstDiscovery, worldShatterUnlockedNow: allDiscovered };
+  const result = discoverWorldRelic(data, monster, "ultra", player);
+  return {
+    firstDiscovery: true,
+    worldShatterUnlockedNow: Boolean(result?.allDiscovered)
+  };
 }
 
 async function resolveUltraCatch(message, monster, state, roll, chance, itemKey = null) {
@@ -3189,7 +3446,8 @@ async function resolveUltraCatch(message, monster, state, roll, chance, itemKey 
     shiny: false
   };
 
-  catcher.points += ULTRA_CATCHER_REWARD;
+  const catcherPointReward = applyCommunityPointBlessing(data, ULTRA_CATCHER_REWARD);
+  catcher.points += catcherPointReward;
   catcher.caught.push(caughtMonster);
   catcher.lifetimeCaught.push({ ...caughtMonster });
 
@@ -3211,7 +3469,7 @@ async function resolveUltraCatch(message, monster, state, roll, chance, itemKey 
     participant.ultraParticipationCount = (participant.ultraParticipationCount || 0) + 1;
 
     if (userId !== message.author.id) {
-      participant.points += participantReward;
+      participant.points += applyCommunityPointBlessing(data, participantReward);
     }
 
     const newUnlocks = evaluateUltraSecretRewards(participant);
@@ -3258,7 +3516,7 @@ async function resolveUltraCatch(message, monster, state, roll, chance, itemKey 
       `🎉 ${formatPlayerName(catcher, message.author.username)} captured ${caughtMonster.name}!`,
       `**Catch Chance:** ${chance}%\n` +
       `**Roll:** ${roll}\n\n` +
-      `🏆 ${formatPlayerMention(data, message.author.id)} earned **${ULTRA_CATCHER_REWARD} points**!\n` +
+      `🏆 ${formatPlayerMention(data, message.author.id)} earned **${catcherPointReward} points**!\n` +
       `${otherParticipants.length > 0
         ? `🎉 ${otherParticipants.length} other participant${otherParticipants.length === 1 ? "" : "s"} earned **${participantReward} points each**!`
         : "You were the only participant in the hunt."}` +
@@ -3489,13 +3747,18 @@ async function processFetchReturnsAndReminders() {
       const ownedPet = player.pets.find(p => String(p.id) === String(player.fetchState.petId));
       const definition = getOwnedPetDefinition(ownedPet);
       if (ownedPet && definition && channel?.isTextBased()) {
-        const rewards = rollFetchRewards(data, player, ownedPet, definition);
+        const fetchResult = rollFetchRewards(data, player, ownedPet, definition);
+        const rewards = fetchResult.rewards;
         const xpText = awardCompanionXp(player, FETCH_COMPANION_XP, "Fetch Adventure");
         const embed = new EmbedBuilder()
           .setTitle(`🐾 ${definition.name} Returned!`)
           .setDescription(`${fetchFlavor(definition, ownedPet.personality, true)}\n\n**Found:**\n${rewards.map(x => `• ${x}`).join("\n")}\n\n⭐ ${xpText}`);
         const art = getPetArtworkUrl(definition); if (art) embed.setImage(art);
         await channel.send({ content: `<@${userId}>`, embeds: [embed] }).catch(() => null);
+
+        if (fetchResult.relicDiscovery) {
+          await announceWorldRelicDiscovery(channel, fetchResult.relicDiscovery, userId);
+        }
       }
       player.fetchState.completed = true;
       changed = true;
@@ -3608,11 +3871,16 @@ client.once("ready", () => {
   );
 
   cron.schedule("* * * * *", async () => {
-    try { await processFetchReturnsAndReminders(); await processWeeklyCompetition(); }
-    catch (error) { console.error("Fetch/reminder/weekly monitor failed:", error); }
+    try {
+      await processFetchReturnsAndReminders();
+      await processWeeklyCompetition();
+      await processCommunityWorldProgress();
+    }
+    catch (error) { console.error("Fetch/reminder/weekly/world monitor failed:", error); }
   });
   processFetchReturnsAndReminders().catch(error => console.error("Initial fetch/reminder check failed:", error));
   processWeeklyCompetition().catch(error => console.error("Initial weekly check failed:", error));
+  processCommunityWorldProgress().catch(error => console.error("Initial hidden world progress check failed:", error));
 
   //
   // 🌅 7:00 AM MST Reminder
@@ -4141,8 +4409,24 @@ ${captureChoicesText(choices)}
     }
 
     const worldEaterStatus = discoveredCount === RELIC_KEYS.length
-      ? "⚠️ **READY — Every Relic has been discovered. The World Eater storyline can begin.**"
+      ? "⚠️ **READY — Every Relic has been discovered. The World Eater storyline can begin when you are ready to build it.**"
       : `🔒 Locked — **${RELIC_KEYS.length - discoveredCount}** unique Relic${RELIC_KEYS.length - discoveredCount === 1 ? "" : "s"} still undiscovered.`;
+
+    cleanupExpiredCommunityBlessings(freshData);
+    const communityPoints = getCommunitySeasonPoints(freshData);
+    const awardedMilestones = new Set((freshData.worldCommunityMilestonesAwarded || []).map(Number));
+    const nextCommunityThreshold = COMMUNITY_WORLD_THRESHOLDS.find(value => !awardedMilestones.has(value));
+    const communityActivityText = nextCommunityThreshold
+      ? `Current Community Season Points: **${communityPoints.toLocaleString()}**\nNext hidden guaranteed Relic threshold: **${nextCommunityThreshold.toLocaleString()}**\nMilestones consumed: **${[...awardedMilestones].sort((a,b)=>a-b).join(", ") || "None"}**`
+      : `Current Community Season Points: **${communityPoints.toLocaleString()}**\nAll hidden guaranteed Relic milestones have been consumed.`;
+
+    const activeBlessings = Object.entries(freshData.communityBlessings || {})
+      .filter(([, blessing]) => Number(blessing?.expiresAt || 0) > Date.now())
+      .map(([relicKey, blessing]) => {
+        const definition = COMMUNITY_BLESSINGS[relicKey];
+        return `${definition?.icon || "✨"} **${blessing.name || definition?.name || relicKey}** — ${blessing.description || definition?.description || "Active"} | Ends <t:${Math.floor(blessing.expiresAt / 1000)}:R>`;
+      })
+      .join("\n") || "None active.";
 
     const schedulerText = (freshData.ultraAdminPauseUntil || 0) > Date.now()
       ? `Paused until <t:${Math.floor(freshData.ultraAdminPauseUntil / 1000)}:T> (<t:${Math.floor(freshData.ultraAdminPauseUntil / 1000)}:R>)`
@@ -4155,6 +4439,8 @@ ${captureChoicesText(choices)}
       `🌍 **Hidden World Progress**\n` +
       `Progress: **${discoveredCount}/${RELIC_KEYS.length} (${progressPercent}%)**\n\n` +
       `${relicProgress}\n\n` +
+      `📊 **Hidden Community Activity**\n${communityActivityText}\n\n` +
+      `✨ **Active Community Blessings**\n${activeBlessings}\n\n` +
       `👁️ **World Eater Status**\n${worldEaterStatus}`
     );
   }
@@ -4237,7 +4523,7 @@ ${captureChoicesText(choices)}
 
   if (command === "!hunt") {
     const now = Date.now();
-    const huntCooldown = getPlayerHuntCooldown(player);
+    const huntCooldown = getPlayerHuntCooldown(player, data);
     const timeLeft = huntCooldown - (now - player.lastHunt);
 
     if (timeLeft > 0) {
@@ -4458,8 +4744,9 @@ ${captureChoicesText(choices)}
 
     player.pets.push(ownedPet);
     player.incubatingEggs.splice(incubationIndex, 1);
-    player.points += hatchPoints + dexBonus;
-    addWeeklyProgress(data, player, hatchPoints + dexBonus);
+    const hatchTotalPoints = applyCommunityPointBlessing(data, hatchPoints + dexBonus);
+    player.points += hatchTotalPoints;
+    addWeeklyProgress(data, player, hatchTotalPoints);
     player.titleProgress.eggsHatched = (player.titleProgress.eggsHatched || 0) + 1;
 
     if (player.equippedPetId === null) player.equippedPetId = ownedPet.id;
@@ -4522,7 +4809,7 @@ ${captureChoicesText(choices)}
         `**Personality:** ${ownedPet.personality}\n` +
         `**Companion Level:** 1\n` +
         `✨ **Passive:** ${petPassiveTextForOwned(ownedPet)}\n\n` +
-        `💰 **Hatch Reward:** +${hatchPoints} Hunter Points` +
+        `💰 **Hatch Reward:** +${applyCommunityPointBlessing(data, hatchPoints)} Hunter Points` +
         `${dexBonus ? `\n📖 **NEW PET DEX SPECIES:** +${dexBonus} Hunter Points` : ""}` +
         `${incubatorUnlockText}` +
         `${formatSecretUnlocks(petCollectionUnlocks)}\n\n` +
@@ -4715,8 +5002,10 @@ ${captureChoicesText(choices)}
     const complete = player.dailyQuests.every(q => q.progress >= q.goal);
     if (!complete) return message.reply("You haven't completed all your daily quests yet!");
 
-    const reward = player.dailyQuests.reduce((sum, q) => sum + q.reward, 0);
+    const baseReward = player.dailyQuests.reduce((sum, q) => sum + q.reward, 0);
+    const reward = applyCommunityPointBlessing(data, baseReward);
     player.points += reward;
+    addWeeklyProgress(data, player, reward);
     player.dailyClaimed = true;
 
     const bonusRewards = giveQuestBonusBait(player);
@@ -4743,7 +5032,7 @@ ${captureChoicesText(choices)}
       );
     }
 
-    const reward = giveRandomDailyReward(player);
+    const reward = giveRandomDailyReward(player, data);
 
     // Store the current 5:00 AM Mountain Time reset date instead of a rolling timestamp.
     player.dailyReward = getResetDate();
@@ -5504,6 +5793,8 @@ ${captureChoicesText(choices)}
       RELIC_KEYS.map(relicKey => [relicKey, false])
     );
     data.worldShatterUnlocked = false;
+    data.worldCommunityMilestonesAwarded = [];
+    data.communityBlessings = {};
     data.ultraWeeklySchedule = null;
     data.ultraAdminPauseUntil = 0;
     data.seasonMoments = [];
