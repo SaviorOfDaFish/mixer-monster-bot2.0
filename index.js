@@ -75,6 +75,11 @@ const PET_XP_BASE = { Common: 50, Rare: 65, Epic: 80, Legendary: 100 };
 const PET_ABILITY_COMBINE_XP = { Common: 25, Rare: 40, Epic: 65, Legendary: 100 };
 const HATCH_SACRIFICE_WINDOW = 5 * 60 * 1000;
 
+// ==================== DAILY QUEST REROLLS ====================
+const DAILY_FREE_REROLLS = 1;
+const DAILY_MAX_REROLLS = 2;
+const DAILY_SECOND_REROLL_BERRY_COST = 1;
+
 // ==================== HIDDEN COMMUNITY WORLD PROGRESS ====================
 // These thresholds are intentionally ADMIN-ONLY. Do not expose them in player help/announcements.
 const COMMUNITY_WORLD_THRESHOLDS = [3000, 5000, 7500, 10000, 15000];
@@ -776,6 +781,7 @@ function getPlayer(data, userId) {
       ultraParticipationCount: 0,
       dailyQuests: [],
       dailyClaimed: false,
+      dailyRerollsUsed: 0,
       lastDaily: null,
       huntCount: 0,
       dailyReward: 0,
@@ -847,6 +853,9 @@ function getPlayer(data, userId) {
   if (player.ultraParticipationCount === undefined) player.ultraParticipationCount = 0;
   if (player.dailyQuests === undefined) player.dailyQuests = [];
   if (player.dailyClaimed === undefined) player.dailyClaimed = false;
+  if (!Number.isInteger(player.dailyRerollsUsed) || player.dailyRerollsUsed < 0) {
+    player.dailyRerollsUsed = 0;
+  }
   if (player.lastDaily === undefined) player.lastDaily = null;
   if (player.huntCount === undefined) player.huntCount = 0;
   if (player.dailyReward === undefined) player.dailyReward = 0;
@@ -2355,6 +2364,91 @@ function generateDailyQuests() {
     }));
 }
 
+function rerollUnfinishedDailyQuests(player) {
+  const completed = (player.dailyQuests || []).filter(q => q.progress >= q.goal);
+  const unfinished = (player.dailyQuests || []).filter(q => q.progress < q.goal);
+
+  if (unfinished.length === 0) {
+    return { changed: false, reason: "complete" };
+  }
+
+  const usedIds = new Set(completed.map(q => q.id));
+  const oldUnfinishedIds = new Set(unfinished.map(q => q.id));
+  const replacements = [];
+
+  for (const oldQuest of unfinished) {
+    let candidates = questPool.filter(q =>
+      !usedIds.has(q.id) &&
+      !oldUnfinishedIds.has(q.id)
+    );
+
+    if (candidates.length === 0) {
+      candidates = questPool.filter(q =>
+        !usedIds.has(q.id) &&
+        q.id !== oldQuest.id
+      );
+    }
+
+    if (candidates.length === 0) {
+      candidates = questPool.filter(q => q.id !== oldQuest.id);
+    }
+
+    const chosen = candidates[Math.floor(Math.random() * candidates.length)];
+
+    if (!chosen) {
+      replacements.push({ ...oldQuest });
+      usedIds.add(oldQuest.id);
+      continue;
+    }
+
+    replacements.push({ ...chosen, progress: 0 });
+    usedIds.add(chosen.id);
+  }
+
+  player.dailyQuests = [...completed, ...replacements];
+
+  return {
+    changed: true,
+    completed,
+    unfinished,
+    replacements
+  };
+}
+
+function formatDailyQuestList(player) {
+  return (player.dailyQuests || [])
+    .map(q =>
+      `${q.progress >= q.goal ? "✅" : "⬜"} ${q.text} (${q.progress}/${q.goal})`
+    )
+    .join("\n");
+}
+
+function getDailyRerollStatus(player) {
+  const used = Math.max(0, Number(player.dailyRerollsUsed || 0));
+
+  if (used < DAILY_FREE_REROLLS) {
+    return {
+      available: true,
+      costType: "free",
+      text: "🎟️ **Next reroll: FREE**"
+    };
+  }
+
+  if (used < DAILY_MAX_REROLLS) {
+    return {
+      available: true,
+      costType: "berry",
+      text: `🍓 **Next reroll: ${DAILY_SECOND_REROLL_BERRY_COST} Hunter Berry**`
+    };
+  }
+
+  return {
+    available: false,
+    costType: "none",
+    text: "🔒 **No rerolls remaining today.**"
+  };
+}
+
 function getResetDate(date = new Date()) {
   const mountainTime = new Date(
     date.toLocaleString("en-US", {
@@ -2393,6 +2487,7 @@ function resetDaily(player) {
   if (player.lastDaily !== today) {
     player.dailyQuests = generateDailyQuests();
     player.dailyClaimed = false;
+    player.dailyRerollsUsed = 0;
     player.lastDaily = today;
     player.huntCount = 0;
   }
@@ -5387,9 +5482,115 @@ ${captureChoicesText(choices)}
       text += `${q.progress >= q.goal ? "✅" : "⬜"} ${q.text} (${q.progress}/${q.goal})\n`;
     });
 
+    const rerollStatus = getDailyRerollStatus(player);
+
     text += `\nReward: **+${totalReward} bonus points**`;
     text += `\nChance for bonus bait when claimed.`;
     text += `\nClaim with \`!claimdaily\` when complete.`;
+    text += `\n\n🔄 **Daily Rerolls**`;
+    text += `\n${rerollStatus.text}`;
+    text += `\nUse \`!rerolldaily\` to replace unfinished challenges.`;
+    text += `\n✅ Completed challenges are never removed.`;
+
+    return message.reply(text);
+  }
+
+  if (command === "!rerolldaily" || command === "!dailyreroll") {
+    if (player.dailyClaimed) {
+      return message.reply(
+        "✅ You already completed and claimed today's Daily Quests. " +
+        "Your rerolls reset with tomorrow's quests at **5:00 AM Mountain Time**."
+      );
+    }
+
+    const unfinished = (player.dailyQuests || []).filter(q => q.progress < q.goal);
+
+    if (unfinished.length === 0) {
+      return message.reply(
+        "🎉 All of today's Daily Quests are already complete! " +
+        "Use `!claimdaily` to collect your reward."
+      );
+    }
+
+    const rerollStatus = getDailyRerollStatus(player);
+
+    if (!rerollStatus.available) {
+      return message.reply(
+        "🔒 **You've used both Daily Quest rerolls for today.**\n" +
+        "Your rerolls reset with the new Daily Quests at **5:00 AM Mountain Time**."
+      );
+    }
+
+    if (rerollStatus.costType === "berry") {
+      const berries = Number(player.captureItems?.berry || 0);
+
+      if (berries < DAILY_SECOND_REROLL_BERRY_COST) {
+        return message.reply(
+          `🍓 Your free reroll has already been used.\n\n` +
+          `A second reroll costs **${DAILY_SECOND_REROLL_BERRY_COST} Hunter Berry**, ` +
+          `but you currently have **${berries}**.\n\n` +
+          `Your rerolls reset at **5:00 AM Mountain Time**.`
+        );
+      }
+    }
+
+    const completedBefore = (player.dailyQuests || []).filter(
+      q => q.progress >= q.goal
+    );
+
+    let costText = "🎟️ **Free Daily Reroll used!**";
+
+    if (rerollStatus.costType === "berry") {
+      player.captureItems.berry -= DAILY_SECOND_REROLL_BERRY_COST;
+      costText =
+        `🍓 **Second Daily Reroll used!** ` +
+        `-${DAILY_SECOND_REROLL_BERRY_COST} Hunter Berry`;
+    }
+
+    const result = rerollUnfinishedDailyQuests(player);
+
+    if (!result.changed) {
+      if (rerollStatus.costType === "berry") {
+        player.captureItems.berry += DAILY_SECOND_REROLL_BERRY_COST;
+      }
+
+      return message.reply(
+        "I couldn't generate replacement quests, so nothing was changed or charged."
+      );
+    }
+
+    player.dailyRerollsUsed =
+      Math.max(0, Number(player.dailyRerollsUsed || 0)) + 1;
+
+    saveData(data);
+
+    const nextStatus = getDailyRerollStatus(player);
+
+    let text = `🔄 **DAILY QUESTS REROLLED!**\n\n`;
+    text += `${costText}\n\n`;
+
+    if (completedBefore.length > 0) {
+      text += `✅ **Completed quests kept:**\n`;
+      completedBefore.forEach(q => {
+        text += `• ${q.text} (${q.goal}/${q.goal})\n`;
+      });
+      text += `\n`;
+    }
+
+    text += `🆕 **Your Daily Quests:**\n`;
+    text += `${formatDailyQuestList(player)}\n\n`;
+    text += `${nextStatus.text}`;
+
+    if (
+      player.dailyRerollsUsed === DAILY_FREE_REROLLS &&
+      nextStatus.costType === "berry"
+    ) {
+      text +=
+        `\nUse \`!rerolldaily\` again if needed. ` +
+        `Your second reroll costs **${DAILY_SECOND_REROLL_BERRY_COST} Hunter Berry**.`;
+    } else if (!nextStatus.available) {
+      text += `\nYour rerolls reset at **5:00 AM Mountain Time**.`;
+    }
 
     return message.reply(text);
   }
@@ -6371,6 +6572,7 @@ if (command.startsWith("!givepoints ")) {
           title: null,
           dailyQuests: [],
           dailyClaimed: false,
+          dailyRerollsUsed: 0,
           lastDaily: null,
           huntCount: 0,
           dailyReward: 0,
@@ -6541,6 +6743,7 @@ if (command.startsWith("!givepoints ")) {
           title: null,
           dailyQuests: [],
           dailyClaimed: false,
+          dailyRerollsUsed: 0,
           lastDaily: null,
           huntCount: 0,
           dailyReward: 0,
