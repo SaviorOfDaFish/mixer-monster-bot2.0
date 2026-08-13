@@ -169,6 +169,10 @@ const DISTORTION_WARNING_MINUTES = 5;
 const DISTORTION_FINAL_RESET_MINUTES = 10;
 const UNMADE_REPLACEMENT_CHANCE = 3;
 
+// Startup safety: automatic Distortions never catch up events that were already due before this process started.
+const DISTORTION_PROCESS_BOOT_AT = Date.now();
+const DISTORTION_START_GRACE_MS = 2 * 60 * 1000;
+
 const DISTORTION_EGGS = {
   scorched_rift: { name: "Scorched Rift Egg", icon: "🔥🥚", plane: "infernal", incubationMs: 2 * 60 * 60 * 1000, image: "scorched_rift_egg.png", hatchingImage: "scorched_rift_hatching.png", pets: [{ key: "ember_imp", weight: 70 }, { key: "ashbound_familiar", weight: 30 }] },
   shardbound: { name: "Shardbound Egg", icon: "❄️🥚", plane: "frost", incubationMs: 2 * 60 * 60 * 1000, image: "shardbound_egg.png", hatchingImage: "shardbound_hatching.png", pets: [{ key: "frost_mephit", weight: 70 }, { key: "rime_sprite", weight: 30 }] },
@@ -4259,6 +4263,8 @@ function generateDistortionSchedule(data) {
   const monday = new Date(`${weekKey}T12:00:00Z`);
   const dayIndexes = [0,1,2,3,4,5,6].sort(() => Math.random() - 0.5).slice(0, DISTORTION_EVENTS_PER_WEEK).sort((a,b)=>a-b);
   const realmKeys = ["infernal","frost","arcane","hollow","astral"].sort(() => Math.random() - 0.5);
+  const now = Date.now();
+
   const events = dayIndexes.map((dayIndex, i) => {
     const date = new Date(monday);
     date.setUTCDate(monday.getUTCDate() + dayIndex);
@@ -4266,8 +4272,22 @@ function generateDistortionSchedule(data) {
     const weekend = dayIndex >= 5;
     const startHour = weekend ? 12 + Math.floor(Math.random()*9) : 17 + Math.floor(Math.random()*4);
     const minute = Math.floor(Math.random()*60);
-    return { id: `${weekKey}-${i+1}`, scheduledKey: realmKeys[i % realmKeys.length], startAt: mountainLocalTimestamp(dateString,startHour,minute), warned:false, criticalWarned:false, started:false, ended:false };
+    const startAt = mountainLocalTimestamp(dateString,startHour,minute);
+    const alreadyPast = startAt <= now;
+
+    return {
+      id: `${weekKey}-${i+1}`,
+      scheduledKey: realmKeys[i % realmKeys.length],
+      startAt,
+      warned: alreadyPast,
+      criticalWarned: alreadyPast,
+      started: false,
+      ended: alreadyPast,
+      skipped: alreadyPast,
+      skipReason: alreadyPast ? "schedule-created-after-start" : null
+    };
   });
+
   data.distortionSchedule = { weekKey, events };
   return true;
 }
@@ -4286,7 +4306,7 @@ async function startLiveDistortion(data, event, forcedKey = null) {
   const definition = DISTORTIONS[key];
   if (!definition) return false;
   const now = Date.now();
-  data.activeDistortion = { key, startAt: now, endAt: now + DISTORTION_DURATION, finalResetDone:false, ended:false, scheduleId:event?.id || null };
+  data.activeDistortion = { key, startAt: now, endAt: now + DISTORTION_DURATION, finalResetDone:false, ended:false, scheduleId:event?.id || null, publicAnnounced:false };
   if (event) event.started = true;
   for (const p of Object.values(data.players || {})) p.lastHunt = 0;
   addSeasonMoment(data,{type:"distortion_open",icon:definition.icon,text:key==="unmade"?"Reality failed. A plane that should not exist appeared.":`${definition.name} opened across the hunting grounds.`});
@@ -4298,6 +4318,8 @@ async function startLiveDistortion(data, event, forcedKey = null) {
     ? `@everyone\n\n⚠️ **DISTORTION DETECTED**\nAttempting planar identification...\n❌ **UNKNOWN**\n\n**This plane does not exist.**\n\n⏱️ Event duration: **3 hours**\n⚡ \`!hunt\` cooldown: **30 minutes**\n🔄 Everyone can hunt **RIGHT NOW.**\n🥚 An unidentified egg signature has been detected.`
     : `@everyone\n\n${definition.icon} **WORLD DISTORTION DETECTED — ${definition.name.toUpperCase()}**\n\nUnknown creatures are crossing into our world.\n\n⏱️ Event duration: **3 hours**\n⚡ \`!hunt\` cooldown: **30 minutes**\n🔄 Everyone's hunt cooldown has been reset — hunt **RIGHT NOW.**\n🥚 Strange eggs can be discovered during successful Distortion catches.\n\nThe breach will not remain open forever.`;
   await sendImageAnnouncement(channel,openText,definition.openingImage,true);
+  data.activeDistortion.publicAnnounced = true;
+  saveData(data);
   return true;
 }
 
@@ -4323,43 +4345,99 @@ async function endLiveDistortion(data, reason="natural") {
 }
 
 async function processDistortionSystem() {
-  const data=loadData();
-  const changed=generateDistortionSchedule(data);
-  const now=Date.now();
-  if(changed) saveData(data);
+  const data = loadData();
+  const changed = generateDistortionSchedule(data);
+  const now = Date.now();
+  let dirty = changed;
 
-  if(data.activeDistortion && now>=data.activeDistortion.endAt){
+  // HARD SAFETY: Railway deploy/restart must never cause a stale scheduled Distortion to fire publicly.
+  for (const event of data.distortionSchedule?.events || []) {
+    if (event.started || event.ended) continue;
+    if (event.startAt < DISTORTION_PROCESS_BOOT_AT) {
+      event.warned = true;
+      event.criticalWarned = true;
+      event.ended = true;
+      event.skipped = true;
+      event.skipReason = "bot-restarted-after-event-time";
+      dirty = true;
+      console.log(`Distortion safety: skipped stale event ${event.id}.`);
+    }
+  }
+
+  if (dirty) saveData(data);
+
+  // One-time migration safety for active states created by the earlier Distortion build.
+  // If the state does not prove that its public opening completed, clear it silently instead of posting follow-up messages.
+  if (data.activeDistortion && data.activeDistortion.publicAnnounced !== true) {
+    console.log("Distortion safety: cleared unverified legacy active Distortion state without posting.");
+    data.activeDistortion = null;
+    saveData(data);
+  }
+
+  if (data.activeDistortion && now >= data.activeDistortion.endAt) {
     await endLiveDistortion(data);
     return;
   }
 
-  if(data.activeDistortion && !data.activeDistortion.finalResetDone && data.activeDistortion.endAt-now<=DISTORTION_FINAL_RESET_MINUTES*60*1000 && data.activeDistortion.endAt-now>0){
-    data.activeDistortion.finalResetDone=true;
-    for(const p of Object.values(data.players||{})) p.lastHunt=0;
+  if (data.activeDistortion && !data.activeDistortion.finalResetDone && data.activeDistortion.endAt-now <= DISTORTION_FINAL_RESET_MINUTES*60*1000 && data.activeDistortion.endAt-now > 0) {
+    data.activeDistortion.finalResetDone = true;
+    for (const p of Object.values(data.players || {})) p.lastHunt = 0;
     saveData(data);
-    const channel=client.channels.cache.get(MONSTER_CHANNEL_ID);
-    if(channel?.isTextBased()) await channel.send(`@everyone\n\n⚠️ **DISTORTION COLLAPSE DETECTED**\nThe breach will close in **10 minutes!**\n🔄 Everyone has been given **one final hunt**.\nUse \`!hunt\` NOW.`,{allowedMentions:{parse:["everyone"]}});
+    const channel = client.channels.cache.get(MONSTER_CHANNEL_ID);
+    if (channel?.isTextBased()) {
+      await channel.send({
+        content: `@everyone
+
+⚠️ **DISTORTION COLLAPSE DETECTED**
+The breach will close in **10 minutes!**
+🔄 Everyone has been given **one final hunt**.
+Use \`!hunt\` NOW.`,
+        allowedMentions: { parse: ["everyone"] }
+      });
+    }
   }
 
-  if(data.activeDistortion) return;
-  for(const event of data.distortionSchedule?.events||[]){
-    if(event.ended) continue;
-    if(!event.warned && now>=event.startAt-DISTORTION_WARNING_MINUTES*60*1000 && now<event.startAt){
-      event.warned=true; saveData(data);
-      const channel=client.channels.cache.get(MONSTER_CHANNEL_ID);
-      if(channel?.isTextBased()) await sendImageAnnouncement(channel,`⚠️ **Something is wrong...**\n\nThe air around the hunting grounds has begun to change.\nReality instability is increasing.\n\n**BREACH IMMINENT: 5 MINUTES**`,`distortion_warning.png`,false);
+  if (data.activeDistortion) return;
+
+  for (const event of data.distortionSchedule?.events || []) {
+    if (event.ended || event.started) continue;
+
+    if (now > event.startAt + DISTORTION_START_GRACE_MS) {
+      event.warned = true;
+      event.criticalWarned = true;
+      event.ended = true;
+      event.skipped = true;
+      event.skipReason = "missed-live-start-window";
+      saveData(data);
+      console.log(`Distortion safety: skipped missed event ${event.id}; nothing was posted.`);
+      continue;
     }
-    if(!event.criticalWarned && now>=event.startAt-60*1000 && now<event.startAt){
-      event.criticalWarned=true; saveData(data);
-      const channel=client.channels.cache.get(MONSTER_CHANNEL_ID);
-      if(channel?.isTextBased()) await sendImageAnnouncement(
-        channel,
-        `🚨 **REALITY INSTABILITY: CRITICAL**\n\nThe fractures are spreading.\nThe hunting grounds are seconds from a planar breach.\n\n**BREACH IMMINENT: 1 MINUTE**`,
-        `distortion_critical.png`,
-        false
-      );
+
+    if (!event.warned && now >= event.startAt - DISTORTION_WARNING_MINUTES*60*1000 && now < event.startAt) {
+      event.warned = true;
+      saveData(data);
+      const channel = client.channels.cache.get(MONSTER_CHANNEL_ID);
+      if (channel?.isTextBased()) await sendImageAnnouncement(channel,`⚠️ **Something is wrong...**
+
+The air around the hunting grounds has begun to change.
+Reality instability is increasing.
+
+**BREACH IMMINENT: 5 MINUTES**`,`distortion_warning.png`,false);
     }
-    if(!event.started && now>=event.startAt){
+
+    if (!event.criticalWarned && now >= event.startAt - 60*1000 && now < event.startAt) {
+      event.criticalWarned = true;
+      saveData(data);
+      const channel = client.channels.cache.get(MONSTER_CHANNEL_ID);
+      if (channel?.isTextBased()) await sendImageAnnouncement(channel,`🚨 **REALITY INSTABILITY: CRITICAL**
+
+The fractures are spreading.
+The hunting grounds are seconds from a planar breach.
+
+**BREACH IMMINENT: 1 MINUTE**`,`distortion_critical.png`,false);
+    }
+
+    if (!event.started && now >= event.startAt && now <= event.startAt + DISTORTION_START_GRACE_MS) {
       await startLiveDistortion(data,event);
       return;
     }
@@ -4434,7 +4512,7 @@ client.once("clientReady", () => {
     try { await processDistortionSystem(); }
     catch (error) { console.error("World Distortion monitor failed:", error); }
   });
-  processDistortionSystem().catch(error => console.error("Initial World Distortion check failed:", error));
+  // No immediate Distortion processing on startup; the minute cron handles only live future schedule windows.
 
   //
   // 🌅 7:00 AM MST Reminder
@@ -5361,7 +5439,7 @@ ${captureChoicesText(choices)}
   if (command === "!distortionstatus") {
     if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return message.reply("Only admins can view the hidden Distortion schedule.");
     generateDistortionSchedule(data); saveData(data);
-    const events=(data.distortionSchedule?.events||[]).map((e,i)=>`${i+1}. <t:${Math.floor(e.startAt/1000)}:F> — ${e.started?"STARTED":e.ended?"ENDED":"scheduled"}`).join("\n") || "No schedule yet.";
+    const events=(data.distortionSchedule?.events||[]).map((e,i)=>`${i+1}. <t:${Math.floor(e.startAt/1000)}:F> — ${e.skipped?"SKIPPED":e.started?"STARTED":e.ended?"ENDED":"scheduled"}`).join("\n") || "No schedule yet.";
     const active=data.activeDistortion ? `${DISTORTIONS[data.activeDistortion.key]?.name||data.activeDistortion.key} until <t:${Math.floor(data.activeDistortion.endAt/1000)}:R>` : "None";
     return message.reply(`🌀 **DISTORTION ADMIN STATUS**\nHidden Progress: **${discoveredWorldRelicCount(data)}/5**\nActive: **${active}**\n\n**This Week (realm identities stay classified):**\n${events}`);
   }
@@ -5390,6 +5468,7 @@ ${captureChoicesText(choices)}
         `🧪 **PRIVATE ADMIN TEST SANDBOX**\n`+
         `Nothing here activates for other players.\n\n`+
         `\`!testhunt distortion infernal/frost/arcane/hollow/astral/unmade\`\n`+
+        `\`!testhunt preview warning|critical|opening|closing [distortion]\`\n`+
         `\`!testhunt end\`\n\`!testhunt cooldown on/off\`\n`+
         `\`!testhunt egg scorched_rift/shardbound/drowned_rune/soulbound/paradox/impossible\`\n`+
         `\`!testhunt pet pet_key\`\n\`!testhunt monster monster_name\`\n`+
@@ -5404,9 +5483,26 @@ ${captureChoicesText(choices)}
       saveData(data);
       const def=DISTORTIONS[key];
       const img=findImageFile(def.openingImage);
-      const embed=new EmbedBuilder().setTitle(`🧪 ADMIN TEST • ${def.name}`).setDescription(`Private simulation enabled for **you only**.\n\nYour \`!hunt\` now uses the Distortion pool, **60% special encounters**, and a **30-minute cooldown**.\nOther players remain completely unaffected.`);
+      const embed=new EmbedBuilder().setTitle(`🧪 PRIVATE ADMIN TEST • ${def.name}`).setDescription(`This simulation exists **only for you** and stays in **this channel**.\n\n⚡ Your test \`!hunt\` cooldown: **30 minutes**\n🌀 Test pool: **60% Distortion / 40% normal**\n🥚 Distortion egg testing is enabled on your catches.\n\n🚫 No @everyone ping\n🚫 No global event state\n🚫 No other-player cooldown reset\n🚫 No weekly schedule changes\n\nUse \`!testhunt end\` when finished.`);
       const files=[]; if(img){embed.setImage(`attachment://${path.basename(img)}`);files.push(new AttachmentBuilder(img));}
-      return message.reply({embeds:[embed],files});
+      return message.reply({embeds:[embed],files,allowedMentions:{parse:[]}});
+    }
+    if(sub==="preview"){
+      const type=(args.shift()||"").toLowerCase();
+      const key=(args.shift()||player.adminTest.distortionKey||"").toLowerCase();
+      const def=DISTORTIONS[key];
+      if(!def) return message.reply("Choose a test Distortion first or provide one: `!testhunt preview opening frost`.");
+      if(type==="warning") return sendImageAnnouncement(message.channel,`🧪 **PRIVATE ADMIN TEST — 5 MINUTE WARNING**\n\n⚠️ **Something is wrong...**\n\nThe air around the hunting grounds has begun to change.\nReality instability is increasing.\n\n**BREACH IMMINENT: 5 MINUTES**`,`distortion_warning.png`,false);
+      if(type==="critical") return sendImageAnnouncement(message.channel,`🧪 **PRIVATE ADMIN TEST — CRITICAL WARNING**\n\n🚨 **REALITY INSTABILITY: CRITICAL**\n\nThe fractures are spreading.\nThe hunting grounds are seconds from a planar breach.\n\n**BREACH IMMINENT: 1 MINUTE**`,`distortion_critical.png`,false);
+      if(type==="opening"){
+        const txt=key==="unmade" ? `🧪 **PRIVATE ADMIN TEST — UNKNOWN DISTORTION OPENING**\n\n⚠️ **DISTORTION DETECTED**\nAttempting planar identification...\n❌ **UNKNOWN**\n\n**This plane does not exist.**\n\n⏱️ Event duration: **3 hours**\n⚡ \`!hunt\` cooldown: **30 minutes**` : `🧪 **PRIVATE ADMIN TEST — OPENING**\n\n${def.icon} **WORLD DISTORTION DETECTED — ${def.name.toUpperCase()}**\n\n⏱️ Event duration: **3 hours**\n⚡ \`!hunt\` cooldown: **30 minutes**\n🥚 Strange eggs can be discovered.`;
+        return sendImageAnnouncement(message.channel,txt,def.openingImage,false);
+      }
+      if(type==="closing"){
+        const txt=key==="unmade" ? `🧪 **PRIVATE ADMIN TEST — CLOSING**\n\n**The distortion is gone.**\n\n*You don't remember seeing it close.*` : `🧪 **PRIVATE ADMIN TEST — CLOSING**\n\n${def.icon} **${def.name.toUpperCase()} IS COLLAPSING...**\n\nThe breach has sealed.`;
+        return sendImageAnnouncement(message.channel,txt,def.closingImage,false);
+      }
+      return message.reply("Use `!testhunt preview warning|critical|opening|closing [distortion]`.");
     }
     if(sub==="end"){ player.adminTest.distortionKey=null; saveData(data); return message.reply("🧪 Your private Distortion simulation has ended."); }
     if(sub==="cooldown"){ player.adminTest.cooldownBypass=(args[0]||"").toLowerCase()==="off"; saveData(data); return message.reply(`🧪 Admin cooldown bypass: **${player.adminTest.cooldownBypass?"ON":"OFF"}**.`); }
