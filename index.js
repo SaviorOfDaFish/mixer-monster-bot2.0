@@ -1457,15 +1457,32 @@ function getNewIncubatorUnlockText(player, previousPoints) {
   );
 }
 
+function isNormalEggPet(definition) {
+  if (!definition) return false;
+
+  // CRITICAL POOL SAFETY:
+  // Normal Common/Rare/Epic/Legendary Eggs may ONLY hatch companions from
+  // the original known habitat collections. Distortion companions and
+  // secret Unmade companions are registered in the master `pets` array so
+  // !pets / !pet / !viewpet / passives can use them, but they must never
+  // leak into the normal egg hatch pool.
+  return Object.prototype.hasOwnProperty.call(PET_COLLECTIONS, definition.habitat);
+}
+
 function choosePetFromEgg(rarity) {
-  const pool = pets.filter(pet => pet.rarity === rarity);
+  const pool = pets.filter(
+    pet => pet.rarity === rarity && isNormalEggPet(pet)
+  );
+
   if (pool.length === 0) return null;
 
   if (rarity !== "Legendary") {
     return pool[Math.floor(Math.random() * pool.length)];
   }
 
-  // Legendary Eggs have one especially elusive companion.
+  // Legendary normal Eggs use ONLY the original Legendary habitat companions.
+  // Keeping this explicit list also provides a second layer of protection
+  // against future Distortion/secret pets entering the normal egg pool.
   const weighted = [
     { key: "verdant_sentinel", weight: 15 },
     { key: "leviacub", weight: 15 },
@@ -1475,15 +1492,24 @@ function choosePetFromEgg(rarity) {
     { key: "storm_emperor_cub", weight: 10 },
     { key: "hollow_prince", weight: 10 },
     { key: "astral_spawn", weight: 5 }
-  ];
+  ].filter(entry => {
+    const definition = getPetDefinition(entry.key);
+    return definition && isNormalEggPet(definition) && definition.rarity === "Legendary";
+  });
 
-  let roll = Math.random() * 100;
+  if (weighted.length === 0) {
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  const totalWeight = weighted.reduce((sum, entry) => sum + entry.weight, 0);
+  let roll = Math.random() * totalWeight;
+
   for (const entry of weighted) {
     roll -= entry.weight;
     if (roll < 0) return getPetDefinition(entry.key);
   }
 
-  return getPetDefinition("verdant_sentinel");
+  return getPetDefinition(weighted[0].key);
 }
 
 function rollEggRarity(player, data = null) {
@@ -5760,7 +5786,32 @@ ${captureChoicesText(choices)}
     const distortionEgg = incubation.eggKey ? DISTORTION_EGGS[incubation.eggKey] : null;
     const rarity = incubation.rarity;
     const definition = distortionEgg ? chooseDistortionPet(incubation.eggKey) : choosePetFromEgg(rarity);
-    if (!definition) return message.reply("That egg could not find a matching pet. Please contact an admin.");
+
+    if (!definition) {
+      return message.reply("That egg could not find a matching pet. Please contact an admin.");
+    }
+
+    // Final safety gate: even if the master pet registry is expanded later,
+    // a normal egg is never allowed to resolve into a Distortion or secret pet.
+    if (!distortionEgg && !isNormalEggPet(definition)) {
+      console.error(
+        `[EGG POOL SAFETY] Blocked normal ${rarity} Egg from hatching restricted pet ${definition.key} (${definition.habitat}).`
+      );
+      return message.reply(
+        "⚠️ That egg rolled an invalid companion pool entry and was safely blocked. Please contact an admin."
+      );
+    }
+
+    // Distortion eggs are equally strict: the resulting companion must be one
+    // of the two pet keys explicitly configured for that exact egg.
+    if (distortionEgg && !distortionEgg.pets.some(choice => choice.key === definition.key)) {
+      console.error(
+        `[DISTORTION EGG SAFETY] Blocked ${incubation.eggKey} from hatching invalid pet ${definition.key}.`
+      );
+      return message.reply(
+        "⚠️ That Distortion Egg rolled an invalid companion entry and was safely blocked. Please contact an admin."
+      );
+    }
 
     const alreadyOwnedSpecies = player.pets.some(pet => pet.key === definition.key);
     const ownedPet = {
