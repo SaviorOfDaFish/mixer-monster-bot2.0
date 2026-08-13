@@ -160,6 +160,93 @@ const EGG_TYPES = {
   Legendary: { icon: "🟡", incubationMs: 4 * 60 * 60 * 1000 }
 };
 
+const DISTORTION_HUNT_COOLDOWN = 30 * 60 * 1000;
+const DISTORTION_DURATION = 3 * 60 * 60 * 1000;
+const DISTORTION_EVENT_MONSTER_CHANCE = 60;
+const DISTORTION_EGG_DROP_CHANCE = 40;
+const DISTORTION_EVENTS_PER_WEEK = 4;
+const DISTORTION_WARNING_MINUTES = 5;
+const DISTORTION_FINAL_RESET_MINUTES = 10;
+const UNMADE_REPLACEMENT_CHANCE = 3;
+
+const DISTORTION_EGGS = {
+  scorched_rift: { name: "Scorched Rift Egg", icon: "🔥🥚", plane: "infernal", incubationMs: 2 * 60 * 60 * 1000, image: "scorched_rift_egg.png", hatchingImage: "scorched_rift_hatching.png", pets: [{ key: "ember_imp", weight: 70 }, { key: "ashbound_familiar", weight: 30 }] },
+  shardbound: { name: "Shardbound Egg", icon: "❄️🥚", plane: "frost", incubationMs: 2 * 60 * 60 * 1000, image: "shardbound_egg.png", hatchingImage: "shardbound_hatching.png", pets: [{ key: "frost_mephit", weight: 70 }, { key: "rime_sprite", weight: 30 }] },
+  drowned_rune: { name: "Drowned Rune Egg", icon: "🌊🥚", plane: "arcane", incubationMs: 2 * 60 * 60 * 1000, image: "drowned_rune_egg.png", hatchingImage: "drowned_rune_hatching.png", pets: [{ key: "runeclaw_familiar", weight: 70 }, { key: "glyph_wisp", weight: 30 }] },
+  soulbound: { name: "Soulbound Egg", icon: "👻🥚", plane: "hollow", incubationMs: 2 * 60 * 60 * 1000, image: "soulbound_egg.png", hatchingImage: "soulbound_hatching.png", pets: [{ key: "bone_familiar", weight: 70 }, { key: "veilkin", weight: 30 }] },
+  paradox: { name: "Paradox Egg", icon: "🌌🥚", plane: "astral", incubationMs: 2 * 60 * 60 * 1000, image: "paradox_egg.png", hatchingImage: "paradox_hatching.png", pets: [{ key: "star_familiar", weight: 70 }, { key: "paradox_imp", weight: 30 }] },
+  impossible: { name: "??? Egg", trueName: "The Impossible Egg", icon: "❓🥚", plane: "unmade", incubationMs: 4 * 60 * 60 * 1000, image: "impossible_egg.png", hatchingImage: null, pets: [{ key: "mimicling", weight: 70 }, { key: "the_unwritten", weight: 30 }] }
+};
+
+const DISTORTIONS = {
+  infernal: {
+    name: "The Infernal Rift", icon: "🔥", eggKey: "scorched_rift",
+    openingImage: "infernal_rift_opening.png", closingImage: "infernal_rift_closing.png",
+    monsters: [
+      { name: "Cinderkin", habitat: "Infernal Rift", rarity: "Common", points: 3, chance: 75, image: "cinderkin.png" },
+      { name: "Brimstone Mauler", habitat: "Infernal Rift", rarity: "Rare", points: 5, chance: 50, image: "brimstone_mauler.png" },
+      { name: "Ashfang Ravager", habitat: "Infernal Rift", rarity: "Rare", points: 5, chance: 45, image: "ashfang_ravager.png" },
+      { name: "Furnace Beholder", habitat: "Infernal Rift", rarity: "Epic", points: 8, chance: 28, image: "furnace_beholder.png" },
+      { name: "Dreadflame Tyrant", habitat: "Infernal Rift", rarity: "Legendary", points: 15, chance: 10, image: "dreadflame_tyrant.png" }
+    ]
+  },
+  frost: {
+    name: "The Shattered Frost", icon: "❄️", eggKey: "shardbound",
+    openingImage: "shattered_frost_opening.png", closingImage: "shattered_frost_closing.png",
+    monsters: [
+      { name: "Shardling", habitat: "Shattered Frost", rarity: "Common", points: 3, chance: 75, image: "shardling.png" },
+      { name: "Frostgaze Watcher", habitat: "Shattered Frost", rarity: "Rare", points: 5, chance: 50, image: "frostgaze_watcher.png" },
+      { name: "Rimeclaw Horror", habitat: "Shattered Frost", rarity: "Rare", points: 5, chance: 45, image: "rimeclaw_horror.png" },
+      { name: "Glacial Runegolem", habitat: "Shattered Frost", rarity: "Epic", points: 8, chance: 28, image: "glacial_runegolem.png" },
+      { name: "Aurora Wyrm", habitat: "Shattered Frost", rarity: "Legendary", points: 15, chance: 10, image: "aurora_wyrm.png" }
+    ]
+  },
+  arcane: {
+    name: "The Sunken Arcane", icon: "🌊", eggKey: "drowned_rune",
+    openingImage: "sunken_arcane_opening.png", closingImage: "sunken_arcane_closing.png",
+    monsters: [
+      { name: "Glimmerglob", habitat: "Sunken Arcane", rarity: "Common", points: 3, chance: 75, image: "glimmerglob.png" },
+      { name: "Runespine Crawler", habitat: "Sunken Arcane", rarity: "Rare", points: 5, chance: 50, image: "runespine_crawler.png" },
+      { name: "Drownveil Phantom", habitat: "Sunken Arcane", rarity: "Rare", points: 5, chance: 45, image: "drownveil_phantom.png" },
+      { name: "Abyssal Oracle", habitat: "Sunken Arcane", rarity: "Epic", points: 8, chance: 28, image: "abyssal_oracle.png" },
+      { name: "Leviathan of the Deep Rune", habitat: "Sunken Arcane", rarity: "Legendary", points: 15, chance: 10, image: "deep_rune_leviathan.png" }
+    ]
+  },
+  hollow: {
+    name: "The Hollow Veil", icon: "👻", eggKey: "soulbound",
+    openingImage: "hollow_veil_opening.png", closingImage: "hollow_veil_closing.png",
+    monsters: [
+      { name: "Skitterbone", habitat: "Hollow Veil", rarity: "Common", points: 3, chance: 75, image: "skitterbone.png" },
+      { name: "Lantern Wretch", habitat: "Hollow Veil", rarity: "Rare", points: 5, chance: 50, image: "lantern_wretch.png" },
+      { name: "Gravebound Sentinel", habitat: "Hollow Veil", rarity: "Rare", points: 5, chance: 45, image: "gravebound_sentinel.png" },
+      { name: "Memory Eater", habitat: "Hollow Veil", rarity: "Epic", points: 8, chance: 28, image: "memory_eater.png" },
+      { name: "The Hollow Sovereign", habitat: "Hollow Veil", rarity: "Legendary", points: 15, chance: 10, image: "hollow_sovereign.png" }
+    ]
+  },
+  astral: {
+    name: "The Astral Fracture", icon: "🌌", eggKey: "paradox",
+    openingImage: "astral_fracture_opening.png", closingImage: "astral_fracture_closing.png",
+    monsters: [
+      { name: "Orbitling", habitat: "Astral Fracture", rarity: "Common", points: 3, chance: 75, image: "orbitling.png" },
+      { name: "Voidstepper", habitat: "Astral Fracture", rarity: "Rare", points: 5, chance: 50, image: "voidstepper.png" },
+      { name: "Constellation Weaver", habitat: "Astral Fracture", rarity: "Rare", points: 5, chance: 45, image: "constellation_weaver.png" },
+      { name: "Paradox Watcher", habitat: "Astral Fracture", rarity: "Epic", points: 8, chance: 28, image: "paradox_watcher.png" },
+      { name: "The Starless One", habitat: "Astral Fracture", rarity: "Legendary", points: 15, chance: 10, image: "starless_one.png" }
+    ]
+  },
+  unmade: {
+    name: "UNKNOWN DISTORTION", icon: "🕳️", eggKey: "impossible",
+    openingImage: "unmade_opening.png", closingImage: null, secret: true,
+    monsters: [
+      { name: "The Misplaced", habitat: "The Unmade", rarity: "???", points: 8, chance: 55, image: "the_misplaced.png" },
+      { name: "Stitchmaw", habitat: "The Unmade", rarity: "???", points: 10, chance: 40, image: "stitchmaw.png" },
+      { name: "The Empty Knight", habitat: "The Unmade", rarity: "???", points: 12, chance: 30, image: "empty_knight.png" },
+      { name: "The Forgotten", habitat: "The Unmade", rarity: "???", points: 18, chance: 15, image: "the_forgotten.png" },
+      { name: "NULL", habitat: "The Unmade", rarity: "UNKNOWN", points: 30, chance: 5, image: "null.png" }
+    ]
+  }
+};
+
 const MAX_INCUBATORS = 5;
 const POINTS_PER_INCUBATOR = 100;
 const HATCH_POINT_REWARDS = {
@@ -219,7 +306,23 @@ const pets = [
   { key: "bone_gnawer", name: "Bone Gnawer", icon: "🦴", habitat: "Undead", rarity: "Common", ability: "points", baseBonus: 2, description: "Earns bonus points from successful hunts." },
   { key: "grave_whisper", name: "Grave Whisper", icon: "👻", habitat: "Undead", rarity: "Rare", ability: "eggFinder", baseBonus: 2, description: "Increases the chance to discover eggs." },
   { key: "crypt_fiend", name: "Crypt Fiend", icon: "⚔️", habitat: "Undead", rarity: "Epic", ability: "itemFinder", baseBonus: 7, description: "Frequently finds valuable hunting supplies." },
-  { key: "hollow_prince", name: "Hollow Prince", icon: "👑", habitat: "Undead", rarity: "Legendary", ability: "points", baseBonus: 8, description: "Earns a massive point bonus from successful hunts." }
+  { key: "hollow_prince", name: "Hollow Prince", icon: "👑", habitat: "Undead", rarity: "Legendary", ability: "points", baseBonus: 8, description: "Earns a massive point bonus from successful hunts." },
+
+  // 🌀 WORLD DISTORTION COMPANIONS
+  { key: "ember_imp", name: "Ember Imp", icon: "🔥", habitat: "Infernal Rift", rarity: "Rare", ability: "points", baseBonus: 4, description: "A naturally tiny infernal familiar that increases points from successful hunts.", image: "ember_imp.png" },
+  { key: "ashbound_familiar", name: "Ashbound Familiar", icon: "🌋", habitat: "Infernal Rift", rarity: "Legendary", ability: "itemFinder", baseBonus: 9, description: "A living ash-and-obsidian familiar that excels at finding hunting supplies.", image: "ashbound_familiar.png" },
+  { key: "frost_mephit", name: "Frost Mephit", icon: "❄️", habitat: "Shattered Frost", rarity: "Rare", ability: "cooldown", baseBonus: 3, description: "A frost elemental familiar that reduces normal hunt cooldowns.", image: "frost_mephit.png" },
+  { key: "rime_sprite", name: "Rime Sprite", icon: "💎", habitat: "Shattered Frost", rarity: "Legendary", ability: "shiny", baseBonus: 4, description: "An ancient frost-fae spirit that greatly increases shiny odds.", image: "rime_sprite.png" },
+  { key: "runeclaw_familiar", name: "Runeclaw Familiar", icon: "🔮", habitat: "Sunken Arcane", rarity: "Rare", ability: "eggFinder", baseBonus: 3, description: "A rune-marked planar familiar that improves egg discovery.", image: "runeclaw_familiar.png" },
+  { key: "glyph_wisp", name: "Glyph Wisp", icon: "🌀", habitat: "Sunken Arcane", rarity: "Legendary", ability: "capture", baseBonus: 4, description: "A living arcane spell that strengthens normal capture chance.", image: "glyph_wisp.png" },
+  { key: "bone_familiar", name: "Bone Familiar", icon: "💀", habitat: "Hollow Veil", rarity: "Rare", ability: "itemFinder", baseBonus: 6, description: "A mismatched undead familiar that scavenges useful supplies.", image: "bone_familiar.png" },
+  { key: "veilkin", name: "Veilkin", icon: "👻", habitat: "Hollow Veil", rarity: "Legendary", ability: "cooldown", baseBonus: 5, description: "A spectral companion that greatly reduces normal hunt cooldowns.", image: "veilkin.png" },
+  { key: "star_familiar", name: "Star Familiar", icon: "✨", habitat: "Astral Fracture", rarity: "Rare", ability: "shiny", baseBonus: 2, description: "A planar familiar that improves shiny monster odds.", image: "star_familiar.png" },
+  { key: "paradox_imp", name: "Paradox Imp", icon: "🌌", habitat: "Astral Fracture", rarity: "Legendary", ability: "eggFinder", baseBonus: 5, description: "A reality-bending planar familiar that greatly improves egg discovery.", image: "paradox_imp.png" },
+
+  // 🕳️ SECRET UNMADE COMPANIONS
+  { key: "mimicling", name: "Mimicling", icon: "🪨", habitat: "The Unmade", rarity: "Rare", ability: "itemFinder", baseBonus: 8, description: "A shapeshifting dungeon familiar with a talent for finding useful objects.", image: "mimicling.png", secret: true },
+  { key: "the_unwritten", name: "The Unwritten", icon: "✒️", habitat: "The Unmade", rarity: "Legendary", ability: "capture", baseBonus: 5, description: "An unfinished planar familiar that strongly improves normal capture chance.", image: "the_unwritten.png", secret: true }
 ];
 
 const PET_COLLECTIONS = {
@@ -648,6 +751,9 @@ function loadData() {
   }
 
   if (data.overhaulAnnouncementSent === undefined) data.overhaulAnnouncementSent = false;
+  if (!data.distortionSchedule || typeof data.distortionSchedule !== "object") data.distortionSchedule = { weekKey: null, events: [] };
+  if (data.activeDistortion === undefined) data.activeDistortion = null;
+  if (!data.distortionHistory || typeof data.distortionHistory !== "object") data.distortionHistory = { firstOpened: {}, firstCaught: {}, firstEgg: {} };
   if (!Array.isArray(data.seasonMoments)) data.seasonMoments = [];
   if (!data.seasonMomentFlags || typeof data.seasonMomentFlags !== "object") {
     data.seasonMomentFlags = {};
@@ -957,6 +1063,13 @@ function getPlayer(data, userId) {
       ownedPet.progressionV2 = true;
     }
   }
+  if (!player.adminTest || typeof player.adminTest !== "object") {
+    player.adminTest = { distortionKey: null, cooldownBypass: false, generatedPetIds: [], generatedEggIds: [], generatedCatchIds: [] };
+  }
+  if (!Array.isArray(player.adminTest.generatedPetIds)) player.adminTest.generatedPetIds = [];
+  if (!Array.isArray(player.adminTest.generatedEggIds)) player.adminTest.generatedEggIds = [];
+  if (!Array.isArray(player.adminTest.generatedCatchIds)) player.adminTest.generatedCatchIds = [];
+
   if (player.relics === undefined) player.relics = {};
   for (const relicKey of RELIC_KEYS) {
     if (player.relics[relicKey] === undefined) player.relics[relicKey] = 0;
@@ -1006,8 +1119,15 @@ function getPetArtworkUrl(definitionOrKey) {
   );
 
   if (!customEmoji) return null;
+  return `https://cdn.discordapp.com/emojis/${customEmoji.id}.png?size=512&quality=lossless`;
+}
 
-  return `https://cdn.discordapp.com/emojis/${customEmoji.id}.png?size=256&quality=lossless`;
+function getPetArtworkPath(definitionOrKey) {
+  const definition = typeof definitionOrKey === "string"
+    ? getPetDefinition(definitionOrKey)
+    : definitionOrKey;
+  if (!definition) return null;
+  return findImageFile(definition.image || `${definition.key}.png`);
 }
 
 function wait(ms) {
@@ -1259,9 +1379,25 @@ function formatPlayerName(player, username) {
   return `${icon ? `${icon} ` : ""}${username}`;
 }
 
-function getPlayerHuntCooldown(player, data = null) {
+function getDistortionForPlayer(data, userId) {
+  const player = getPlayer(data, userId);
+  if (player.adminTest?.distortionKey && DISTORTIONS[player.adminTest.distortionKey]) {
+    return { key: player.adminTest.distortionKey, definition: DISTORTIONS[player.adminTest.distortionKey], test: true };
+  }
+  const active = data.activeDistortion;
+  if (active && !active.ended && Date.now() >= active.startAt && Date.now() < active.endAt && DISTORTIONS[active.key]) {
+    return { key: active.key, definition: DISTORTIONS[active.key], test: false };
+  }
+  return null;
+}
+
+function getPlayerHuntCooldown(player, data = null, userId = null) {
+  const currentData = data || loadData();
+  if (player.adminTest?.cooldownBypass) return 0;
+  const distortion = userId ? getDistortionForPlayer(currentData, userId) : null;
+  if (distortion) return DISTORTION_HUNT_COOLDOWN;
   const reductionMinutes = getPetBonus(player, "cooldown") * 5;
-  const blessing = getActiveCommunityBlessing(data || loadData(), "cooldown");
+  const blessing = getActiveCommunityBlessing(currentData, "cooldown");
   const blessingReduction = blessing?.definition?.cooldownReductionMs || 0;
   return Math.max(
     30 * 60 * 1000,
@@ -1940,7 +2076,8 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
     const perfectLoot = perfectCatch ? perfectCatchLoot(player) : null;
     if (criticalCatch) player.titleProgress.criticalCatch = true;
     if (perfectCatch) player.titleProgress.perfectCatch = true;
-    const eggFound = maybeFindEgg(player, data);
+    const distortionEggFound = maybeFindDistortionEgg(player, monster, data);
+    const eggFound = distortionEggFound ? null : maybeFindEgg(player, data);
     const reaction = companionReaction(player, monster);
     const affectionEvent = rollPetAffectionEvent(player);
     const companionXpText = awardCompanionXp(
@@ -2042,6 +2179,7 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
         `${perfectCatch ? `\n🎯 **PERFECT CATCH!** Natural 1 bonus loot: **${perfectLoot}**\n` : ""}` +
         `${comebackExtra > 0 ? `🔥 **Comeback Bonus: +${comebackExtra} points**\n` : ""}` +
         `**+${pointsEarned} points**` +
+        `${distortionEggFound ? `\n\n🌀 **DISTORTION EGG FOUND!**\n${distortionEggFound.icon} You discovered a **${distortionEggFound.name}**!` : ""}` +
         `${eggFound ? `\n\n🥚 **EGG FOUND!**\n${EGG_TYPES[eggFound]?.icon || "🥚"} You discovered a **${eggFound} Egg**!` : ""}` +
         `${reaction.text ? `\n\n🐾 **Companion Reaction**\n${reaction.text}` : ""}` +
         `${reaction.rewards.length > 0 ? `\n${reaction.rewards.join("\n")}` : ""}` +
@@ -2118,7 +2256,8 @@ function findImageFile(filename) {
 function getMonsterImage(monster) {
   if (!monster) return null;
   const cleanName = cleanMonsterName(monster.name || "");
-  const allMonsters = [...monsters, MIXER_MONSTER, ...eventMonsters, ...ultraRareMonsters];
+  const distortionMonsters = Object.values(DISTORTIONS).flatMap(definition => definition.monsters || []);
+  const allMonsters = [...monsters, MIXER_MONSTER, ...eventMonsters, ...ultraRareMonsters, ...distortionMonsters];
   const match = allMonsters.find(candidate =>
     candidate.key === monster.key ||
     cleanMonsterName(candidate.name).toLowerCase() === cleanName.toLowerCase()
@@ -2220,6 +2359,64 @@ function applyShiny(monster, player = null, data = null) {
   }
 
   return monster;
+}
+
+function weightedDistortionMonster(definition) {
+  const weighted = [];
+  for (const monster of definition.monsters) {
+    const weight = monster.rarity === "Common" ? 40 :
+      monster.rarity === "Rare" ? 25 :
+      monster.rarity === "Epic" ? 8 :
+      monster.rarity === "Legendary" ? 2 :
+      monster.name === "NULL" ? 1 : 12;
+    for (let i = 0; i < weight; i++) weighted.push(monster);
+  }
+  return { ...weighted[Math.floor(Math.random() * weighted.length)] };
+}
+
+function getRandomMonsterForPlayer(player, data, userId) {
+  const distortion = getDistortionForPlayer(data, userId);
+  if (distortion && Math.random() * 100 < DISTORTION_EVENT_MONSTER_CHANCE) {
+    const monster = weightedDistortionMonster(distortion.definition);
+    monster.distortionKey = distortion.key;
+    monster.distortionEncounter = true;
+    monster.adminTest = distortion.test;
+    return monster;
+  }
+  return getRandomMonster(player);
+}
+
+function getEggDisplay(egg) {
+  if (egg?.eggKey && DISTORTION_EGGS[egg.eggKey]) {
+    const d = DISTORTION_EGGS[egg.eggKey];
+    return `${d.icon} **${d.name}**`;
+  }
+  return `${EGG_TYPES[egg?.rarity]?.icon || "🥚"} **${egg?.rarity || "Unknown"} Egg**`;
+}
+
+function chooseDistortionPet(eggKey) {
+  const egg = DISTORTION_EGGS[eggKey];
+  if (!egg) return null;
+  const roll = Math.random() * 100;
+  let total = 0;
+  for (const choice of egg.pets) {
+    total += choice.weight;
+    if (roll < total) return getPetDefinition(choice.key);
+  }
+  return getPetDefinition(egg.pets[egg.pets.length - 1].key);
+}
+
+function maybeFindDistortionEgg(player, monster, data) {
+  if (!monster?.distortionEncounter || !monster.distortionKey) return null;
+  if (Math.random() * 100 >= DISTORTION_EGG_DROP_CHANCE) return null;
+  const definition = DISTORTIONS[monster.distortionKey];
+  if (!definition) return null;
+  const eggKey = definition.eggKey;
+  const id = `dist-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+  player.eggs.push({ id, eggKey, rarity: "Distortion", foundAt: Date.now(), source: definition.name, adminTest: Boolean(monster.adminTest) });
+  player.titleProgress.eggsFound = (player.titleProgress.eggsFound || 0) + 1;
+  if (monster.adminTest) player.adminTest.generatedEggIds.push(id);
+  return DISTORTION_EGGS[eggKey];
 }
 
 function getRandomMonster(player) {
@@ -2608,11 +2805,27 @@ function evaluatePetCollectionRewards(player) {
     }
   }
 
-  if (pets.every(pet => ownedKeys.has(pet.key))) {
+  const knownCollectionPets = pets.filter(pet => Object.prototype.hasOwnProperty.call(PET_COLLECTIONS, pet.habitat));
+  if (knownCollectionPets.every(pet => ownedKeys.has(pet.key))) {
     unlocked.push(...unlockSecretReward(
       player,
       GRAND_PET_COLLECTION_REWARD.achievement,
       GRAND_PET_COLLECTION_REWARD.title
+    ));
+  }
+
+  const unmadeMonsterNames = new Set(["The Misplaced", "Stitchmaw", "The Empty Knight", "The Forgotten", "NULL"]);
+  const unmadeMonstersCaught = new Set(
+    [...(player.caught || []), ...(player.lifetimeCaught || [])]
+      .map(monster => cleanMonsterName(monster.name))
+      .filter(name => unmadeMonsterNames.has(name))
+  );
+  const hasUnmadePets = ownedKeys.has("mimicling") && ownedKeys.has("the_unwritten");
+  if (unmadeMonstersCaught.size === 5 && hasUnmadePets) {
+    unlocked.push(...unlockSecretReward(
+      player,
+      "What Was Never Made",
+      "You Were Never Here"
     ));
   }
 
@@ -4014,6 +4227,145 @@ async function processWeeklyCompetition() {
   saveData(data);
 }
 
+function discoveredWorldRelicCount(data) {
+  return RELIC_KEYS.filter(key => Boolean(data.worldProgress?.[key])).length;
+}
+
+function mountainWeekKey(date = new Date()) {
+  const parts = getMountainDateTimeParts(date);
+  const local = new Date(`${parts.date}T12:00:00Z`);
+  const day = local.getUTCDay();
+  const diff = (day + 6) % 7;
+  local.setUTCDate(local.getUTCDate() - diff);
+  return local.toISOString().slice(0,10);
+}
+
+function mountainLocalTimestamp(dateString, hour, minute) {
+  // Mountain Time is UTC-6 during MDT and UTC-7 during MST. Resolve by trying both.
+  for (const offsetHours of [6,7]) {
+    const [y,m,d] = dateString.split("-").map(Number);
+    const candidate = Date.UTC(y,m-1,d,hour + offsetHours,minute,0);
+    const parts = getMountainDateTimeParts(new Date(candidate));
+    if (parts.date === dateString && parts.hour === hour && parts.minute === minute) return candidate;
+  }
+  return Date.parse(`${dateString}T${String(hour).padStart(2,"0")}:${String(minute).padStart(2,"0")}:00-06:00`);
+}
+
+function generateDistortionSchedule(data) {
+  const weekKey = mountainWeekKey();
+  if (data.distortionSchedule?.weekKey === weekKey && Array.isArray(data.distortionSchedule.events) && data.distortionSchedule.events.length) return false;
+  if (discoveredWorldRelicCount(data) < 3) return false;
+
+  const monday = new Date(`${weekKey}T12:00:00Z`);
+  const dayIndexes = [0,1,2,3,4,5,6].sort(() => Math.random() - 0.5).slice(0, DISTORTION_EVENTS_PER_WEEK).sort((a,b)=>a-b);
+  const realmKeys = ["infernal","frost","arcane","hollow","astral"].sort(() => Math.random() - 0.5);
+  const events = dayIndexes.map((dayIndex, i) => {
+    const date = new Date(monday);
+    date.setUTCDate(monday.getUTCDate() + dayIndex);
+    const dateString = date.toISOString().slice(0,10);
+    const weekend = dayIndex >= 5;
+    const startHour = weekend ? 12 + Math.floor(Math.random()*9) : 17 + Math.floor(Math.random()*4);
+    const minute = Math.floor(Math.random()*60);
+    return { id: `${weekKey}-${i+1}`, scheduledKey: realmKeys[i % realmKeys.length], startAt: mountainLocalTimestamp(dateString,startHour,minute), warned:false, criticalWarned:false, started:false, ended:false };
+  });
+  data.distortionSchedule = { weekKey, events };
+  return true;
+}
+
+async function sendImageAnnouncement(channel, content, filename, pingEveryone = false) {
+  const imagePath = filename ? findImageFile(filename) : null;
+  const payload = { content, allowedMentions: pingEveryone ? { parse: ["everyone"] } : { parse: [] } };
+  if (imagePath) payload.files = [new AttachmentBuilder(imagePath)];
+  return channel.send(payload);
+}
+
+async function startLiveDistortion(data, event, forcedKey = null) {
+  if (data.activeDistortion && !data.activeDistortion.ended && Date.now() < data.activeDistortion.endAt) return false;
+  let key = forcedKey || event.scheduledKey;
+  if (!forcedKey && Math.random()*100 < UNMADE_REPLACEMENT_CHANCE) key = "unmade";
+  const definition = DISTORTIONS[key];
+  if (!definition) return false;
+  const now = Date.now();
+  data.activeDistortion = { key, startAt: now, endAt: now + DISTORTION_DURATION, finalResetDone:false, ended:false, scheduleId:event?.id || null };
+  if (event) event.started = true;
+  for (const p of Object.values(data.players || {})) p.lastHunt = 0;
+  addSeasonMoment(data,{type:"distortion_open",icon:definition.icon,text:key==="unmade"?"Reality failed. A plane that should not exist appeared.":`${definition.name} opened across the hunting grounds.`});
+  saveData(data);
+
+  const channel = client.channels.cache.get(MONSTER_CHANNEL_ID);
+  if (!channel?.isTextBased()) return true;
+  const openText = key === "unmade"
+    ? `@everyone\n\n⚠️ **DISTORTION DETECTED**\nAttempting planar identification...\n❌ **UNKNOWN**\n\n**This plane does not exist.**\n\n⏱️ Event duration: **3 hours**\n⚡ \`!hunt\` cooldown: **30 minutes**\n🔄 Everyone can hunt **RIGHT NOW.**\n🥚 An unidentified egg signature has been detected.`
+    : `@everyone\n\n${definition.icon} **WORLD DISTORTION DETECTED — ${definition.name.toUpperCase()}**\n\nUnknown creatures are crossing into our world.\n\n⏱️ Event duration: **3 hours**\n⚡ \`!hunt\` cooldown: **30 minutes**\n🔄 Everyone's hunt cooldown has been reset — hunt **RIGHT NOW.**\n🥚 Strange eggs can be discovered during successful Distortion catches.\n\nThe breach will not remain open forever.`;
+  await sendImageAnnouncement(channel,openText,definition.openingImage,true);
+  return true;
+}
+
+async function endLiveDistortion(data, reason="natural") {
+  const active=data.activeDistortion;
+  if (!active || active.ended) return false;
+  const definition=DISTORTIONS[active.key];
+  active.ended=true;
+  const event=(data.distortionSchedule?.events||[]).find(e=>e.id===active.scheduleId);
+  if(event) event.ended=true;
+  addSeasonMoment(data,{type:"distortion_close",icon:definition?.icon||"🌀",text:active.key==="unmade"?"The unknown distortion vanished. No one remembers seeing it close.":`${definition?.name||"The Distortion"} collapsed and normal hunting returned.`});
+  saveData(data);
+  const channel=client.channels.cache.get(MONSTER_CHANNEL_ID);
+  if(channel?.isTextBased()){
+    const txt=active.key==="unmade"
+      ? `**The distortion is gone.**\n\n*You don't remember seeing it close.*\n\n⏱️ Normal \`!hunt\` cooldown has returned to **2 hours**.`
+      : `@everyone\n\n${definition.icon} **${definition.name.toUpperCase()} IS COLLAPSING...**\n\nThe breach has sealed.\n⏱️ Normal \`!hunt\` cooldown has returned to **2 hours**.\nAny creatures and eggs you recovered are yours to keep.`;
+    await sendImageAnnouncement(channel,txt,definition.closingImage,active.key!=="unmade");
+  }
+  data.activeDistortion=null;
+  saveData(data);
+  return true;
+}
+
+async function processDistortionSystem() {
+  const data=loadData();
+  const changed=generateDistortionSchedule(data);
+  const now=Date.now();
+  if(changed) saveData(data);
+
+  if(data.activeDistortion && now>=data.activeDistortion.endAt){
+    await endLiveDistortion(data);
+    return;
+  }
+
+  if(data.activeDistortion && !data.activeDistortion.finalResetDone && data.activeDistortion.endAt-now<=DISTORTION_FINAL_RESET_MINUTES*60*1000 && data.activeDistortion.endAt-now>0){
+    data.activeDistortion.finalResetDone=true;
+    for(const p of Object.values(data.players||{})) p.lastHunt=0;
+    saveData(data);
+    const channel=client.channels.cache.get(MONSTER_CHANNEL_ID);
+    if(channel?.isTextBased()) await channel.send(`@everyone\n\n⚠️ **DISTORTION COLLAPSE DETECTED**\nThe breach will close in **10 minutes!**\n🔄 Everyone has been given **one final hunt**.\nUse \`!hunt\` NOW.`,{allowedMentions:{parse:["everyone"]}});
+  }
+
+  if(data.activeDistortion) return;
+  for(const event of data.distortionSchedule?.events||[]){
+    if(event.ended) continue;
+    if(!event.warned && now>=event.startAt-DISTORTION_WARNING_MINUTES*60*1000 && now<event.startAt){
+      event.warned=true; saveData(data);
+      const channel=client.channels.cache.get(MONSTER_CHANNEL_ID);
+      if(channel?.isTextBased()) await sendImageAnnouncement(channel,`⚠️ **Something is wrong...**\n\nThe air around the hunting grounds has begun to change.\nReality instability is increasing.\n\n**BREACH IMMINENT: 5 MINUTES**`,`distortion_warning.png`,false);
+    }
+    if(!event.criticalWarned && now>=event.startAt-60*1000 && now<event.startAt){
+      event.criticalWarned=true; saveData(data);
+      const channel=client.channels.cache.get(MONSTER_CHANNEL_ID);
+      if(channel?.isTextBased()) await sendImageAnnouncement(
+        channel,
+        `🚨 **REALITY INSTABILITY: CRITICAL**\n\nThe fractures are spreading.\nThe hunting grounds are seconds from a planar breach.\n\n**BREACH IMMINENT: 1 MINUTE**`,
+        `distortion_critical.png`,
+        false
+      );
+    }
+    if(!event.started && now>=event.startAt){
+      await startLiveDistortion(data,event);
+      return;
+    }
+  }
+}
+
 async function sendOverhaulAnnouncementOnce() {
   const data = loadData();
   if (data.overhaulAnnouncementSent) return;
@@ -4078,6 +4430,11 @@ client.once("clientReady", () => {
   processFetchReturnsAndReminders().catch(error => console.error("Initial fetch/reminder check failed:", error));
   processWeeklyCompetition().catch(error => console.error("Initial weekly check failed:", error));
   processCommunityWorldProgress().catch(error => console.error("Initial hidden world progress check failed:", error));
+  cron.schedule("* * * * *", async () => {
+    try { await processDistortionSystem(); }
+    catch (error) { console.error("World Distortion monitor failed:", error); }
+  });
+  processDistortionSystem().catch(error => console.error("Initial World Distortion check failed:", error));
 
   //
   // 🌅 7:00 AM MST Reminder
@@ -5001,9 +5358,106 @@ ${captureChoicesText(choices)}
     return message.reply(started ? `✅ Started the ${monster.name} event.` : "An Ultra Rare is already active or scheduled.");
   }
 
+  if (command === "!distortionstatus") {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return message.reply("Only admins can view the hidden Distortion schedule.");
+    generateDistortionSchedule(data); saveData(data);
+    const events=(data.distortionSchedule?.events||[]).map((e,i)=>`${i+1}. <t:${Math.floor(e.startAt/1000)}:F> — ${e.started?"STARTED":e.ended?"ENDED":"scheduled"}`).join("\n") || "No schedule yet.";
+    const active=data.activeDistortion ? `${DISTORTIONS[data.activeDistortion.key]?.name||data.activeDistortion.key} until <t:${Math.floor(data.activeDistortion.endAt/1000)}:R>` : "None";
+    return message.reply(`🌀 **DISTORTION ADMIN STATUS**\nHidden Progress: **${discoveredWorldRelicCount(data)}/5**\nActive: **${active}**\n\n**This Week (realm identities stay classified):**\n${events}`);
+  }
+
+  if (command.startsWith("!startdistortion")) {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return message.reply("Only admins can start a live Distortion.");
+    const requested=content.slice("!startdistortion".length).trim().toLowerCase();
+    const key=requested && DISTORTIONS[requested] ? requested : ["infernal","frost","arcane","hollow","astral"][Math.floor(Math.random()*5)];
+    const ok=await startLiveDistortion(data,null,key);
+    return message.reply(ok?`✅ Live Distortion started: **${DISTORTIONS[key].name}**.`:"A live Distortion is already active.");
+  }
+
+  if (command === "!enddistortion") {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return message.reply("Only admins can end a live Distortion.");
+    const ok=await endLiveDistortion(data,"admin");
+    return message.reply(ok?"✅ Live Distortion ended.":"No live Distortion is active.");
+  }
+
+  if (command.startsWith("!testhunt")) {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return message.reply("Only admins can use the Monster Hunt sandbox.");
+    const args=content.slice("!testhunt".length).trim().split(/\s+/).filter(Boolean);
+    const sub=(args.shift()||"help").toLowerCase();
+
+    if(sub==="help"){
+      return message.reply(
+        `🧪 **PRIVATE ADMIN TEST SANDBOX**\n`+
+        `Nothing here activates for other players.\n\n`+
+        `\`!testhunt distortion infernal/frost/arcane/hollow/astral/unmade\`\n`+
+        `\`!testhunt end\`\n\`!testhunt cooldown on/off\`\n`+
+        `\`!testhunt egg scorched_rift/shardbound/drowned_rune/soulbound/paradox/impossible\`\n`+
+        `\`!testhunt pet pet_key\`\n\`!testhunt monster monster_name\`\n`+
+        `\`!testhunt assets\`\n\`!testhunt status\`\n\`!testhunt cleanup\``
+      );
+    }
+    if(sub==="distortion"){
+      const key=(args[0]||"").toLowerCase();
+      if(!DISTORTIONS[key]) return message.reply("Unknown test Distortion.");
+      player.adminTest.distortionKey=key;
+      player.lastHunt=0;
+      saveData(data);
+      const def=DISTORTIONS[key];
+      const img=findImageFile(def.openingImage);
+      const embed=new EmbedBuilder().setTitle(`🧪 ADMIN TEST • ${def.name}`).setDescription(`Private simulation enabled for **you only**.\n\nYour \`!hunt\` now uses the Distortion pool, **60% special encounters**, and a **30-minute cooldown**.\nOther players remain completely unaffected.`);
+      const files=[]; if(img){embed.setImage(`attachment://${path.basename(img)}`);files.push(new AttachmentBuilder(img));}
+      return message.reply({embeds:[embed],files});
+    }
+    if(sub==="end"){ player.adminTest.distortionKey=null; saveData(data); return message.reply("🧪 Your private Distortion simulation has ended."); }
+    if(sub==="cooldown"){ player.adminTest.cooldownBypass=(args[0]||"").toLowerCase()==="off"; saveData(data); return message.reply(`🧪 Admin cooldown bypass: **${player.adminTest.cooldownBypass?"ON":"OFF"}**.`); }
+    if(sub==="egg"){
+      const key=(args[0]||"").toLowerCase(); const egg=DISTORTION_EGGS[key];
+      if(!egg) return message.reply("Unknown Distortion egg key.");
+      const id=`testegg-${Date.now()}`; player.eggs.push({id,eggKey:key,rarity:"Distortion",foundAt:Date.now(),source:"Admin Test",adminTest:true}); player.adminTest.generatedEggIds.push(id); saveData(data);
+      return message.reply(`🧪 Added ${egg.icon} **${egg.name}** to your inventory. Use \`!eggs\`, \`!incubate #\`, then \`!hatch\`.`);
+    }
+    if(sub==="pet"){
+      const key=(args[0]||"").toLowerCase(); const def=getPetDefinition(key);
+      if(!def) return message.reply("Unknown pet key.");
+      const owned={id:player.nextPetId++,key:def.key,personality:PET_PERSONALITIES[Math.floor(Math.random()*PET_PERSONALITIES.length)],companionXp:0,affectionEvents:0,timesHelped:0,hatchedAt:Date.now(),adminTest:true};
+      player.pets.push(owned); player.adminTest.generatedPetIds.push(owned.id); saveData(data);
+      return message.reply(`🧪 Added **${def.name}** as test pet #${player.pets.length}. Try \`!viewpet ${player.pets.length}\`.`);
+    }
+    if(sub==="monster"){
+      const wanted=args.join(" ").toLowerCase();
+      const pool=Object.values(DISTORTIONS).flatMap(d=>d.monsters);
+      const monster=pool.find(m=>m.name.toLowerCase()===wanted || m.image.replace(".png","")===wanted.replace(/\s+/g,"_"));
+      if(!monster) return message.reply("Unknown Distortion monster.");
+      player.currentMonster={...monster,distortionEncounter:true,distortionKey:Object.keys(DISTORTIONS).find(k=>DISTORTIONS[k].monsters.some(m=>m.name===monster.name)),adminTest:true};
+      player.lastHunt=0; saveData(data);
+      return message.reply(buildMonsterEmbed(player.currentMonster,`🧪 ADMIN TEST • ${monster.name}`,`**Rarity:** ${monster.rarity}\n**Capture Chance:** ${monster.chance}%\nThis test encounter exists only for your account.`));
+    }
+    if(sub==="assets"){
+      const names=[
+        "distortion_warning.png","distortion_critical.png",
+        ...Object.values(DISTORTIONS).flatMap(d=>[d.openingImage,d.closingImage,...d.monsters.map(m=>m.image)]).filter(Boolean),
+        ...Object.values(DISTORTION_EGGS).flatMap(e=>[e.image,e.hatchingImage]).filter(Boolean),
+        ...pets.filter(p=>["Infernal Rift","Shattered Frost","Sunken Arcane","Hollow Veil","Astral Fracture","The Unmade"].includes(p.habitat)).map(p=>p.image||`${p.key}.png`)
+      ];
+      const unique=[...new Set(names)]; const missing=unique.filter(name=>!findImageFile(name));
+      return message.reply(`🧪 **ASSET AUDIT**\nFound: **${unique.length-missing.length}/${unique.length}**\nMissing: **${missing.length}**${missing.length?`\\n\\n${missing.map(x=>`❌ ${x}`).join("\\n")}`:"\\n✅ All configured assets were found."}`);
+    }
+    if(sub==="status") return message.reply(`🧪 **TEST STATUS**\nPrivate Distortion: **${player.adminTest.distortionKey||"Off"}**\nCooldown bypass: **${player.adminTest.cooldownBypass?"On":"Off"}**\nTest pets: **${player.adminTest.generatedPetIds.length}**\nTest eggs: **${player.adminTest.generatedEggIds.length}**`);
+    if(sub==="cleanup"){
+      const petIds=new Set(player.adminTest.generatedPetIds.map(String)); const eggIds=new Set(player.adminTest.generatedEggIds.map(String));
+      player.pets=player.pets.filter(p=>!petIds.has(String(p.id))&&!p.adminTest);
+      player.eggs=player.eggs.filter(e=>!eggIds.has(String(e.id))&&!e.adminTest);
+      player.incubatingEggs=player.incubatingEggs.filter(e=>!e.adminTest);
+      if(player.equippedPetId && petIds.has(String(player.equippedPetId))) player.equippedPetId=null;
+      player.currentMonster=null; player.adminTest={distortionKey:null,cooldownBypass:false,generatedPetIds:[],generatedEggIds:[],generatedCatchIds:[]}; saveData(data);
+      return message.reply("🧹 All private admin-test pets, eggs, incubations, encounters, and test state were removed.");
+    }
+    return message.reply("Unknown sandbox option. Use `!testhunt help`.");
+  }
+
   if (command === "!hunt") {
     const now = Date.now();
-    const huntCooldown = getPlayerHuntCooldown(player, data);
+    const huntCooldown = getPlayerHuntCooldown(player, data, message.author.id);
     const timeLeft = huntCooldown - (now - player.lastHunt);
 
     if (timeLeft > 0) {
@@ -5011,7 +5465,7 @@ ${captureChoicesText(choices)}
     }
 
     const usedBait = player.activeBait;
-    const monster = getRandomMonster(player);
+    const monster = getRandomMonsterForPlayer(player, data, message.author.id);
     const encounters = addEncounterKnowledge(player, monster);
     const chanceInfo = calculateCaptureChance(player, monster, null, data, message.author.id);
 
@@ -5035,7 +5489,7 @@ ${captureChoicesText(choices)}
     const encounterMessage = await message.reply(
       buildMonsterEmbed(
         monster,
-        `🐾 A wild ${monster.name} appeared!`,
+        `${monster.distortionEncounter ? `${monster.adminTest ? "🧪 ADMIN TEST • " : ""}🌀 DISTORTION ENCOUNTER — ` : "🐾 A wild "}${monster.name}${monster.distortionEncounter ? "" : " appeared!"}`,
         `**Rarity:** ${monster.rarity}\n` +
         `**Base Capture Chance:** ${monster.chance}%\n` +
         `**Knowledge:** ${encounters} encounter${encounters === 1 ? "" : "s"} (${getKnowledgeRank(encounters)}, +${chanceInfo.knowledgeBonus}%)\n` +
@@ -5099,13 +5553,13 @@ ${captureChoicesText(choices)}
 
       return (
         `**Incubator Slot ${index + 1}:** ` +
-        `${EGG_TYPES[incubation.rarity]?.icon || "🥚"} **${incubation.rarity} Egg** — ${status}`
+        `${getEggDisplay(incubation)} — ${status}`
       );
     }).join("\n");
 
     const inventory = player.eggs.length > 0
       ? player.eggs.map((egg, index) =>
-          `**${index + 1}.** ${EGG_TYPES[egg.rarity]?.icon || "🥚"} **${egg.rarity} Egg**`
+          `**${index + 1}.** ${getEggDisplay(egg)}`
         ).join("\n")
       : "You do not currently own any unincubated eggs.";
 
@@ -5157,9 +5611,13 @@ ${captureChoicesText(choices)}
     }
 
     const [egg] = player.eggs.splice(eggIndex, 1);
-    const duration = EGG_TYPES[egg.rarity]?.incubationMs || EGG_TYPES.Common.incubationMs;
+    const distortionEgg = egg.eggKey ? DISTORTION_EGGS[egg.eggKey] : null;
+    const duration = distortionEgg?.incubationMs || EGG_TYPES[egg.rarity]?.incubationMs || EGG_TYPES.Common.incubationMs;
     const incubation = {
+      id: egg.id,
       rarity: egg.rarity,
+      eggKey: egg.eggKey || null,
+      adminTest: Boolean(egg.adminTest),
       startedAt: Date.now(),
       readyAt: Date.now() + duration,
       notified: false
@@ -5171,7 +5629,7 @@ ${captureChoicesText(choices)}
     const slotNumber = player.incubatingEggs.length;
 
     return message.reply(
-      `${EGG_TYPES[egg.rarity]?.icon || "🥚"} Your **${egg.rarity} Egg** is now incubating!\n` +
+      `${distortionEgg ? distortionEgg.icon : (EGG_TYPES[egg.rarity]?.icon || "🥚")} Your **${distortionEgg?.name || `${egg.rarity} Egg`}** is now incubating!\n` +
       `**Incubator Slot ${slotNumber} of ${slots}**\n` +
       `It will be ready <t:${Math.floor(incubation.readyAt / 1000)}:R>.`
     );
@@ -5190,7 +5648,7 @@ ${captureChoicesText(choices)}
     if (incubationIndex < 0 || !player.incubatingEggs[incubationIndex]) {
       const next = [...player.incubatingEggs].sort((a, b) => a.readyAt - b.readyAt)[0];
       return message.reply(
-        `⏳ None of your eggs are ready yet. Your next **${next.rarity} Egg** will be ready ` +
+        `⏳ None of your eggs are ready yet. Your next ${getEggDisplay(next)} will be ready ` +
         `<t:${Math.floor(next.readyAt / 1000)}:R>.`
       );
     }
@@ -5198,13 +5656,14 @@ ${captureChoicesText(choices)}
     const incubation = player.incubatingEggs[incubationIndex];
     if (Date.now() < incubation.readyAt) {
       return message.reply(
-        `⏳ Your **${incubation.rarity} Egg** in Slot ${incubationIndex + 1} will be ready ` +
+        `⏳ Your ${getEggDisplay(incubation)} in Slot ${incubationIndex + 1} will be ready ` +
         `<t:${Math.floor(incubation.readyAt / 1000)}:R>.`
       );
     }
 
+    const distortionEgg = incubation.eggKey ? DISTORTION_EGGS[incubation.eggKey] : null;
     const rarity = incubation.rarity;
-    const definition = choosePetFromEgg(rarity);
+    const definition = distortionEgg ? chooseDistortionPet(incubation.eggKey) : choosePetFromEgg(rarity);
     if (!definition) return message.reply("That egg could not find a matching pet. Please contact an admin.");
 
     const alreadyOwnedSpecies = player.pets.some(pet => pet.key === definition.key);
@@ -5215,14 +5674,16 @@ ${captureChoicesText(choices)}
       companionXp: 0,
       affectionEvents: 0,
       timesHelped: 0,
-      hatchedAt: Date.now()
+      hatchedAt: Date.now(),
+      adminTest: Boolean(incubation.adminTest)
     };
 
     const previousPoints = player.points;
-    const hatchPoints = HATCH_POINT_REWARDS[rarity] || 0;
+    const hatchPoints = HATCH_POINT_REWARDS[distortionEgg ? definition.rarity : rarity] || 0;
     const dexBonus = alreadyOwnedSpecies ? 0 : NEW_PET_SPECIES_BONUS;
 
     player.pets.push(ownedPet);
+    if (ownedPet.adminTest) player.adminTest.generatedPetIds.push(ownedPet.id);
     player.incubatingEggs.splice(incubationIndex, 1);
     const hatchTotalPoints = applyCommunityPointBlessing(data, hatchPoints + dexBonus);
     player.points += hatchTotalPoints;
@@ -5279,21 +5740,28 @@ ${captureChoicesText(choices)}
     await announceTitleUnlocks(message, automaticTitleUnlocks);
 
     const hatchMessage = await message.reply(
-      `${EGG_TYPES[rarity]?.icon || "🥚"} **The ${rarity} Egg begins to shake...**`
+      `${distortionEgg?.icon || EGG_TYPES[rarity]?.icon || "🥚"} **The ${distortionEgg?.name || `${rarity} Egg`} begins to shake...**`
     );
 
     await wait(1000);
 
-    await hatchMessage.edit(
-      `✨ **Cracks spread across the ${rarity} Egg...**\n` +
-      `Something inside is trying to break free!`
-    );
+    const hatchingPath = distortionEgg?.hatchingImage ? findImageFile(distortionEgg.hatchingImage) : null;
+    if (hatchingPath) {
+      const hatchingEmbed = new EmbedBuilder()
+        .setTitle(`✨ ${distortionEgg.name.toUpperCase()} — HATCHING`)
+        .setDescription("The shell fractures as impossible magic erupts from within...");
+      hatchingEmbed.setImage(`attachment://${path.basename(hatchingPath)}`);
+      await hatchMessage.edit({ content: "", embeds: [hatchingEmbed], files: [new AttachmentBuilder(hatchingPath)] });
+    } else {
+      await hatchMessage.edit(`✨ **Cracks spread across the ${distortionEgg?.name || `${rarity} Egg`}...**\nSomething inside is trying to break free!`);
+    }
 
-    await wait(1000);
+    await wait(1500);
 
+    const artworkPath = getPetArtworkPath(definition);
     const artworkUrl = getPetArtworkUrl(definition);
     const hatchEmbed = new EmbedBuilder()
-      .setTitle(`🥚 YOUR ${rarity.toUpperCase()} EGG HATCHED!`)
+      .setTitle(`🥚 YOUR ${(distortionEgg?.name || `${rarity} Egg`).toUpperCase()} HATCHED!`)
       .setDescription(
         `${getPetDisplayIcon(definition)} **${definition.name}** has joined your companions!\n\n` +
         `**Rarity:** ${definition.rarity}\n` +
@@ -5320,13 +5788,18 @@ ${captureChoicesText(choices)}
           : ""}`
       );
 
-    if (artworkUrl) {
+    const hatchFiles = [];
+    if (artworkPath) {
+      hatchEmbed.setImage(`attachment://${path.basename(artworkPath)}`);
+      hatchFiles.push(new AttachmentBuilder(artworkPath));
+    } else if (artworkUrl) {
       hatchEmbed.setImage(artworkUrl);
     }
 
     return hatchMessage.edit({
       content: "",
-      embeds: [hatchEmbed]
+      embeds: [hatchEmbed],
+      files: hatchFiles
     });
   }
 
@@ -5402,12 +5875,52 @@ ${captureChoicesText(choices)}
       return `${reward.icon} **${habitat} Companions — ${collected}/${habitatPets.length}**\n${entries}`;
     }).join("\n\n");
 
+    const knownPets = pets.filter(pet => Object.prototype.hasOwnProperty.call(PET_COLLECTIONS, pet.habitat));
+    const knownOwnedCount = knownPets.filter(pet => ownedKeys.has(pet.key)).length;
+    const discoveredBeyond = pets.filter(
+      pet => !Object.prototype.hasOwnProperty.call(PET_COLLECTIONS, pet.habitat) && ownedKeys.has(pet.key)
+    );
+    const beyondText = discoveredBeyond.length
+      ? `\n\n🌀 **Discoveries Beyond the Known Habitats**\n` +
+        discoveredBeyond.map(pet => `${getPetDisplayIcon(pet)} **${pet.name}** — ${pet.rarity}`).join("\n")
+      : "";
+
     return message.reply(
       `📖 **${formatPlayerName(player, message.author.username)}'s Pet Dex**\n` +
-      `Collected: **${ownedKeys.size}/${pets.length} companions** | Page **${page}/${totalPages}**\n\n` +
-      `${habitatSections}\n\n` +
+      `Known Habitat Collection: **${knownOwnedCount}/${knownPets.length} companions** | Page **${page}/${totalPages}**\n\n` +
+      `${habitatSections}` +
+      `${beyondText}\n\n` +
       `Use \`!petdex ${page < totalPages ? page + 1 : 1}\` to ${page < totalPages ? "view the next page" : "return to page 1"}.`
     );
+  }
+
+  if (command.startsWith("!viewpet ")) {
+    const owned = resolveOwnedPet(player, content.slice("!viewpet".length));
+    if (!owned) return message.reply("Pet not found. Use `!pets` to view your personal pet numbers.");
+    const definition = getOwnedPetDefinition(owned);
+    if (!definition) return message.reply("That pet definition could not be found.");
+
+    const artworkPath = getPetArtworkPath(definition);
+    const artworkUrl = getPetArtworkUrl(definition);
+    const embed = new EmbedBuilder()
+      .setTitle(`${getPetDisplayIcon(definition)} ${definition.name}`)
+      .setDescription(
+        `**${definition.rarity} Companion**\n` +
+        `Habitat: **${definition.habitat}**\n` +
+        `${companionXpBar(owned)}\n\n` +
+        `✨ **Passive:** ${petPassiveTextForOwned(owned)}\n\n` +
+        `*Only pets you personally own can be viewed with this command.*`
+      );
+
+    const files = [];
+    if (artworkPath) {
+      embed.setImage(`attachment://${path.basename(artworkPath)}`);
+      files.push(new AttachmentBuilder(artworkPath));
+    } else if (artworkUrl) {
+      embed.setImage(artworkUrl);
+    }
+
+    return message.reply({ embeds: [embed], files });
   }
 
   if (command.startsWith("!pet ")) {
