@@ -313,20 +313,20 @@ const pets = [
   { key: "hollow_prince", name: "Hollow Prince", icon: "👑", habitat: "Undead", rarity: "Legendary", ability: "points", baseBonus: 8, description: "Earns a massive point bonus from successful hunts." },
 
   // 🌀 WORLD DISTORTION COMPANIONS
-  { key: "ember_imp", name: "Ember Imp", icon: "🔥", habitat: "Infernal Rift", rarity: "Rare", ability: "points", baseBonus: 4, description: "A naturally tiny infernal familiar that increases points from successful hunts.", image: "ember_imp.png" },
-  { key: "ashbound_familiar", name: "Ashbound Familiar", icon: "🌋", habitat: "Infernal Rift", rarity: "Legendary", ability: "itemFinder", baseBonus: 9, description: "A living ash-and-obsidian familiar that excels at finding hunting supplies.", image: "ashbound_familiar.png" },
-  { key: "frost_mephit", name: "Frost Mephit", icon: "❄️", habitat: "Shattered Frost", rarity: "Rare", ability: "cooldown", baseBonus: 3, description: "A frost elemental familiar that reduces normal hunt cooldowns.", image: "frost_mephit.png" },
-  { key: "rime_sprite", name: "Rime Sprite", icon: "💎", habitat: "Shattered Frost", rarity: "Legendary", ability: "shiny", baseBonus: 4, description: "An ancient frost-fae spirit that greatly increases shiny odds.", image: "rime_sprite.png" },
-  { key: "runeclaw_familiar", name: "Runeclaw Familiar", icon: "🔮", habitat: "Sunken Arcane", rarity: "Rare", ability: "eggFinder", baseBonus: 3, description: "A rune-marked planar familiar that improves egg discovery.", image: "runeclaw_familiar.png" },
-  { key: "glyph_wisp", name: "Glyph Wisp", icon: "🌀", habitat: "Sunken Arcane", rarity: "Legendary", ability: "capture", baseBonus: 4, description: "A living arcane spell that strengthens normal capture chance.", image: "glyph_wisp.png" },
-  { key: "bone_familiar", name: "Bone Familiar", icon: "💀", habitat: "Hollow Veil", rarity: "Rare", ability: "itemFinder", baseBonus: 6, description: "A mismatched undead familiar that scavenges useful supplies.", image: "bone_familiar.png" },
-  { key: "veilkin", name: "Veilkin", icon: "👻", habitat: "Hollow Veil", rarity: "Legendary", ability: "cooldown", baseBonus: 5, description: "A spectral companion that greatly reduces normal hunt cooldowns.", image: "veilkin.png" },
-  { key: "star_familiar", name: "Star Familiar", icon: "✨", habitat: "Astral Fracture", rarity: "Rare", ability: "shiny", baseBonus: 2, description: "A planar familiar that improves shiny monster odds.", image: "star_familiar.png" },
-  { key: "paradox_imp", name: "Paradox Imp", icon: "🌌", habitat: "Astral Fracture", rarity: "Legendary", ability: "eggFinder", baseBonus: 5, description: "A reality-bending planar familiar that greatly improves egg discovery.", image: "paradox_imp.png" },
+  { key: "ember_imp", name: "Ember Imp", icon: "🔥", habitat: "Infernal Rift", rarity: "Rare", ability: "points", baseBonus: 4, signatureAbility: "kindled_hunt", signatureName: "Kindled Hunt", description: "A naturally tiny infernal familiar whose anger kindles the next capture after a failure.", image: "ember_imp.png" },
+  { key: "ashbound_familiar", name: "Ashbound Familiar", icon: "🌋", habitat: "Infernal Rift", rarity: "Legendary", ability: "itemFinder", baseBonus: 9, signatureAbility: "from_the_ashes", signatureName: "From the Ashes", description: "A living ash-and-obsidian familiar that manifests rewards from the remains of successful hunts.", image: "ashbound_familiar.png" },
+  { key: "frost_mephit", name: "Frost Mephit", icon: "❄️", habitat: "Shattered Frost", rarity: "Rare", ability: "cooldown", baseBonus: 3, signatureAbility: "frozen_time", signatureName: "Frozen Time", description: "A frost elemental familiar that periodically freezes the passage of time between hunts.", image: "frost_mephit.png" },
+  { key: "rime_sprite", name: "Rime Sprite", icon: "💎", habitat: "Shattered Frost", rarity: "Legendary", ability: "shiny", baseBonus: 4, signatureAbility: "second_chance", signatureName: "Second Chance", description: "An ancient frost-fae spirit capable of freezing a fleeing monster long enough for fate to roll again.", image: "rime_sprite.png" },
+  { key: "runeclaw_familiar", name: "Runeclaw Familiar", icon: "🔮", habitat: "Sunken Arcane", rarity: "Rare", ability: "eggFinder", baseBonus: 3, signatureAbility: "rune_reader", signatureName: "Rune Reader", description: "A rune-marked planar familiar that reads a creature’s true pattern and strengthens Species Knowledge.", image: "runeclaw_familiar.png" },
+  { key: "glyph_wisp", name: "Glyph Wisp", icon: "🌀", habitat: "Sunken Arcane", rarity: "Legendary", ability: "capture", baseBonus: 4, signatureAbility: "arcane_duplication", signatureName: "Arcane Duplication", description: "A living arcane spell that can duplicate the magical signature of a newly discovered egg.", image: "glyph_wisp.png" },
+  { key: "bone_familiar", name: "Bone Familiar", icon: "💀", habitat: "Hollow Veil", rarity: "Rare", ability: "itemFinder", baseBonus: 6, signatureAbility: "grave_scavenger", signatureName: "Grave Scavenger", description: "A mismatched undead familiar that periodically digs useful supplies from places best left undisturbed.", image: "bone_familiar.png" },
+  { key: "veilkin", name: "Veilkin", icon: "👻", habitat: "Hollow Veil", rarity: "Legendary", ability: "cooldown", baseBonus: 5, signatureAbility: "veilwalk", signatureName: "Veilwalk", description: "A spectral companion that can pull a fleeing encounter halfway through the Veil and keep it from ending.", image: "veilkin.png" },
+  { key: "star_familiar", name: "Star Familiar", icon: "✨", habitat: "Astral Fracture", rarity: "Rare", ability: "shiny", baseBonus: 2, signatureAbility: "written_in_the_stars", signatureName: "Written in the Stars", description: "A planar familiar that occasionally foresees a fortunate hunt before the monster even appears.", image: "star_familiar.png" },
+  { key: "paradox_imp", name: "Paradox Imp", icon: "🌌", habitat: "Astral Fracture", rarity: "Legendary", ability: "eggFinder", baseBonus: 5, signatureAbility: "paradox", signatureName: "Paradox", description: "A reality-bending planar familiar that sometimes causes one successful capture to have happened twice.", image: "paradox_imp.png" },
 
   // 🕳️ SECRET UNMADE COMPANIONS
-  { key: "mimicling", name: "Mimicling", icon: "🪨", habitat: "The Unmade", rarity: "Rare", ability: "itemFinder", baseBonus: 8, description: "A shapeshifting dungeon familiar with a talent for finding useful objects.", image: "mimicling.png", secret: true },
-  { key: "the_unwritten", name: "The Unwritten", icon: "✒️", habitat: "The Unmade", rarity: "Legendary", ability: "capture", baseBonus: 5, description: "An unfinished planar familiar that strongly improves normal capture chance.", image: "the_unwritten.png", secret: true }
+  { key: "mimicling", name: "Mimicling", icon: "🪨", habitat: "The Unmade", rarity: "Rare", ability: "itemFinder", baseBonus: 8, signatureAbility: "borrowed_talent", signatureName: "Borrowed Talent", description: "A shapeshifting dungeon familiar that sometimes steals another companion’s natural talent for a single hunt.", image: "mimicling.png", secret: true },
+  { key: "the_unwritten", name: "The Unwritten", icon: "✒️", habitat: "The Unmade", rarity: "Legendary", ability: "capture", baseBonus: 5, signatureAbility: "this_wasnt_supposed_to_happen", signatureName: "THIS WASN’T SUPPOSED TO HAPPEN", description: "An unfinished planar familiar that can rewrite a successful hunt and create an encounter that was never supposed to exist.", image: "the_unwritten.png", secret: true }
 ];
 
 const PET_COLLECTIONS = {
@@ -1262,7 +1262,7 @@ function awardCompanionXp(player, amount, reason = "Companion XP") {
   return `${getPetDisplayIcon(definition)} **${definition.name} gained ${amount} Companion XP!** (${reason})\n` +
     `${companionXpBar(ownedPet)}\n\n` +
     `**Ability Progress**\n${formatAllPetAbilityProgress(ownedPet)}` +
-    `${after > before ? `\n🎉 **LEVEL UP! ${definition.name} reached Level ${after}!**\n✨ Its natural ${abilityDisplayName(definition.ability)} ability grew stronger.` : ""}` +
+    `${after > before ? `\n🎉 **LEVEL UP! ${definition.name} reached Level ${after}!**\n${definition.signatureAbility ? `❖ Its **${definition.signatureName}** signature ability grew stronger.` : `✨ Its natural ${abilityDisplayName(definition.ability)} ability grew stronger.`}` : ""}` +
     `${abilityLevels.length ? `\n🧬 **ABILITY LEVEL UP!** ${abilityLevels.join("\n🧬 **ABILITY LEVEL UP!** ")}` : ""}`;
 }
 
@@ -1362,9 +1362,10 @@ function addSameAbilityCombineXp(ownedPet, ability, sacrificeRarity) {
 
 function getPetBonus(player, ability) {
   const ownedPet = getEquippedPet(player);
-  return getPetAbilityEntries(ownedPet)
-    .filter(entry => entry.ability === ability)
-    .reduce((sum, entry) => sum + abilityBonusAtLevel(entry.ability, entry.baseBonus, entry.level), 0);
+  const definition = getOwnedPetDefinition(ownedPet);
+  const entries = getPetAbilityEntries(ownedPet).filter(entry => entry.ability === ability && !(entry.natural && definition?.signatureAbility));
+  const normal = entries.reduce((sum, entry) => sum + abilityBonusAtLevel(entry.ability, entry.baseBonus, entry.level), 0);
+  return normal + copiedPetBonus(player, ability);
 }
 
 function getPlayerPetIcon(player) {
@@ -1395,17 +1396,179 @@ function getDistortionForPlayer(data, userId) {
   return null;
 }
 
+// ==================== DISTORTION COMPANION SIGNATURE ABILITIES ====================
+function getSignaturePet(player) {
+  const owned = getEquippedPet(player);
+  const definition = getOwnedPetDefinition(owned);
+  return owned && definition?.signatureAbility ? { owned, definition, level: getCompanionLevelInfo(owned).level } : null;
+}
+
+function ensureSignatureState(ownedPet) {
+  if (!ownedPet) return {};
+  if (!ownedPet.signatureState || typeof ownedPet.signatureState !== "object") ownedPet.signatureState = {};
+  return ownedPet.signatureState;
+}
+
+function signatureTier(level, low, mid, high) {
+  if (level >= 10) return high;
+  if (level >= 5) return mid;
+  return low;
+}
+
+function signatureAbilityText(ownedPet) {
+  const definition = getOwnedPetDefinition(ownedPet);
+  if (!ownedPet || !definition?.signatureAbility) return null;
+  const level = getCompanionLevelInfo(ownedPet).level;
+  const name = definition.signatureName || definition.signatureAbility;
+  let effect = "";
+  let next = "";
+  switch (definition.signatureAbility) {
+    case "kindled_hunt": effect = `After a failed catch, your next capture gains **+${signatureTier(level,5,7,10)}%**.`; break;
+    case "from_the_ashes": effect = `Every **${signatureTier(level,6,5,4)} successful catches**, gain **+10 Hunter Points** and a bonus egg roll.`; break;
+    case "frozen_time": effect = `Every **${signatureTier(level,4,3,3)} successful catches**, your next hunt cooldown is reduced by **${level>=10?60:50}%**.`; break;
+    case "second_chance": effect = `Failed captures at 25%+ have a **${signatureTier(level,15,20,25)}%** chance to immediately reroll.`; break;
+    case "rune_reader": effect = `Species Knowledge is treated as **${level>=10?2:1} tier${level>=10?'s':''} higher** for capture chance.`; break;
+    case "arcane_duplication": effect = `Egg discoveries have a **${signatureTier(level,10,13,16)}%** chance to duplicate. Impossible Eggs cannot be copied.`; break;
+    case "grave_scavenger": effect = `Every **${signatureTier(level,5,4,3)} successful catches**, uncover a random capture item or bait.`; break;
+    case "veilwalk": effect = `Every **${signatureTier(level,8,7,6)} hunts**, Veilwalk can prevent one failed capture from ending the encounter.`; break;
+    case "written_in_the_stars": effect = `Each hunt has a **${signatureTier(level,10,15,20)}%** chance to gain **+8% capture chance**.`; break;
+    case "paradox": effect = `Successful captures have a **${signatureTier(level,5,7,10)}%** chance to duplicate. Mythic, Ultra Rare, and Unmade creatures are excluded.`; break;
+    case "borrowed_talent": effect = `Each hunt has a **${signatureTier(level,20,30,40)}%** chance to copy another owned companion's natural passive for that hunt.`; break;
+    case "this_wasnt_supposed_to_happen": effect = `Successful normal catches have a **${signatureTier(level,1,2,3)}%** chance to create an immediate Rare-or-better bonus encounter.`; break;
+  }
+  if (level < 5) next = "Level 5 unlocks the next signature upgrade.";
+  else if (level < 10) next = "Level 10 unlocks the final signature upgrade.";
+  else next = "Final signature tier unlocked.";
+  return `❖ **SIGNATURE ABILITY — ${name}**\n${effect}\n*${next}*`;
+}
+
+function getRuneReaderKnowledgeBonus(player, monster) {
+  const sig = getSignaturePet(player);
+  if (!sig || sig.definition.signatureAbility !== "rune_reader") return 0;
+  const encounters = getKnowledgeCount(player, monster);
+  const thresholds = [0,3,5,10,20];
+  const bonuses = [0,5,10,15,20];
+  let idx = 0;
+  for (let i=0;i<thresholds.length;i++) if (encounters >= thresholds[i]) idx=i;
+  const jump = sig.level >= 10 ? 2 : 1;
+  const upgraded = bonuses[Math.min(bonuses.length-1, idx+jump)];
+  return Math.max(0, upgraded - getKnowledgeBonus(encounters));
+}
+
+function getSignatureCaptureBonus(player) {
+  const sig = getSignaturePet(player);
+  if (!sig) return 0;
+  const state = ensureSignatureState(sig.owned);
+  let bonus = 0;
+  if (sig.definition.signatureAbility === "kindled_hunt" && state.kindledReady) bonus += signatureTier(sig.level,5,7,10);
+  if (sig.definition.signatureAbility === "written_in_the_stars" && state.starBonusActive) bonus += 8;
+  return bonus;
+}
+
+function consumeAttemptSignatureState(player) {
+  const sig = getSignaturePet(player);
+  if (!sig) return;
+  const state = ensureSignatureState(sig.owned);
+  if (sig.definition.signatureAbility === "kindled_hunt") state.kindledReady = false;
+  if (sig.definition.signatureAbility === "written_in_the_stars") state.starBonusActive = false;
+}
+
+function prepareSignatureForHunt(player) {
+  const sig = getSignaturePet(player);
+  if (!sig) return "";
+  const state = ensureSignatureState(sig.owned);
+  if (sig.definition.signatureAbility === "written_in_the_stars") {
+    const chance = signatureTier(sig.level,10,15,20);
+    state.starBonusActive = Math.random()*100 < chance;
+    return state.starBonusActive ? `\n\n✨ **WRITTEN IN THE STARS**\n${sig.definition.name} foresaw fortune around this hunt. **Capture Chance +8%**` : "";
+  }
+  if (sig.definition.signatureAbility === "borrowed_talent") {
+    state.copiedAbility = null;
+    const chance = signatureTier(sig.level,20,30,40);
+    if (Math.random()*100 < chance) {
+      const candidates = (player.pets||[]).filter(p=>String(p.id)!==String(sig.owned.id)).map(p=>({owned:p,def:getOwnedPetDefinition(p)})).filter(x=>x.def && !x.def.signatureAbility && x.def.ability !== "cooldown");
+      if (candidates.length) {
+        const picked = candidates[Math.floor(Math.random()*candidates.length)];
+        const level = getCompanionLevelInfo(picked.owned).level;
+        state.copiedAbility = { ability:picked.def.ability, baseBonus:picked.def.baseBonus, level, sourceName:picked.def.name };
+        return `\n\n🎭 **BORROWED TALENT**\nMimicling copied **${picked.def.name}'s ${abilityDisplayName(picked.def.ability)} Lv. ${level}** for this hunt.`;
+      }
+    }
+  }
+  if (sig.definition.signatureAbility === "veilwalk") {
+    state.hunts = (state.hunts||0)+1;
+    const every = signatureTier(sig.level,8,7,6);
+    if (state.hunts >= every) { state.hunts=0; state.veilwalkReady=true; return `\n\n👻 **VEILWALK READY**\nVeilkin can prevent the next failed capture from ending this encounter.`; }
+  }
+  return "";
+}
+
+function copiedPetBonus(player, ability) {
+  const sig = getSignaturePet(player);
+  if (!sig || sig.definition.signatureAbility !== "borrowed_talent") return 0;
+  const copied = ensureSignatureState(sig.owned).copiedAbility;
+  if (!copied || copied.ability !== ability) return 0;
+  return abilityBonusAtLevel(copied.ability,copied.baseBonus,copied.level);
+}
+
+function rollSignatureScavenge(player, sig) {
+  const state=ensureSignatureState(sig.owned); state.successes=(state.successes||0)+1;
+  const every=signatureTier(sig.level,5,4,3); if(state.successes<every) return ""; state.successes=0;
+  const options=["berry","honey","net","rareBait","epicBait"];
+  const pick=options[Math.floor(Math.random()*options.length)];
+  if(pick==="rareBait"){player.bait.rare++; return "💀 **GRAVE SCAVENGER!** Bone Familiar unearthed **1 Rare Bait**.";}
+  if(pick==="epicBait"){player.bait.epic++; return "💀 **GRAVE SCAVENGER!** Bone Familiar unearthed **1 Epic Bait**.";}
+  player.captureItems[pick]++; return `💀 **GRAVE SCAVENGER!** Bone Familiar unearthed **${CAPTURE_ITEMS[pick].name}**.`;
+}
+
+function duplicateDiscoveredEgg(player, distortionEggFound, eggFound) {
+  const sig=getSignaturePet(player); if(!sig || sig.definition.signatureAbility!=="arcane_duplication") return "";
+  const chance=signatureTier(sig.level,10,13,16); if(Math.random()*100>=chance) return "";
+  if(distortionEggFound){
+    const key=Object.entries(DISTORTION_EGGS).find(([,e])=>e===distortionEggFound)?.[0];
+    if(!key || key==="impossible") return "";
+    player.eggs.push({id:`glyph-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,eggKey:key,rarity:"Distortion",foundAt:Date.now(),source:"Arcane Duplication"});
+    player.titleProgress.eggsFound=(player.titleProgress.eggsFound||0)+1;
+    return `🌀 **ARCANE DUPLICATION!** Glyph Wisp copied the egg's magical signature. **You received a second ${distortionEggFound.name}!**`;
+  }
+  if(eggFound){ player.eggs.push({rarity:eggFound,foundAt:Date.now(),source:"Arcane Duplication"}); player.titleProgress.eggsFound=(player.titleProgress.eggsFound||0)+1; return `🌀 **ARCANE DUPLICATION!** Glyph Wisp copied the egg's magical signature. **You received a second ${eggFound} Egg!**`; }
+  return "";
+}
+
+function bonusEggRollFromAshes(player,data,userId) {
+  const distortion=getDistortionForPlayer(data,userId);
+  if(distortion && Math.random()*100 < DISTORTION_EGG_DROP_CHANCE){
+    const key=distortion.definition.eggKey; const egg=DISTORTION_EGGS[key];
+    player.eggs.push({id:`ashes-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,eggKey:key,rarity:"Distortion",foundAt:Date.now(),source:"From the Ashes",adminTest:Boolean(distortion.test)});
+    player.titleProgress.eggsFound=(player.titleProgress.eggsFound||0)+1;
+    return `${egg.icon} **Bonus Egg Roll:** ${egg.name} discovered!`;
+  }
+  const rarity=rollEggRarity(player,data); if(!rarity) return "🥚 **Bonus Egg Roll:** No egg answered the call this time.";
+  player.eggs.push({rarity,foundAt:Date.now(),source:"From the Ashes"}); player.titleProgress.eggsFound=(player.titleProgress.eggsFound||0)+1;
+  return `🥚 **Bonus Egg Roll:** ${rarity} Egg discovered!`;
+}
+
+function createUnwrittenBonusMonster() {
+  const rare=monsters.filter(m=>m.rarity==="Rare"), epic=monsters.filter(m=>m.rarity==="Epic"), legendary=monsters.filter(m=>m.rarity==="Legendary");
+  const roll=Math.random()*100; const pool=roll<55?rare:roll<85?epic:legendary;
+  return pool.length ? {...pool[Math.floor(Math.random()*pool.length)],unwrittenBonus:true} : null;
+}
+
 function getPlayerHuntCooldown(player, data = null, userId = null) {
   const currentData = data || loadData();
   if (player.adminTest?.cooldownBypass) return 0;
   const distortion = userId ? getDistortionForPlayer(currentData, userId) : null;
-  if (distortion) return DISTORTION_HUNT_COOLDOWN;
+  let baseCooldown = distortion ? DISTORTION_HUNT_COOLDOWN : HUNT_COOLDOWN;
+  const sig = getSignaturePet(player);
+  if (sig?.definition.signatureAbility === "frozen_time" && ensureSignatureState(sig.owned).frozenTimeReady) {
+    baseCooldown = Math.floor(baseCooldown * (sig.level >= 10 ? 0.40 : 0.50));
+  }
   const reductionMinutes = getPetBonus(player, "cooldown") * 5;
   const blessing = getActiveCommunityBlessing(currentData, "cooldown");
   const blessingReduction = blessing?.definition?.cooldownReductionMs || 0;
   return Math.max(
     30 * 60 * 1000,
-    HUNT_COOLDOWN - reductionMinutes * 60 * 1000 - blessingReduction
+    baseCooldown - reductionMinutes * 60 * 1000 - blessingReduction
   );
 }
 
@@ -1425,12 +1588,16 @@ function formatAbilityEffect(entry) {
 function petPassiveText(player) {
   const ownedPet = getEquippedPet(player);
   if (!ownedPet) return "No pet equipped.";
-  return getPetAbilityEntries(ownedPet).map(entry => `${entry.natural ? "✨" : "🧬"} ${abilityDisplayName(entry.ability)} Lv. ${entry.level}: ${formatAbilityEffect(entry)}`).join("\n");
+  const signature = signatureAbilityText(ownedPet);
+  const inherited = getPetAbilityEntries(ownedPet).filter(entry=>!entry.natural).map(entry => `🧬 ${abilityDisplayName(entry.ability)} Lv. ${entry.level}: ${formatAbilityEffect(entry)}`).join("\n");
+  return signature ? `${signature}${inherited ? `\n${inherited}` : ""}` : getPetAbilityEntries(ownedPet).map(entry => `${entry.natural ? "✨" : "🧬"} ${abilityDisplayName(entry.ability)} Lv. ${entry.level}: ${formatAbilityEffect(entry)}`).join("\n");
 }
 
 function petPassiveTextForOwned(ownedPet) {
   if (!ownedPet) return "Unknown passive.";
-  return getPetAbilityEntries(ownedPet).map(entry => `${entry.natural ? "Natural" : "Inherited"} ${abilityDisplayName(entry.ability)} Lv. ${entry.level}: ${formatAbilityEffect(entry)}`).join(" | ");
+  const signature = signatureAbilityText(ownedPet);
+  const inherited = getPetAbilityEntries(ownedPet).filter(entry=>!entry.natural).map(entry => `Inherited ${abilityDisplayName(entry.ability)} Lv. ${entry.level}: ${formatAbilityEffect(entry)}`).join(" | ");
+  return signature ? `${signature}${inherited ? `\n${inherited}` : ""}` : getPetAbilityEntries(ownedPet).map(entry => `${entry.natural ? "Natural" : "Inherited"} ${abilityDisplayName(entry.ability)} Lv. ${entry.level}: ${formatAbilityEffect(entry)}`).join(" | ");
 }
 
 function getIncubatorSlots(player) {
@@ -1984,9 +2151,10 @@ function calculateCaptureChance(player, monster, itemKey = null, data = null, us
   const comeback = getComebackTier(data || loadData(), player, userId);
   const isMixerMonster = cleanMonsterName(monster.name) === "Mixer Monster";
   const encounters = getKnowledgeCount(player, monster);
-  const knowledgeBonus = isMixerMonster ? 0 : getKnowledgeBonus(encounters);
+  const runeReaderBonus = isMixerMonster ? 0 : getRuneReaderKnowledgeBonus(player, monster);
+  const knowledgeBonus = isMixerMonster ? 0 : getKnowledgeBonus(encounters) + runeReaderBonus;
   const eventBonus = isMixerMonster ? 0 : (event?.captureBoost ? 10 : 0);
-  const petBonus = isMixerMonster ? 0 : getPetBonus(player, "capture");
+  const petBonus = isMixerMonster ? 0 : getPetBonus(player, "capture") + getSignatureCaptureBonus(player);
   const comebackBonus = isMixerMonster ? 0 : comeback.catchBonus;
   const item = itemKey ? CAPTURE_ITEMS[itemKey] : null;
 
@@ -2068,9 +2236,10 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
 
   const monster = player.currentMonster;
   const chanceInfo = calculateCaptureChance(player, monster, itemKey, data, userId);
-  const roll = Math.floor(Math.random() * 100) + 1;
-  const criticalCatch = roll === 100;
-  const perfectCatch = roll === 1;
+  let roll = Math.floor(Math.random() * 100) + 1;
+  let criticalCatch = roll === 100;
+  let perfectCatch = roll === 1;
+  let signatureAttemptText = "";
 
   if (itemKey) {
     player.captureItems[itemKey]--;
@@ -2080,7 +2249,19 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
     }
   }
 
-  const caught = criticalCatch || chanceInfo.guaranteed || roll <= chanceInfo.total;
+  let caught = criticalCatch || chanceInfo.guaranteed || roll <= chanceInfo.total;
+  const rimeSig = getSignaturePet(player);
+  if (!caught && chanceInfo.total >= 25 && rimeSig?.definition.signatureAbility === "second_chance") {
+    const procChance = signatureTier(rimeSig.level,15,20,25);
+    if (Math.random()*100 < procChance) {
+      const firstRoll = roll;
+      roll = Math.floor(Math.random()*100)+1;
+      criticalCatch = roll === 100; perfectCatch = roll === 1;
+      caught = criticalCatch || chanceInfo.guaranteed || roll <= chanceInfo.total;
+      signatureAttemptText = `\n\n❄️ **RIME SPRITE — SECOND CHANCE!**\nThe monster began to escape, but time froze. **Reroll: ${firstRoll} → ${roll}**`;
+    }
+  }
+  consumeAttemptSignatureState(player);
   const event = getActiveEvent();
 
   if (caught) {
@@ -2108,6 +2289,27 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
     if (perfectCatch) player.titleProgress.perfectCatch = true;
     const distortionEggFound = maybeFindDistortionEgg(player, monster, data);
     const eggFound = distortionEggFound ? null : maybeFindEgg(player, data);
+    const signatureMessages = [];
+    const sig = getSignaturePet(player);
+    if (sig?.definition.signatureAbility === "from_the_ashes") {
+      const state=ensureSignatureState(sig.owned); state.successes=(state.successes||0)+1;
+      const every=signatureTier(sig.level,6,5,4);
+      if(state.successes>=every){ state.successes=0; player.points+=10; addWeeklyProgress(data,player,10); signatureMessages.push(`🔥 **FROM THE ASHES!** Ashbound Familiar manifested **+10 Hunter Points**.\n${bonusEggRollFromAshes(player,data,userId)}`); }
+    }
+    if (sig?.definition.signatureAbility === "frozen_time") {
+      const state=ensureSignatureState(sig.owned); state.successes=(state.successes||0)+1; const every=signatureTier(sig.level,4,3,3);
+      if(state.successes>=every){state.successes=0;state.frozenTimeReady=true;signatureMessages.push(`❄️ **FROZEN TIME!** Your next hunt cooldown is reduced by **${sig.level>=10?60:50}%**.`);}
+    }
+    if (sig?.definition.signatureAbility === "grave_scavenger") { const text=rollSignatureScavenge(player,sig); if(text) signatureMessages.push(text); }
+    const dupEggText = duplicateDiscoveredEgg(player,distortionEggFound,eggFound); if(dupEggText) signatureMessages.push(dupEggText);
+    if (sig?.definition.signatureAbility === "paradox" && monster.rarity !== "Mythic" && monster.rarity !== "Ultra Rare" && monster.habitat !== "The Unmade" && Math.random()*100 < signatureTier(sig.level,5,7,10)) {
+      const duplicate={...monster,paradoxDuplicate:true}; player.caught.push(duplicate); player.lifetimeCaught.push({...duplicate}); player.points += pointsEarned; addWeeklyProgress(data,player,pointsEarned,duplicate); updateQuestProgress(player,"catch",duplicate); signatureMessages.push(`🌀 **PARADOX**\nReality stutters. You remember catching **${cleanMonsterName(monster.name)}** twice. Apparently... **you did.**\n**Second copy added +${pointsEarned} points.**`);
+    }
+    let unwrittenBonusMonster = null;
+    if (sig?.definition.signatureAbility === "this_wasnt_supposed_to_happen" && !monster.distortionEncounter && monster.rarity !== "Mythic" && Math.random()*100 < signatureTier(sig.level,1,2,3)) {
+      unwrittenBonusMonster=createUnwrittenBonusMonster();
+      if(unwrittenBonusMonster) signatureMessages.push(`✒️ **THIS WASN'T SUPPOSED TO HAPPEN**\nThe Unwritten reaches toward the Monster Dex. Something that wasn't there before... **is.**\nA Rare-or-better bonus encounter has been created.`);
+    }
     const reaction = companionReaction(player, monster);
     const affectionEvent = rollPetAffectionEvent(player);
     const companionXpText = awardCompanionXp(
@@ -2183,6 +2385,10 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
     if (criticalCatch) addSeasonMoment(data, { type: "critical_catch", playerId: userId, icon: "💯", text: `${hunterName} rolled a Natural 100 and made a Critical Catch on ${cleanMonsterName(monster.name)}!` });
     if (perfectCatch) addSeasonMoment(data, { type: "perfect_catch", playerId: userId, icon: "🎯", text: `${hunterName} rolled a Natural 1 and made a Perfect Catch on ${cleanMonsterName(monster.name)}!` });
     recordPointMilestoneMoments(data, message.author.id, previousPoints, player.points);
+    if (unwrittenBonusMonster) {
+      player.currentMonster = unwrittenBonusMonster;
+      player.lastHunt = 0;
+    }
     saveData(data);
     await announceTitleUnlocks(message, automaticTitleUnlocks);
 
@@ -2198,7 +2404,7 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
       );
     }
 
-    return message.reply(
+    const captureReply = await message.reply(
       buildMonsterEmbed(
         monster,
         `✅ You caught ${monster.name}!`,
@@ -2209,6 +2415,8 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
         `${perfectCatch ? `\n🎯 **PERFECT CATCH!** Natural 1 bonus loot: **${perfectLoot}**\n` : ""}` +
         `${comebackExtra > 0 ? `🔥 **Comeback Bonus: +${comebackExtra} points**\n` : ""}` +
         `**+${pointsEarned} points**` +
+        `${signatureAttemptText}` +
+        `${signatureMessages.length ? `\n\n❖ **SIGNATURE ABILITY**\n${signatureMessages.join("\n\n")}` : ""}` +
         `${distortionEggFound ? `\n\n🌀 **DISTORTION EGG FOUND!**\n${distortionEggFound.icon} You discovered a **${distortionEggFound.name}**!` : ""}` +
         `${eggFound ? `\n\n🥚 **EGG FOUND!**\n${EGG_TYPES[eggFound]?.icon || "🥚"} You discovered a **${eggFound} Egg**!` : ""}` +
         `${reaction.text ? `\n\n🐾 **Companion Reaction**\n${reaction.text}` : ""}` +
@@ -2220,9 +2428,19 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
         `${formatSecretUnlocks(mixerUnlocks)}`
       )
     );
+    if (unwrittenBonusMonster) {
+      const bonusChance = calculateCaptureChance(player, unwrittenBonusMonster, null, data, userId);
+      await message.channel.send(buildMonsterEmbed(unwrittenBonusMonster, `✒️ UNWRITTEN BONUS ENCOUNTER — ${unwrittenBonusMonster.name}`, `**Rarity:** ${unwrittenBonusMonster.rarity}\n**Capture Chance:** ${bonusChance.total}%\n\nThis encounter ignores the hunt cooldown. Use \`!catch\` to attempt the capture.`));
+    }
+    return captureReply;
   }
 
-  player.currentMonster = null;
+  const failureSig = getSignaturePet(player);
+  const failureMessages = [];
+  let keepEncounter = false;
+  if (failureSig?.definition.signatureAbility === "kindled_hunt") { ensureSignatureState(failureSig.owned).kindledReady = true; failureMessages.push(`🔥 **KINDLED HUNT!** Your failed catch fuels Ember Imp. Your next capture attempt gains **+${signatureTier(failureSig.level,5,7,10)}%**.`); }
+  if (failureSig?.definition.signatureAbility === "veilwalk" && ensureSignatureState(failureSig.owned).veilwalkReady) { ensureSignatureState(failureSig.owned).veilwalkReady=false; keepEncounter=true; failureMessages.push(`👻 **VEILWALK!** The monster starts to escape, but Veilkin pulls it back through the Veil. **The encounter remains active — use \`!catch\` to try again.**`); }
+  player.currentMonster = keepEncounter ? monster : null;
   saveData(data);
 
   const encounters = getKnowledgeCount(player, monster);
@@ -2234,8 +2452,10 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
       `❌ ${monster.name} escaped!`,
       `${itemKey ? `**Item Used:** ${CAPTURE_ITEMS[itemKey].name}\n` : "**Method:** Normal Throw\n"}` +
       `**Final Capture Chance:** ${chanceInfo.total}%\n` +
-      `**Roll:** ${roll}\n\n` +
-      `📚 You learned from the encounter!\n` +
+      `**Roll:** ${roll}` +
+      `${signatureAttemptText}` +
+      `${failureMessages.length ? `\n\n❖ **SIGNATURE ABILITY**\n${failureMessages.join("\n")}` : ""}` +
+      `\n\n📚 You learned from the encounter!\n` +
       `**${cleanMonsterName(monster.name)} Knowledge:** ${encounters} encounter${encounters === 1 ? "" : "s"}\n` +
       `**Future Catch Bonus:** +${knowledgeBonus}%`
     )
@@ -5587,6 +5807,7 @@ ${captureChoicesText(choices)}
     }
 
     const usedBait = player.activeBait;
+    const signatureHuntText = prepareSignatureForHunt(player);
     const monster = getRandomMonsterForPlayer(player, data, message.author.id);
     const encounters = addEncounterKnowledge(player, monster);
     const chanceInfo = calculateCaptureChance(player, monster, null, data, message.author.id);
@@ -5594,6 +5815,8 @@ ${captureChoicesText(choices)}
     player.currentMonster = monster;
     player.activeBait = null;
     player.lastHunt = now;
+    const huntSig = getSignaturePet(player);
+    if (huntSig?.definition.signatureAbility === "frozen_time" && ensureSignatureState(huntSig.owned).frozenTimeReady) ensureSignatureState(huntSig.owned).frozenTimeReady = false;
     player.reminderState.channelId = message.channel.id;
     player.reminderState.huntDueAt = now + huntCooldown;
     player.reminderState.huntSent = false;
@@ -5618,6 +5841,7 @@ ${captureChoicesText(choices)}
         `${chanceInfo.eventBonus > 0 ? `**Event Bonus:** +${chanceInfo.eventBonus}%\n` : ""}` +
         `**Current Catch Chance:** ${chanceInfo.total}%\n` +
         `${usedBait ? `**Bait Used:** ${usedBait.toUpperCase()} (improved encounter odds)\n` : ""}` +
+        `${signatureHuntText}` +
         `\n**Choose how to catch it:**\n${captureChoicesText(choices)}\n\n` +
         `Reply with **${validNumbers.join(", ")}** within 5 minutes.\n` +
         `Only items you currently own are shown.`
