@@ -169,6 +169,21 @@ const DISTORTION_WARNING_MINUTES = 5;
 const DISTORTION_FINAL_RESET_MINUTES = 10;
 const UNMADE_REPLACEMENT_CHANCE = 3;
 
+// ==================== WORLD STORY / WORLD SHATTER ====================
+const WORLD_EVENT_FEED_CHANNEL_ID = "1521536122239586456";
+const WORLD_SHATTER_HUNT_COOLDOWN = 10 * 60 * 1000;
+const WORLD_SHATTER_COLLISION_DURATION = 20 * 60 * 1000;
+const WORLD_SHATTER_STABILIZE_MAX_DURATION = 2 * 60 * 60 * 1000;
+const WORLD_SHATTER_UNMADE_DURATION = 30 * 60 * 1000;
+const WORLD_SHATTER_BOSS_DURATION = 45 * 60 * 1000;
+const WORLD_SHATTER_BOSS_COOLDOWN = 2 * 60 * 1000;
+const WORLD_SHATTER_STABILITY_GOAL = 10;
+const WORLD_SHATTER_IMPOSSIBLE_EGG_CHANCE = 12;
+const WORLD_SHATTER_MIN_NOTICE = 24 * 60 * 60 * 1000;
+const WORLD_SHATTER_START_GRACE_MS = 10 * 60 * 1000;
+const WORLD_STORY_PROCESS_BOOT_AT = Date.now();
+const WORLD_KNOWN_DISTORTION_KEYS = ["infernal","frost","arcane","hollow","astral"];
+
 // Startup safety: automatic Distortions never catch up events that were already due before this process started.
 const DISTORTION_PROCESS_BOOT_AT = Date.now();
 const DISTORTION_START_GRACE_MS = 2 * 60 * 1000;
@@ -680,7 +695,9 @@ const HIDDEN_TITLE_DEFINITIONS = [
   { name: "The One Percent", rarity: "Mythic", check: p => Boolean(p.titleProgress?.mixerWithoutCharm) },
   { name: "Against the Cosmos", rarity: "Mythic", check: p => Boolean(p.titleProgress?.ultraAtFiveOrLess) },
   { name: CRITICAL_CATCH_TITLE, rarity: "Mythic", check: p => Boolean(p.titleProgress?.criticalCatch) },
-  { name: PERFECT_CATCH_TITLE, rarity: "Mythic", check: p => Boolean(p.titleProgress?.perfectCatch) }
+  { name: PERFECT_CATCH_TITLE, rarity: "Mythic", check: p => Boolean(p.titleProgress?.perfectCatch) },
+  { name: "Should Not Exist", rarity: "Legendary", check: p => ["The Misplaced","Stitchmaw","The Empty Knight","The Forgotten","NULL"].every(name => (p.caught||[]).some(m => cleanMonsterName(m.name) === name)) },
+  { name: "You Were Never Here", rarity: "Mythic", check: p => ["The Misplaced","Stitchmaw","The Empty Knight","The Forgotten","NULL"].every(name => (p.caught||[]).some(m => cleanMonsterName(m.name) === name)) && ["mimicling","the_unwritten"].every(key => (p.pets||[]).some(x => x.key === key)) }
 ];
 
 function getTitleDefinition(titleName) {
@@ -688,9 +705,9 @@ function getTitleDefinition(titleName) {
   if (builtIn) return builtIn;
 
   const specialRarity = [
-    "The Chosen Mixer", "Master Beast Tamer"
+    "The Chosen Mixer", "Master Beast Tamer", "You Were Never Here"
   ].includes(titleName) ? "Mythic" :
-  ["Worldbreaker", "The All-Seeing", "Timewalker", "Starforged", "Soulkeeper", "Ultra Hunter", "Relic Keeper", "World Summoner", "Legendary Hunter"].includes(titleName)
+  ["Worldbreaker", "The All-Seeing", "Timewalker", "Starforged", "Soulkeeper", "Ultra Hunter", "Relic Keeper", "World Summoner", "Legendary Hunter", "Shatterborn", "World Mender", "Should Not Exist"].includes(titleName)
     ? "Legendary"
     : "Epic";
 
@@ -758,6 +775,14 @@ function loadData() {
   if (!data.distortionSchedule || typeof data.distortionSchedule !== "object") data.distortionSchedule = { weekKey: null, events: [] };
   if (data.activeDistortion === undefined) data.activeDistortion = null;
   if (!data.distortionHistory || typeof data.distortionHistory !== "object") data.distortionHistory = { firstOpened: {}, firstCaught: {}, firstEgg: {} };
+  if (!data.worldStory || typeof data.worldStory !== "object") {
+    data.worldStory = {
+      phase: "dormant", anomalyIndex: 0, nextAnomalyAt: 0, finalWarningStartedAt: 0,
+      shatterScheduledAt: 0, shatterScheduleManual: false, beats: [], event: null, postShatter: false, completedAt: 0
+    };
+  }
+  if (!Array.isArray(data.worldStory.beats)) data.worldStory.beats = [];
+  if (data.worldStory.postShatter === undefined) data.worldStory.postShatter = false;
   if (!Array.isArray(data.seasonMoments)) data.seasonMoments = [];
   if (!data.seasonMomentFlags || typeof data.seasonMomentFlags !== "object") {
     data.seasonMomentFlags = {};
@@ -1558,7 +1583,8 @@ function getPlayerHuntCooldown(player, data = null, userId = null) {
   const currentData = data || loadData();
   if (player.adminTest?.cooldownBypass) return 0;
   const distortion = userId ? getDistortionForPlayer(currentData, userId) : null;
-  let baseCooldown = distortion ? DISTORTION_HUNT_COOLDOWN : HUNT_COOLDOWN;
+  const shatterActive = Boolean(currentData.worldStory?.event?.active && ["collision","stabilize","unmade"].includes(currentData.worldStory.event.stage));
+  let baseCooldown = shatterActive ? WORLD_SHATTER_HUNT_COOLDOWN : (distortion ? DISTORTION_HUNT_COOLDOWN : HUNT_COOLDOWN);
   const sig = getSignaturePet(player);
   if (sig?.definition.signatureAbility === "frozen_time" && ensureSignatureState(sig.owned).frozenTimeReady) {
     baseCooldown = Math.floor(baseCooldown * (sig.level >= 10 ? 0.40 : 0.50));
@@ -1566,8 +1592,9 @@ function getPlayerHuntCooldown(player, data = null, userId = null) {
   const reductionMinutes = getPetBonus(player, "cooldown") * 5;
   const blessing = getActiveCommunityBlessing(currentData, "cooldown");
   const blessingReduction = blessing?.definition?.cooldownReductionMs || 0;
+  const minimumCooldown = shatterActive ? 5 * 60 * 1000 : 30 * 60 * 1000;
   return Math.max(
-    30 * 60 * 1000,
+    minimumCooldown,
     baseCooldown - reductionMinutes * 60 * 1000 - blessingReduction
   );
 }
@@ -1876,6 +1903,9 @@ function discoverWorldRelic(data, relicMonster, source = "community", player = n
 
   if (allDiscovered) {
     data.worldShatterUnlocked = true;
+    initializeFinalWarningState(data);
+  } else if (discoveredCount >= 4) {
+    initializeFourOfFiveAnomalyState(data);
   }
 
   let blessing = null;
@@ -1917,10 +1947,12 @@ async function announceWorldRelicDiscovery(channel, result, userId = null) {
 
   const monster = result.monster;
   const progress = `${result.discoveredCount}/${RELIC_KEYS.length}`;
+  const worldData = loadData();
+  const shatterWhen = worldData.worldStory?.shatterScheduledAt ? `<t:${Math.floor(worldData.worldStory.shatterScheduledAt/1000)}:F> (<t:${Math.floor(worldData.worldStory.shatterScheduledAt/1000)}:R>)` : "the next available weekend";
 
   if (result.source === "community") {
     if (result.allDiscovered) {
-      await channel.send(
+      await sendWorldEvent(channel, 
         `# ⚠️ THE WORLD HAS STOPPED MOVING.\n\n` +
         `For one impossible moment, every monster falls silent.\n` +
         `Every companion looks toward the horizon.\n\n` +
@@ -1928,13 +1960,14 @@ async function announceWorldRelicDiscovery(channel, result, userId = null) {
         `🌍 **WORLD PROGRESS: ${progress}**\n\n` +
         `The five World Relics begin to resonate.\n` +
         `Ancient seals crack somewhere beyond sight...\n\n` +
-        `**Something is coming.**`
+        `**The fragments were never pieces of a key. They were pieces of a seal.**\n\n` +
+        `🚨 A major community event is being prepared for **${shatterWhen}**.`
       ).catch(() => null);
       return;
     }
 
     const blessing = COMMUNITY_BLESSINGS[monster.relicKey];
-    await channel.send(
+    await sendWorldEvent(channel, 
       `# 🌍 THE WORLD TREMBLES...\n\n` +
       `Across every habitat, monsters suddenly grow restless. Companions stop in their tracks and stare toward the horizon...\n\n` +
       `Then a pulse of ancient energy erupts from somewhere deep beneath the world.\n\n` +
@@ -1951,15 +1984,27 @@ async function announceWorldRelicDiscovery(channel, result, userId = null) {
   }
 
   if (result.source === "fetch") {
-    await channel.send(
+    await sendWorldEvent(channel, 
       `# 🌍 A WORLD RELIC HAS BEEN DISCOVERED!\n\n` +
       `${userId ? `<@${userId}>'s companion` : "A companion"} returned carrying something that should not have been found...\n\n` +
       `💎 **${monster.relicName}**\n` +
       `*${monster.relicDescription}*\n\n` +
       `🌍 **WORLD PROGRESS: ${progress}**\n\n` +
       `${result.allDiscovered
-        ? `The final unknown Relic has been uncovered. Ancient seals begin to crack...`
-        : `Something beyond the world stirs.`}`
+        ? `The final unknown Relic has been uncovered. Ancient seals begin to crack...\n\n**The fragments were never pieces of a key. They were pieces of a seal.**\n\n🚨 A major community event is being prepared for **${shatterWhen}**.`
+        : result.discoveredCount === 4 ? `Four Relics now resonate at once.\n\n🚨 **WORLD STABILITY: CRITICAL**\nSomething remains missing.` : `Something beyond the world stirs.`}`
+    ).catch(() => null);
+    return;
+  }
+
+  if (result.source === "ultra") {
+    await sendWorldEvent(channel,
+      `# 💎 A WORLD RELIC HAS BEEN RECOVERED!\n\n` +
+      `${userId ? `<@${userId}>` : "A Hunter"} recovered **${monster.relicName}** from ${cleanMonsterName(monster.name)}.\n\n` +
+      `🌍 **WORLD PROGRESS: ${progress}**\n\n` +
+      `${result.allDiscovered
+        ? `For one impossible moment, every monster falls silent.\n\nThe five Relics begin to resonate.\n\n**The fragments were never pieces of a key. They were pieces of a seal.**\n\n🚨 A major community event is being prepared for **${shatterWhen}**.`
+        : result.discoveredCount === 4 ? `Four Relics now resonate somewhere within the hunting grounds.\n\n🚨 **WORLD STABILITY: CRITICAL**\nReality is no longer repairing itself cleanly.` : `Something beyond the world has noticed you.`}`
     ).catch(() => null);
   }
 }
@@ -2289,7 +2334,9 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
     if (perfectCatch) player.titleProgress.perfectCatch = true;
     const distortionEggFound = maybeFindDistortionEgg(player, monster, data);
     const eggFound = distortionEggFound ? null : maybeFindEgg(player, data);
+    const worldShatterCatch = registerWorldShatterCatch(data, userId, monster);
     const signatureMessages = [];
+    if (worldShatterCatch.text) signatureMessages.push(worldShatterCatch.text);
     const sig = getSignaturePet(player);
     if (sig?.definition.signatureAbility === "from_the_ashes") {
       const state=ensureSignatureState(sig.owned); state.successes=(state.successes||0)+1;
@@ -2431,6 +2478,10 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
     if (unwrittenBonusMonster) {
       const bonusChance = calculateCaptureChance(player, unwrittenBonusMonster, null, data, userId);
       await message.channel.send(buildMonsterEmbed(unwrittenBonusMonster, `✒️ UNWRITTEN BONUS ENCOUNTER — ${unwrittenBonusMonster.name}`, `**Rarity:** ${unwrittenBonusMonster.rarity}\n**Capture Chance:** ${bonusChance.total}%\n\nThis encounter ignores the hunt cooldown. Use \`!catch\` to attempt the capture.`));
+    }
+    if (worldShatterCatch.reveal) {
+      const freshShatterData = loadData();
+      await revealUnmade(freshShatterData, false);
     }
     return captureReply;
   }
@@ -2625,6 +2676,33 @@ function weightedDistortionMonster(definition) {
 }
 
 function getRandomMonsterForPlayer(player, data, userId) {
+  const ws = data.worldStory?.event;
+  if (ws?.active && ["collision","stabilize","unmade"].includes(ws.stage)) {
+    if (!ws.participants || typeof ws.participants !== "object") ws.participants = {};
+    if (!ws.participants[userId]) ws.participants[userId] = { planes: {}, catches: 0, attacks: 0 };
+    const roll = Math.random() * 100;
+    if (ws.stage === "unmade") {
+      if (roll < 60) {
+        const monster = weightedDistortionMonster(DISTORTIONS.unmade);
+        monster.distortionKey = "unmade"; monster.distortionEncounter = true; monster.worldShatterEncounter = true;
+        return monster;
+      }
+      if (roll < 90) {
+        const key = WORLD_KNOWN_DISTORTION_KEYS[Math.floor(Math.random()*WORLD_KNOWN_DISTORTION_KEYS.length)];
+        const monster = weightedDistortionMonster(DISTORTIONS[key]);
+        monster.distortionKey = key; monster.distortionEncounter = true; monster.worldShatterEncounter = true;
+        return monster;
+      }
+      return { ...getRandomMonster(player), worldShatterEncounter: true };
+    }
+    if (roll < 80) {
+      const key = WORLD_KNOWN_DISTORTION_KEYS[Math.floor(Math.random()*WORLD_KNOWN_DISTORTION_KEYS.length)];
+      const monster = weightedDistortionMonster(DISTORTIONS[key]);
+      monster.distortionKey = key; monster.distortionEncounter = true; monster.worldShatterEncounter = true;
+      return monster;
+    }
+    return { ...getRandomMonster(player), worldShatterEncounter: true };
+  }
   const distortion = getDistortionForPlayer(data, userId);
   if (distortion && Math.random() * 100 < DISTORTION_EVENT_MONSTER_CHANCE) {
     const monster = weightedDistortionMonster(distortion.definition);
@@ -2658,7 +2736,9 @@ function chooseDistortionPet(eggKey) {
 
 function maybeFindDistortionEgg(player, monster, data) {
   if (!monster?.distortionEncounter || !monster.distortionKey) return null;
-  if (Math.random() * 100 >= DISTORTION_EGG_DROP_CHANCE) return null;
+  const inUnmadeShatter = Boolean(monster.worldShatterEncounter && data.worldStory?.event?.active && data.worldStory.event.stage === "unmade" && monster.distortionKey === "unmade");
+  const dropChance = inUnmadeShatter ? WORLD_SHATTER_IMPOSSIBLE_EGG_CHANCE : DISTORTION_EGG_DROP_CHANCE;
+  if (Math.random() * 100 >= dropChance) return null;
   const definition = DISTORTIONS[monster.distortionKey];
   if (!definition) return null;
   const eggKey = definition.eggKey;
@@ -4082,7 +4162,8 @@ function maybeAwardUltraRelic(data, player, monster) {
   const result = discoverWorldRelic(data, monster, "ultra", player);
   return {
     firstDiscovery: true,
-    worldShatterUnlockedNow: Boolean(result?.allDiscovered)
+    worldShatterUnlockedNow: Boolean(result?.allDiscovered),
+    discoveryResult: result
   };
 }
 
@@ -4197,13 +4278,8 @@ async function resolveUltraCatch(message, monster, state, roll, chance, itemKey 
       `*${monster.relicDescription}*\n\n` +
       `Sacrifice it later with \`!summon ${monster.relicCommand}\`.`
     );
-
-    if (relicResult.worldShatterUnlockedNow) {
-      await message.channel.send(
-        `🌌 **The world feels... different.**\n\n` +
-        `As the final unknown Relic is uncovered, ancient seals begin to crack.\n` +
-        `Reality itself feels unstable...`
-      );
+    if (relicResult.firstDiscovery && relicResult.discoveryResult) {
+      await announceWorldRelicDiscovery(message.channel, relicResult.discoveryResult, message.author.id);
     }
   }
 
@@ -4477,6 +4553,191 @@ async function processWeeklyCompetition() {
   saveData(data);
 }
 
+// ==================== WORLD STORY / WORLD SHATTER ENGINE ====================
+async function getTextChannel(channelId) {
+  const cached = client.channels.cache.get(channelId);
+  if (cached?.isTextBased()) return cached;
+  const fetched = await client.channels.fetch(channelId).catch(() => null);
+  return fetched?.isTextBased() ? fetched : null;
+}
+
+async function sendWorldEvent(sourceChannel, content, filename = null, pingEveryone = false) {
+  const source = sourceChannel?.isTextBased() ? sourceChannel : await getTextChannel(MONSTER_CHANNEL_ID);
+  const mirror = await getTextChannel(WORLD_EVENT_FEED_CHANNEL_ID);
+  const imagePath = filename ? findImageFile(filename) : null;
+  async function sendTo(channel, allowPing) {
+    if (!channel?.isTextBased()) return null;
+    const payload = { content, allowedMentions: allowPing ? { parse: ["everyone","roles"] } : { parse: [] } };
+    if (imagePath) payload.files = [new AttachmentBuilder(imagePath)];
+    return channel.send(payload).catch(error => { console.error("World event send failed:", error); return null; });
+  }
+  const first = await sendTo(source, pingEveryone);
+  if (mirror && (!source || mirror.id !== source.id)) await sendTo(mirror, false);
+  return first;
+}
+
+function nextWorldShatterSaturday(now = Date.now()) {
+  const minAt = now + WORLD_SHATTER_MIN_NOTICE;
+  const parts = getMountainDateTimeParts(new Date(now));
+  const base = new Date(`${parts.date}T12:00:00Z`);
+  for (let add=0; add<15; add++) {
+    const d = new Date(base); d.setUTCDate(base.getUTCDate()+add);
+    if (d.getUTCDay() !== 6) continue;
+    const dateString = d.toISOString().slice(0,10);
+    const ts = mountainLocalTimestamp(dateString,19,0);
+    if (ts >= minAt) return ts;
+  }
+  return now + 7*24*60*60*1000;
+}
+
+function initializeFourOfFiveAnomalyState(data) {
+  const ws = data.worldStory;
+  if (!ws || ws.postShatter || ["final_warning","scheduled","event","complete"].includes(ws.phase)) return;
+  if (ws.phase !== "anomaly") {
+    ws.phase = "anomaly";
+    ws.anomalyIndex = 0;
+    ws.nextAnomalyAt = Date.now() + (45 + Math.floor(Math.random()*46))*60*1000;
+  }
+}
+
+function buildFinalWarningBeats(startAt, shatterAt) {
+  const span = Math.max(1, shatterAt-startAt);
+  const candidates = [
+    { at:startAt+Math.floor(span*.20), key:"fluctuation" },
+    { at:startAt+Math.floor(span*.45), key:"collision" },
+    { at:startAt+Math.floor(span*.70), key:"stability" },
+    { at:shatterAt-24*60*60*1000, key:"24h" },
+    { at:shatterAt-2*60*60*1000, key:"2h" },
+    { at:shatterAt-15*60*1000, key:"15m" }
+  ].filter(x=>x.at > startAt + 5*60*1000 && x.at < shatterAt);
+  const seen = new Set();
+  return candidates.sort((a,b)=>a.at-b.at).filter(x=>{const bucket=Math.floor(x.at/(10*60*1000)); if(seen.has(bucket)) return false; seen.add(bucket); return true;}).map(x=>({...x,sent:false,skipped:false}));
+}
+
+function initializeFinalWarningState(data) {
+  const ws = data.worldStory;
+  if (!ws || ws.postShatter || ws.phase === "complete" || ws.event?.active) return;
+  if (!ws.finalWarningStartedAt) ws.finalWarningStartedAt = Date.now();
+  if (!ws.shatterScheduledAt) ws.shatterScheduledAt = nextWorldShatterSaturday(ws.finalWarningStartedAt);
+  ws.phase = "final_warning";
+  ws.beats = buildFinalWarningBeats(ws.finalWarningStartedAt, ws.shatterScheduledAt);
+}
+
+function worldStabilityForBeat(key) {
+  return ({ fluctuation:72, collision:41, stability:17, "24h":8, "2h":4, "15m":1 })[key] ?? 50;
+}
+
+function finalWarningBeatText(beat, ws) {
+  const eventTs = Math.floor(ws.shatterScheduledAt/1000);
+  if (beat.key === "fluctuation") return `⚠️ **REALITY FLUCTUATION**\n\nA breach appeared for less than a second.\nNo known planar signature was detected.\n\n**WORLD STABILITY: ${worldStabilityForBeat(beat.key)}%**`;
+  if (beat.key === "collision") return `🚨 **PLANAR COLLISION DETECTED**\n\nShattered Frost energy has been detected inside an Infernal Rift.\nThis should be impossible.\n\n**WORLD STABILITY: ${worldStabilityForBeat(beat.key)}%**`;
+  if (beat.key === "stability") return `🚨 **WORLD STABILITY: ${worldStabilityForBeat(beat.key)}%**\n\nDistortions are no longer closing completely.\nSomething is pushing against reality from the other side.`;
+  if (beat.key === "24h") return `# 🚨 EMERGENCY HUNT NOTICE\n\nWorld stability has reached critical failure.\nAll available Monster Hunters are requested to report <t:${eventTs}:F> (<t:${eventTs}:R>).\n\n**This is not a normal Distortion.**\nCome prepared.`;
+  if (beat.key === "2h") return `# 🚨 WORLD SHATTER — 2 HOURS\n\n**WORLD STABILITY: 4%**\nHunters are advised to prepare bait, capture items, and companions.\n\n**All available hunters will be needed.**`;
+  return `# ⛔ WORLD SHATTER — 15 MINUTES\n\n**WORLD STABILITY: 1%**\n\nWe can't stop it anymore.`;
+}
+
+const FOUR_OF_FIVE_ANOMALIES = [
+  `⚠️ **REALITY FLUCTUATION DETECTED**\n\nFor exactly eleven seconds, every shadow in the hunting grounds pointed in the same direction.\n\nThere was nothing there.\n\n**World stability continues to deteriorate.**`,
+  `⚠️ **UNKNOWN PHENOMENON**\n\nHunters reported seeing creatures from the Shattered Frost wandering near traces of Infernal Rift energy.\n\nThese creatures should not be capable of existing in the same environment.\n\n**Something is causing the planes to overlap.**`,
+  `🚨 **WORLD STABILITY: CRITICAL**\n\nFour unknown Relic signatures now resonate within the hunting grounds.\nReality is no longer repairing itself cleanly after Distortions.\n\n**Whatever happens next may be permanent.**`,
+  `⚠️ **PLANAR ECHO**\n\nA doorway appeared in the ruins today.\nIt opened onto five different skies at once.\n\nThe doorway vanished before anyone could cross it.`
+];
+
+function worldShatterStatusText(data) {
+  const ws=data.worldStory||{}; const ev=ws.event;
+  const schedule=ws.shatterScheduledAt ? `<t:${Math.floor(ws.shatterScheduledAt/1000)}:F> (<t:${Math.floor(ws.shatterScheduledAt/1000)}:R>)` : "Not scheduled";
+  let text=`🌎 **WORLD SHATTER STATUS**\nPhase: **${ws.phase||"dormant"}**\nScheduled: ${schedule}\nPost-Shatter: **${ws.postShatter?"Yes":"No"}**`;
+  if(ev?.active){ text += `\n\n💥 Event Stage: **${ev.stage}**\nParticipants: **${Object.keys(ev.participants||{}).length}**`; if(ev.stage==="stabilize") text += `\n${WORLD_KNOWN_DISTORTION_KEYS.map(k=>`${DISTORTIONS[k].icon} ${DISTORTIONS[k].name}: **${ev.stability?.[k]||0}/${WORLD_SHATTER_STABILITY_GOAL}**`).join("\n")}`; if(ev.stage==="boss") text += `\n👁️ Architect HP: **${Math.max(0,ev.bossHp||0)}/${ev.bossMaxHp||0}**`; }
+  return text;
+}
+
+async function startWorldShatter(data, forced=false) {
+  const ws=data.worldStory; if(ws.event?.active) return false;
+  const now=Date.now();
+  ws.phase="event"; ws.event={active:true,stage:"collision",startedAt:now,stageEndsAt:now+WORLD_SHATTER_COLLISION_DURATION,participants:{},stability:Object.fromEntries(WORLD_KNOWN_DISTORTION_KEYS.map(k=>[k,0])),bossHp:0,bossMaxHp:0,bossEndsAt:0,stabilizationFailed:false};
+  data.activeDistortion=null;
+  for(const p of Object.values(data.players||{})) p.lastHunt=0;
+  addSeasonMoment(data,{type:"world_shatter",icon:"💥",text:"The five World Relics shattered the seal and the World Shatter began.",uniqueKey:"world:shatter:start"});
+  saveData(data);
+  const channel=await getTextChannel(MONSTER_CHANNEL_ID);
+  await sendWorldEvent(channel,`@everyone\n\n# 💥 WORLD SHATTER\n\nThe sky fractures.\nInfernal flame pours through frozen ruins. Arcane oceans hang above spectral kingdoms while stars burn through daylight.\n\n**The five known planes are collapsing into ours.**\n\n⚡ \`!hunt\` cooldown: **10 minutes**\n🔄 Everyone can hunt **RIGHT NOW.**\n\nFor the next phase, creatures from every known Distortion can appear.\n\n**And something else is pushing through.**`,`distortion_critical.png`,true);
+  return true;
+}
+
+async function beginStabilization(data) {
+  const ev=data.worldStory?.event; if(!ev?.active) return;
+  ev.stage="stabilize"; ev.stageStartedAt=Date.now(); ev.stageEndsAt=Date.now()+WORLD_SHATTER_STABILIZE_MAX_DURATION;
+  saveData(data); const channel=await getTextChannel(MONSTER_CHANNEL_ID);
+  await sendWorldEvent(channel,`# 🌀 STABILIZE THE BREACHES\n\nThe collision can be slowed—but only by capturing creatures tied to each plane.\n\n${WORLD_KNOWN_DISTORTION_KEYS.map(k=>`${DISTORTIONS[k].icon} **${DISTORTIONS[k].name}** — 0/${WORLD_SHATTER_STABILITY_GOAL}`).join("\n")}\n\nEvery successful Distortion catch adds **+1 Stability** to its matching breach.\n⚡ \`!hunt\` remains **10 minutes**.`,null,false);
+}
+
+async function revealUnmade(data, timedOut=false) {
+  const ev=data.worldStory?.event; if(!ev?.active || ev.stage==="unmade" || ev.stage==="boss") return;
+  ev.stage="unmade"; ev.stageStartedAt=Date.now(); ev.stageEndsAt=Date.now()+WORLD_SHATTER_UNMADE_DURATION; ev.stabilizationFailed=Boolean(timedOut);
+  for(const p of Object.values(data.players||{})) p.lastHunt=0;
+  saveData(data); const channel=await getTextChannel(MONSTER_CHANNEL_ID);
+  await sendWorldEvent(channel,`@everyone\n\n# ❓ UNKNOWN BREACH DETECTED\n\n${WORLD_KNOWN_DISTORTION_KEYS.map(k=>`✅ ${DISTORTIONS[k].name.toUpperCase()} — ${timedOut?"FORCED CLOSED":"SEALED"}`).join("\n")}\n\n**WORLD STABILITY: 99%**\n\nWhy isn't it 100%?\n\nClassification: **NONE**\nOrigin: **NONE**\nAge: **ERROR**\n\nThis breach was not created by the World Shatter.\n\n**It was already here.**\n\n🕳️ **THE UNMADE HAS OPENED.**\n⚡ Hunt cooldown reset.\n❓ Impossible Egg signatures have been detected.`,`unmade_opening.png`,true);
+}
+
+async function beginArchitectBoss(data) {
+  const ev=data.worldStory?.event; if(!ev?.active) return;
+  const participants=Math.max(1,Object.keys(ev.participants||{}).length); const maxHp=Math.max(500,participants*125);
+  ev.stage="boss"; ev.stageStartedAt=Date.now(); ev.bossMaxHp=maxHp; ev.bossHp=maxHp; ev.bossEndsAt=Date.now()+WORLD_SHATTER_BOSS_DURATION;
+  for(const state of Object.values(ev.participants||{})) state.lastBossAttack=0;
+  saveData(data); const channel=await getTextChannel(MONSTER_CHANNEL_ID);
+  await sendWorldEvent(channel,`@everyone\n\n# 👁️ THE ARCHITECT OF NOTHING\n\nThe Unmade breach folds inward—and something enormous steps through.\n\nThis creature is not in the Monster Dex.\nIt does not belong to any plane.\n\n❤️ **Community HP: ${maxHp}**\n⚔️ Use **\`!shatterattack\`** every **2 minutes** to damage it.\n⏳ You have **45 minutes**.\n\n**If it remains, the breach remains.**`,null,true);
+}
+
+function grantWorldShatterTitles(data, success) {
+  const ev=data.worldStory?.event; if(!ev) return;
+  for(const [userId,state] of Object.entries(ev.participants||{})) {
+    const p=getPlayer(data,userId); if(!Array.isArray(p.unlockedTitles)) p.unlockedTitles=[];
+    if(!p.unlockedTitles.includes("Shatterborn")) p.unlockedTitles.push("Shatterborn");
+    const allPlanes=WORLD_KNOWN_DISTORTION_KEYS.every(k=>Number(state.planes?.[k]||0)>0);
+    if(allPlanes && !p.unlockedTitles.includes("World Mender")) p.unlockedTitles.push("World Mender");
+  }
+}
+
+async function finishWorldShatter(data, success=true) {
+  const ws=data.worldStory, ev=ws?.event; if(!ev?.active) return;
+  grantWorldShatterTitles(data,success); ev.active=false; ev.stage=success?"victory":"failed"; ws.phase="complete"; ws.postShatter=true; ws.completedAt=Date.now(); data.worldShatterUnlocked=true;
+  addSeasonMoment(data,{type:"world_shatter_end",icon:success?"🌅":"🕳️",text:success?"The Architect of Nothing fell and the World Shatter was survived.":"The World Shatter ended, but the Architect escaped into the collapsing breach.",uniqueKey:"world:shatter:end"});
+  saveData(data); const channel=await getTextChannel(MONSTER_CHANNEL_ID);
+  await sendWorldEvent(channel,success?`@everyone\n\n# 🌅 THE WORLD SHATTER IS OVER\n\n⚔️ **THE ARCHITECT HAS FALLEN.**\nThe creature fractures into impossible geometry and The Unmade begins collapsing.\n\nFor the first time in weeks... **the sky is quiet.**\n\n🏆 Every participant unlocked **Shatterborn**.\n🌎 Hunters who helped stabilize all five planes unlocked **World Mender**.\n\nNormal hunting has returned.\nBut the world will never be exactly what it was.\n\n🕳️ From now on, an extremely rare Distortion may originate from somewhere that should not exist.`:`@everyone\n\n# 🕳️ THE BREACH COLLAPSED\n\nThe Architect escaped before it could be destroyed.\nThe world survived—but something from The Unmade is still out there.\n\n🏆 Participants unlocked **Shatterborn**.\nNormal hunting has returned.\n\nThe Unmade can now return.`,"distortion_warning.png",true);
+}
+
+function registerWorldShatterCatch(data,userId,monster) {
+  const ev=data.worldStory?.event; if(!ev?.active) return {text:"",reveal:false};
+  if(!ev.participants[userId]) ev.participants[userId]={planes:{},catches:0,attacks:0}; const ps=ev.participants[userId]; ps.catches=(ps.catches||0)+1;
+  if(ev.stage!=="stabilize" || !WORLD_KNOWN_DISTORTION_KEYS.includes(monster.distortionKey)) return {text:"",reveal:false};
+  const key=monster.distortionKey; const before=ev.stability[key]||0; ev.stability[key]=Math.min(WORLD_SHATTER_STABILITY_GOAL,before+1); ps.planes[key]=(ps.planes[key]||0)+1;
+  const allDone=WORLD_KNOWN_DISTORTION_KEYS.every(k=>(ev.stability[k]||0)>=WORLD_SHATTER_STABILITY_GOAL);
+  return {text:`🌎 **BREACH STABILITY:** ${DISTORTIONS[key].name} **${ev.stability[key]}/${WORLD_SHATTER_STABILITY_GOAL}**`,reveal:allDone};
+}
+
+async function processWorldStorySystem() {
+  const data=loadData(); const count=discoveredWorldRelicCount(data); const ws=data.worldStory; const now=Date.now(); let dirty=false;
+  if(count===4 && !ws.postShatter && ws.phase==="dormant"){initializeFourOfFiveAnomalyState(data);dirty=true;}
+  if(count>=5 && !ws.postShatter && !ws.event?.active && !["final_warning","event","complete"].includes(ws.phase)){initializeFinalWarningState(data);dirty=true;}
+  if(ws.phase==="anomaly" && count===4 && now>=Number(ws.nextAnomalyAt||0)){
+    const text=FOUR_OF_FIVE_ANOMALIES[ws.anomalyIndex%FOUR_OF_FIVE_ANOMALIES.length]; ws.anomalyIndex=(ws.anomalyIndex||0)+1; ws.nextAnomalyAt=now+(4+Math.floor(Math.random()*5))*60*60*1000; saveData(data); const ch=await getTextChannel(MONSTER_CHANNEL_ID); await sendWorldEvent(ch,text,"distortion_warning.png",false); return;
+  }
+  if(ws.phase==="final_warning" && !ws.event?.active){
+    for(const beat of ws.beats||[]){ if(beat.sent||beat.skipped) continue; if(beat.at < WORLD_STORY_PROCESS_BOOT_AT-10*60*1000){beat.skipped=true;dirty=true;continue;} if(now>=beat.at){beat.sent=true;saveData(data);const ch=await getTextChannel(MONSTER_CHANNEL_ID);await sendWorldEvent(ch,finalWarningBeatText(beat,ws),beat.key==="15m"?"distortion_critical.png":"distortion_warning.png",beat.key==="24h"||beat.key==="2h"||beat.key==="15m");return;} }
+    if(now>=ws.shatterScheduledAt && now<=ws.shatterScheduledAt+WORLD_SHATTER_START_GRACE_MS){await startWorldShatter(data);return;}
+    if(now>ws.shatterScheduledAt+WORLD_SHATTER_START_GRACE_MS && !ws.missedStart){ws.missedStart=true;dirty=true;console.log("World Shatter safety: scheduled start was missed; awaiting admin !worldshatter start.");}
+  }
+  const ev=ws.event;
+  if(ev?.active){
+    if(ev.stage==="collision" && now>=ev.stageEndsAt){await beginStabilization(data);return;}
+    if(ev.stage==="stabilize" && now>=ev.stageEndsAt){await revealUnmade(data,true);return;}
+    if(ev.stage==="unmade" && now>=ev.stageEndsAt){await beginArchitectBoss(data);return;}
+    if(ev.stage==="boss" && now>=ev.bossEndsAt){await finishWorldShatter(data,false);return;}
+  }
+  if(dirty) saveData(data);
+}
+
 function discoveredWorldRelicCount(data) {
   return RELIC_KEYS.filter(key => Boolean(data.worldProgress?.[key])).length;
 }
@@ -4548,7 +4809,7 @@ async function sendImageAnnouncement(channel, content, filename, pingEveryone = 
 async function startLiveDistortion(data, event, forcedKey = null) {
   if (data.activeDistortion && !data.activeDistortion.ended && Date.now() < data.activeDistortion.endAt) return false;
   let key = forcedKey || event.scheduledKey;
-  if (!forcedKey && Math.random()*100 < UNMADE_REPLACEMENT_CHANCE) key = "unmade";
+  if (!forcedKey && data.worldStory?.postShatter && Math.random()*100 < UNMADE_REPLACEMENT_CHANCE) key = "unmade";
   const definition = DISTORTIONS[key];
   if (!definition) return false;
   const now = Date.now();
@@ -4563,7 +4824,7 @@ async function startLiveDistortion(data, event, forcedKey = null) {
   const openText = key === "unmade"
     ? `@everyone\n\n⚠️ **DISTORTION DETECTED**\nAttempting planar identification...\n❌ **UNKNOWN**\n\n**This plane does not exist.**\n\n⏱️ Event duration: **3 hours**\n⚡ \`!hunt\` cooldown: **30 minutes**\n🔄 Everyone can hunt **RIGHT NOW.**\n🥚 An unidentified egg signature has been detected.`
     : `@everyone\n\n${definition.icon} **WORLD DISTORTION DETECTED — ${definition.name.toUpperCase()}**\n\nUnknown creatures are crossing into our world.\n\n⏱️ Event duration: **3 hours**\n⚡ \`!hunt\` cooldown: **30 minutes**\n🔄 Everyone's hunt cooldown has been reset — hunt **RIGHT NOW.**\n🥚 Strange eggs can be discovered during successful Distortion catches.\n\nThe breach will not remain open forever.`;
-  await sendImageAnnouncement(channel,openText,definition.openingImage,true);
+  await sendWorldEvent(channel,openText,definition.openingImage,true);
   data.activeDistortion.publicAnnounced = true;
   saveData(data);
   return true;
@@ -4583,7 +4844,7 @@ async function endLiveDistortion(data, reason="natural") {
     const txt=active.key==="unmade"
       ? `**The distortion is gone.**\n\n*You don't remember seeing it close.*\n\n⏱️ Normal \`!hunt\` cooldown has returned to **2 hours**.`
       : `@everyone\n\n${definition.icon} **${definition.name.toUpperCase()} IS COLLAPSING...**\n\nThe breach has sealed.\n⏱️ Normal \`!hunt\` cooldown has returned to **2 hours**.\nAny creatures and eggs you recovered are yours to keep.`;
-    await sendImageAnnouncement(channel,txt,definition.closingImage,active.key!=="unmade");
+    await sendWorldEvent(channel,txt,definition.closingImage,active.key!=="unmade");
   }
   data.activeDistortion=null;
   saveData(data);
@@ -4592,6 +4853,8 @@ async function endLiveDistortion(data, reason="natural") {
 
 async function processDistortionSystem() {
   const data = loadData();
+  // World Shatter owns the hunting grounds while its live event is active.
+  if (data.worldStory?.event?.active) return;
   const changed = generateDistortionSchedule(data);
   const now = Date.now();
   let dirty = changed;
@@ -4631,15 +4894,12 @@ async function processDistortionSystem() {
     saveData(data);
     const channel = client.channels.cache.get(MONSTER_CHANNEL_ID);
     if (channel?.isTextBased()) {
-      await channel.send({
-        content: `@everyone
+      await sendWorldEvent(channel, `@everyone
 
 ⚠️ **DISTORTION COLLAPSE DETECTED**
 The breach will close in **10 minutes!**
 🔄 Everyone has been given **one final hunt**.
-Use \`!hunt\` NOW.`,
-        allowedMentions: { parse: ["everyone"] }
-      });
+Use \`!hunt\` NOW.`, null, true);
     }
   }
 
@@ -4663,7 +4923,7 @@ Use \`!hunt\` NOW.`,
       event.warned = true;
       saveData(data);
       const channel = client.channels.cache.get(MONSTER_CHANNEL_ID);
-      if (channel?.isTextBased()) await sendImageAnnouncement(channel,`⚠️ **Something is wrong...**
+      if (channel?.isTextBased()) await sendWorldEvent(channel,`⚠️ **Something is wrong...**
 
 The air around the hunting grounds has begun to change.
 Reality instability is increasing.
@@ -4675,7 +4935,7 @@ Reality instability is increasing.
       event.criticalWarned = true;
       saveData(data);
       const channel = client.channels.cache.get(MONSTER_CHANNEL_ID);
-      if (channel?.isTextBased()) await sendImageAnnouncement(channel,`🚨 **REALITY INSTABILITY: CRITICAL**
+      if (channel?.isTextBased()) await sendWorldEvent(channel,`🚨 **REALITY INSTABILITY: CRITICAL**
 
 The fractures are spreading.
 The hunting grounds are seconds from a planar breach.
@@ -4758,6 +5018,12 @@ client.once("clientReady", () => {
     try { await processDistortionSystem(); }
     catch (error) { console.error("World Distortion monitor failed:", error); }
   });
+  cron.schedule("* * * * *", async () => {
+    try { await processWorldStorySystem(); }
+    catch (error) { console.error("World Story / World Shatter monitor failed:", error); }
+  });
+  // Initialize story state safely on startup without immediately posting or starting the finale.
+  { const startupWorldData=loadData(); const c=discoveredWorldRelicCount(startupWorldData); if(c===4) initializeFourOfFiveAnomalyState(startupWorldData); if(c>=5 && !startupWorldData.worldStory?.postShatter) initializeFinalWarningState(startupWorldData); saveData(startupWorldData); }
   // No immediate Distortion processing on startup; the minute cron handles only live future schedule windows.
 
   //
@@ -5515,6 +5781,51 @@ ${captureChoicesText(choices)}
     );
   }
 
+  if (command === "!world") {
+    const fresh=loadData(); const count=discoveredWorldRelicCount(fresh); const ws=fresh.worldStory||{};
+    const stability = ws.postShatter ? "🟢 STABILIZED — ALTERED" : count>=5 ? "🔴 FAILURE IMMINENT" : count===4 ? "🔴 CRITICAL" : count===3 ? "🟠 UNSTABLE" : "🟢 STABLE";
+    const bar = `${"█".repeat(Math.min(10,count*2))}${"░".repeat(Math.max(0,10-count*2))}`;
+    const schedule = ws.shatterScheduledAt && !ws.postShatter ? `\n\n🚨 Emergency gathering: <t:${Math.floor(ws.shatterScheduledAt/1000)}:F> (<t:${Math.floor(ws.shatterScheduledAt/1000)}:R>)` : "";
+    return message.reply(`🌎 **WORLD STATUS**\n\n**Stability:** ${stability}\nUnknown Relic signatures: **${count}**\nPlanar boundaries: **${count>=4?"FAILING":"Fluctuating"}**\n\n${bar}\n\n${count>=5?"The world is no longer repairing itself.":count===4?"Something remains missing.":"The world is watching."}${schedule}`);
+  }
+
+  if (command.startsWith("!worldshatter")) {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return message.reply("Only admins can control the World Shatter.");
+    const args=content.split(/\s+/).slice(1); const sub=(args.shift()||"status").toLowerCase(); const fresh=loadData(); const ws=fresh.worldStory;
+    if(sub==="status") return message.reply(worldShatterStatusText(fresh));
+    if(sub==="preview") {
+      const type=(args.shift()||"anomaly").toLowerCase(); const samples={anomaly:FOUR_OF_FIVE_ANOMALIES[0],final:`🔥 **THE FIFTH RELIC HAS BEEN DISCOVERED**\n\n**WORLD PROGRESS: 5/5 — COMPLETE**\n\nThe five Relics begin to resonate.\n\n**The fragments were never pieces of a key. They were pieces of a seal.**`,shatter:`💥 **WORLD SHATTER**\n\nThe sky fractures. The five known planes begin collapsing into ours.`};
+      return message.reply({content:`🧪 **PRIVATE PREVIEW**\n\n${samples[type]||samples.anomaly}`,allowedMentions:{parse:[]}});
+    }
+    if(sub==="schedule") {
+      let target=0; const joined=args.join(" ").toLowerCase();
+      if(joined==="saturday 7pm" || joined==="sat 7pm") target=nextWorldShatterSaturday(Date.now());
+      else if(/^\d{10,13}$/.test(joined)) target=Number(joined.length===10?Number(joined)*1000:joined);
+      if(!target) return message.reply("Use `!worldshatter schedule saturday 7pm` or provide a Unix timestamp.");
+      ws.shatterScheduledAt=target; ws.shatterScheduleManual=true; ws.finalWarningStartedAt=ws.finalWarningStartedAt||Date.now(); ws.phase="final_warning"; ws.beats=buildFinalWarningBeats(ws.finalWarningStartedAt,target); ws.missedStart=false; saveData(fresh);
+      return message.reply(`✅ World Shatter scheduled for <t:${Math.floor(target/1000)}:F> (<t:${Math.floor(target/1000)}:R>).`);
+    }
+    if(sub==="delay") {
+      const raw=(args[0]||"").toLowerCase(); const m=raw.match(/^(\d+)(h|d)$/); if(!m) return message.reply("Use `!worldshatter delay 6h` or `!worldshatter delay 1d`.");
+      const ms=Number(m[1])*(m[2]==="d"?24:1)*60*60*1000; ws.shatterScheduledAt=(ws.shatterScheduledAt||Date.now())+ms; ws.beats=buildFinalWarningBeats(ws.finalWarningStartedAt||Date.now(),ws.shatterScheduledAt); ws.missedStart=false; saveData(fresh); return message.reply(`✅ World Shatter delayed to <t:${Math.floor(ws.shatterScheduledAt/1000)}:F>.`);
+    }
+    if(sub==="start") { await startWorldShatter(fresh,true); return message.reply("✅ World Shatter start command processed."); }
+    if(sub==="stage") {
+      const stage=(args[0]||"").toLowerCase(); if(!ws.event?.active) return message.reply("The World Shatter is not active.");
+      if(stage==="stabilize") await beginStabilization(fresh); else if(stage==="unmade") await revealUnmade(fresh,false); else if(stage==="boss") await beginArchitectBoss(fresh); else return message.reply("Stages: `stabilize`, `unmade`, `boss`."); return message.reply(`✅ Forced World Shatter stage: **${stage}**.`);
+    }
+    if(sub==="end") { if(!ws.event?.active) return message.reply("No World Shatter event is active."); await finishWorldShatter(fresh,true); return message.reply("✅ World Shatter ended as a victory."); }
+    return message.reply("World Shatter admin: `!worldshatter status`, `schedule saturday 7pm`, `delay 1d`, `start`, `stage stabilize|unmade|boss`, `end`, `preview anomaly|final|shatter`.");
+  }
+
+  if (command === "!shatterattack") {
+    const fresh=loadData(); const ev=fresh.worldStory?.event; if(!ev?.active || ev.stage!=="boss") return message.reply("There is no World Shatter boss to attack right now.");
+    const ps=ev.participants[message.author.id] || (ev.participants[message.author.id]={planes:{},catches:0,attacks:0,lastBossAttack:0}); const now=Date.now(); const left=WORLD_SHATTER_BOSS_COOLDOWN-(now-(ps.lastBossAttack||0)); if(left>0) return message.reply(`⏳ You can strike the Architect again in **${formatTime(left)}**.`);
+    ps.lastBossAttack=now; ps.attacks=(ps.attacks||0)+1; const damage=20+Math.floor(Math.random()*21); ev.bossHp=Math.max(0,(ev.bossHp||0)-damage); saveData(fresh);
+    await message.reply(`⚔️ **WORLD SHATTER ATTACK**\nYou dealt **${damage} damage** to the Architect of Nothing!\n👁️ HP: **${ev.bossHp}/${ev.bossMaxHp}**`);
+    if(ev.bossHp<=0){const finalData=loadData();await finishWorldShatter(finalData,true);} return;
+  }
+
   if (command === "!ultrastatus") {
     if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
       return message.reply("Only admins can view the hidden Ultra Rare status.");
@@ -5570,8 +5881,10 @@ ${captureChoicesText(choices)}
     }
 
     const worldEaterStatus = discoveredCount === RELIC_KEYS.length
-      ? "⚠️ **READY — Every Relic has been discovered. The World Eater storyline can begin when you are ready to build it.**"
-      : `🔒 Locked — **${RELIC_KEYS.length - discoveredCount}** unique Relic${RELIC_KEYS.length - discoveredCount === 1 ? "" : "s"} still undiscovered.`;
+      ? `⚠️ **FINAL WARNING ACTIVE** — ${freshData.worldStory?.shatterScheduledAt ? `World Shatter scheduled <t:${Math.floor(freshData.worldStory.shatterScheduledAt/1000)}:R>.` : "World Shatter is unlocked."}`
+      : discoveredCount === RELIC_KEYS.length-1
+        ? "🚨 **CRITICAL — 4/5 Relics discovered. Reality Anomalies are active.**"
+        : `🔒 Locked — **${RELIC_KEYS.length - discoveredCount}** unique Relic${RELIC_KEYS.length - discoveredCount === 1 ? "" : "s"} still undiscovered.`;
 
     cleanupExpiredCommunityBlessings(freshData);
     const communityPoints = getCommunitySeasonPoints(freshData);
@@ -7034,7 +7347,7 @@ ${captureChoicesText(choices)}
       `\`!hatch\` or \`!hatch slot#\`\n\`!pets\` — Companion list\n` +
       `\`!pet number\` — Pet details\n\`!equippet number\` — Equip pet\n\`!petdex\` — Pet collections\n\n` +
       `🌌 **Ultra Hunts**\n` +
-      `\`!ultrahunt\` — Join active Ultra event\n\`!relics\` — View Relics\n` +
+      `\`!ultrahunt\` — Join active Ultra event\n\`!relics\` — View Relics\n\`!world\` — View the current public World Status\n` +
       `\`!summon relic name\` — Summon an Ultra\n\n` +
       `🎯 **Daily & Events**\n` +
       `\`!daily\` — Daily quests\n\`!claimdaily\` — Claim quest rewards\n` +
