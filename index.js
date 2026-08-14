@@ -177,6 +177,11 @@ const WORLD_SHATTER_STABILIZE_MAX_DURATION = 2 * 60 * 60 * 1000;
 const WORLD_SHATTER_UNMADE_DURATION = 30 * 60 * 1000;
 const WORLD_SHATTER_BOSS_DURATION = 45 * 60 * 1000;
 const WORLD_SHATTER_BOSS_COOLDOWN = 2 * 60 * 1000;
+const ARCHITECT_IMAGE = "architect_of_nothing.png";
+const WORLD_SHATTER_VICTORY_UNMADE_CHANCE = 3;
+const WORLD_SHATTER_FAILURE_UNMADE_CHANCE = 10;
+const WORLD_SHATTER_PARTICIPATION_POINTS = 100;
+const WORLD_SHATTER_REMATCH_MIN_DELAY = 48 * 60 * 60 * 1000;
 const WORLD_SHATTER_STABILITY_GOAL = 10;
 const WORLD_SHATTER_IMPOSSIBLE_EGG_CHANCE = 12;
 const WORLD_SHATTER_MIN_NOTICE = 24 * 60 * 60 * 1000;
@@ -778,11 +783,21 @@ function loadData() {
   if (!data.worldStory || typeof data.worldStory !== "object") {
     data.worldStory = {
       phase: "dormant", anomalyIndex: 0, nextAnomalyAt: 0, finalWarningStartedAt: 0,
-      shatterScheduledAt: 0, shatterScheduleManual: false, beats: [], event: null, postShatter: false, completedAt: 0
+      shatterScheduledAt: 0, shatterScheduleManual: false, beats: [], event: null, postShatter: false, completedAt: 0,
+      outcome: null, unmadeReplacementChance: 0, architectRematchAt: 0, rematch24hSent: false, rematch2hSent: false,
+      worldMenderEligible: [], architectDefeats: 0, architectFailures: 0
     };
   }
   if (!Array.isArray(data.worldStory.beats)) data.worldStory.beats = [];
   if (data.worldStory.postShatter === undefined) data.worldStory.postShatter = false;
+  if (data.worldStory.outcome === undefined) data.worldStory.outcome = null;
+  if (data.worldStory.unmadeReplacementChance === undefined) data.worldStory.unmadeReplacementChance = data.worldStory.postShatter ? UNMADE_REPLACEMENT_CHANCE : 0;
+  if (data.worldStory.architectRematchAt === undefined) data.worldStory.architectRematchAt = 0;
+  if (data.worldStory.rematch24hSent === undefined) data.worldStory.rematch24hSent = false;
+  if (data.worldStory.rematch2hSent === undefined) data.worldStory.rematch2hSent = false;
+  if (!Array.isArray(data.worldStory.worldMenderEligible)) data.worldStory.worldMenderEligible = [];
+  if (data.worldStory.architectDefeats === undefined) data.worldStory.architectDefeats = 0;
+  if (data.worldStory.architectFailures === undefined) data.worldStory.architectFailures = 0;
   if (!Array.isArray(data.seasonMoments)) data.seasonMoments = [];
   if (!data.seasonMomentFlags || typeof data.seasonMomentFlags !== "object") {
     data.seasonMomentFlags = {};
@@ -4647,7 +4662,7 @@ const FOUR_OF_FIVE_ANOMALIES = [
 function worldShatterStatusText(data) {
   const ws=data.worldStory||{}; const ev=ws.event;
   const schedule=ws.shatterScheduledAt ? `<t:${Math.floor(ws.shatterScheduledAt/1000)}:F> (<t:${Math.floor(ws.shatterScheduledAt/1000)}:R>)` : "Not scheduled";
-  let text=`🌎 **WORLD SHATTER STATUS**\nPhase: **${ws.phase||"dormant"}**\nScheduled: ${schedule}\nPost-Shatter: **${ws.postShatter?"Yes":"No"}**`;
+  let text=`🌎 **WORLD SHATTER STATUS**\nPhase: **${ws.phase||"dormant"}**\nScheduled: ${schedule}\nPost-Shatter: **${ws.postShatter?"Yes":"No"}**\nOutcome: **${ws.outcome||"Pending"}**\nUnmade replacement chance: **${Number(ws.unmadeReplacementChance||0)}%**${ws.architectRematchAt?`\nArchitect rematch: <t:${Math.floor(ws.architectRematchAt/1000)}:F>`:""}`;
   if(ev?.active){ text += `\n\n💥 Event Stage: **${ev.stage}**\nParticipants: **${Object.keys(ev.participants||{}).length}**`; if(ev.stage==="stabilize") text += `\n${WORLD_KNOWN_DISTORTION_KEYS.map(k=>`${DISTORTIONS[k].icon} ${DISTORTIONS[k].name}: **${ev.stability?.[k]||0}/${WORLD_SHATTER_STABILITY_GOAL}**`).join("\n")}`; if(ev.stage==="boss") text += `\n👁️ Architect HP: **${Math.max(0,ev.bossHp||0)}/${ev.bossMaxHp||0}**`; }
   return text;
 }
@@ -4680,31 +4695,126 @@ async function revealUnmade(data, timedOut=false) {
   await sendWorldEvent(channel,`@everyone\n\n# ❓ UNKNOWN BREACH DETECTED\n\n${WORLD_KNOWN_DISTORTION_KEYS.map(k=>`✅ ${DISTORTIONS[k].name.toUpperCase()} — ${timedOut?"FORCED CLOSED":"SEALED"}`).join("\n")}\n\n**WORLD STABILITY: 99%**\n\nWhy isn't it 100%?\n\nClassification: **NONE**\nOrigin: **NONE**\nAge: **ERROR**\n\nThis breach was not created by the World Shatter.\n\n**It was already here.**\n\n🕳️ **THE UNMADE HAS OPENED.**\n⚡ Hunt cooldown reset.\n❓ Impossible Egg signatures have been detected.`,`unmade_opening.png`,true);
 }
 
-async function beginArchitectBoss(data) {
+async function beginArchitectBoss(data, { rematch = false } = {}) {
   const ev=data.worldStory?.event; if(!ev?.active) return;
-  const participants=Math.max(1,Object.keys(ev.participants||{}).length); const maxHp=Math.max(500,participants*125);
+  const participants=Math.max(1,Object.keys(ev.participants||{}).length);
+  const maxHp=rematch ? Math.max(600,participants*150) : Math.max(500,participants*125);
   ev.stage="boss"; ev.stageStartedAt=Date.now(); ev.bossMaxHp=maxHp; ev.bossHp=maxHp; ev.bossEndsAt=Date.now()+WORLD_SHATTER_BOSS_DURATION;
-  for(const state of Object.values(ev.participants||{})) state.lastBossAttack=0;
+  ev.rematch=Boolean(rematch); ev.nextHunterBonus=0; ev.finalBlowUserId=null;
+  for(const state of Object.values(ev.participants||{})) {
+    state.lastBossAttack=0; state.hunterDamage=state.hunterDamage||0; state.petDamage=state.petDamage||0;
+    state.totalDamage=state.totalDamage||0; state.attacks=state.attacks||0;
+  }
   saveData(data); const channel=await getTextChannel(MONSTER_CHANNEL_ID);
-  await sendWorldEvent(channel,`@everyone\n\n# 👁️ THE ARCHITECT OF NOTHING\n\nThe Unmade breach folds inward—and something enormous steps through.\n\nThis creature is not in the Monster Dex.\nIt does not belong to any plane.\n\n❤️ **Community HP: ${maxHp}**\n⚔️ Use **\`!shatterattack\`** every **2 minutes** to damage it.\n⏳ You have **45 minutes**.\n\n**If it remains, the breach remains.**`,null,true);
+  await sendWorldEvent(channel,`@everyone\n\n# 👁️ ${rematch?"THE ARCHITECT RETURNS":"THE ARCHITECT OF NOTHING"}\n\n${rematch?"The wound in reality opens again. The Architect remembers the hunters who drove it back.":"The Unmade breach folds inward—and something enormous steps through."}\n\nThis creature is not in the Monster Dex.\nIt does not belong to any plane.\n\n❤️ **Community HP: ${maxHp}**\n⚔️ Use **\`!shatterattack\`** every **2 minutes**.\n🐾 Your equipped companion attacks beside you.\n⏳ You have **45 minutes**.\n\n**If it remains, the breach remains.**`,ARCHITECT_IMAGE,true);
 }
 
-function grantWorldShatterTitles(data, success) {
-  const ev=data.worldStory?.event; if(!ev) return;
+function architectPetDamageRange(rarity) {
+  return ({ Common:[2,5], Rare:[4,8], Epic:[6,11], Legendary:[9,15] })[rarity] || [2,5];
+}
+
+function rollArchitectAttack(player, ev) {
+  let hunterDamage=10+Math.floor(Math.random()*11);
+  const inheritedBonus=Math.max(0,Number(ev.nextHunterBonus||0));
+  if(inheritedBonus>0){ hunterDamage+=inheritedBonus; ev.nextHunterBonus=0; }
+  const equipped=getEquippedPet(player); const definition=getOwnedPetDefinition(equipped);
+  let petDamage=0; const effects=[];
+  if(definition && equipped){
+    const info=getCompanionLevelInfo(equipped); const [min,max]=architectPetDamageRange(definition.rarity);
+    const base=min+Math.floor(Math.random()*(max-min+1)); petDamage=base+Math.max(0,info.level-1);
+    if(definition.key==="paradox_imp"){
+      const chance=signatureTier(info.level,5,7,10);
+      if(Math.random()*100<chance){ petDamage+=base+Math.max(0,info.level-1); effects.push(`🌀 **PARADOX!** ${definition.name} struck in two realities at once.`); }
+    }
+    if(definition.key==="rime_sprite"){
+      const chance=signatureTier(info.level,15,20,25);
+      if(Math.random()*100<chance){ ev.nextHunterBonus=Math.max(Number(ev.nextHunterBonus||0),10); effects.push(`❄️ **SECOND CHANCE — FROZEN OPENING!** The Architect freezes for an instant. The **next hunter** gains **+10 Hunter Damage**.`); }
+    }
+    if(definition.key==="the_unwritten"){
+      const chance=signatureTier(info.level,1,2,3);
+      if(Math.random()*100<chance){ petDamage+=50; effects.push(`✒️ **THIS WASN'T SUPPOSED TO HAPPEN.** The Unwritten edits the battle itself: **+50 impossible damage**.`); }
+    }
+  }
+  return { hunterDamage, petDamage, total:hunterDamage+petDamage, equipped, definition, inheritedBonus, effects };
+}
+
+function worldShatterHeroSummary(data, ev) {
+  const entries=Object.entries(ev.participants||{});
+  if(!entries.length) return "No hunter contributions were recorded.";
+  const best=(scoreFn)=>entries.slice().sort((a,b)=>scoreFn(b[1])-scoreFn(a[1]))[0];
+  const total=best(s=>Number(s.totalDamage||0));
+  const pet=best(s=>Number(s.petDamage||0));
+  const breaches=best(s=>Object.values(s.planes||{}).reduce((a,b)=>a+Number(b||0),0));
+  const hunts=best(s=>Number(s.catches||0));
+  const lines=[];
+  if(total && Number(total[1].totalDamage||0)>0) lines.push(`⚔️ **Most Total Damage:** ${formatPlayerMention(data,total[0])} — **${total[1].totalDamage}**`);
+  if(pet && Number(pet[1].petDamage||0)>0) lines.push(`🐾 **Most Companion Damage:** ${formatPlayerMention(data,pet[0])} — **${pet[1].petDamage}**`);
+  if(breaches && Object.values(breaches[1].planes||{}).some(v=>Number(v)>0)) lines.push(`🌀 **Most Breaches Stabilized:** ${formatPlayerMention(data,breaches[0])} — **${Object.values(breaches[1].planes||{}).reduce((a,b)=>a+Number(b||0),0)}**`);
+  if(hunts && Number(hunts[1].catches||0)>0) lines.push(`🌎 **Most World Shatter Hunts:** ${formatPlayerMention(data,hunts[0])} — **${hunts[1].catches}**`);
+  if(ev.finalBlowUserId) lines.push(`👁️ **Final Blow:** ${formatPlayerMention(data,ev.finalBlowUserId)}`);
+  return lines.join("\n") || "No hunter contributions were recorded.";
+}
+
+function grantWorldShatterTitlesAndRewards(data, success, { rematch = false } = {}) {
+  const ws=data.worldStory, ev=ws?.event; if(!ev) return;
+  const eligibleNow=[];
   for(const [userId,state] of Object.entries(ev.participants||{})) {
     const p=getPlayer(data,userId); if(!Array.isArray(p.unlockedTitles)) p.unlockedTitles=[];
     if(!p.unlockedTitles.includes("Shatterborn")) p.unlockedTitles.push("Shatterborn");
     const allPlanes=WORLD_KNOWN_DISTORTION_KEYS.every(k=>Number(state.planes?.[k]||0)>0);
-    if(allPlanes && !p.unlockedTitles.includes("World Mender")) p.unlockedTitles.push("World Mender");
+    if(allPlanes) eligibleNow.push(userId);
+    const rematchEligible=rematch && Array.isArray(ws.worldMenderEligible) && ws.worldMenderEligible.includes(userId);
+    if(success && (allPlanes || rematchEligible) && !p.unlockedTitles.includes("World Mender")) p.unlockedTitles.push("World Mender");
+    if(success){
+      p.points=(p.points||0)+WORLD_SHATTER_PARTICIPATION_POINTS;
+      if(!Array.isArray(p.eggs)) p.eggs=[];
+      p.eggs.push({id:`shatter-${Date.now()}-${userId}-${Math.random().toString(36).slice(2,7)}`,rarity:"Legendary",foundAt:Date.now(),source:rematch?"Architect Rematch Victory":"World Shatter Victory"});
+      p.captureItems.masterCharm=(p.captureItems.masterCharm||0)+1;
+    }
   }
+  if(!success && !rematch) ws.worldMenderEligible=eligibleNow;
+}
+
+function scheduleArchitectRematch(data) {
+  const ws=data.worldStory; if(!ws) return 0;
+  const earliest=Date.now()+WORLD_SHATTER_REMATCH_MIN_DELAY;
+  ws.architectRematchAt=nextWorldShatterSaturday(earliest);
+  ws.rematch24hSent=false; ws.rematch2hSent=false;
+  return ws.architectRematchAt;
+}
+
+async function startArchitectRematch(data) {
+  const ws=data.worldStory; if(!ws || ws.outcome!=="failure" || ws.event?.active) return false;
+  ws.phase="rematch";
+  ws.event={active:true,stage:"boss",startedAt:Date.now(),stageEndsAt:0,participants:{},stability:{},bossHp:0,bossMaxHp:0,bossEndsAt:0,rematch:true,nextHunterBonus:0,finalBlowUserId:null};
+  saveData(data);
+  await beginArchitectBoss(data,{rematch:true});
+  return true;
 }
 
 async function finishWorldShatter(data, success=true) {
   const ws=data.worldStory, ev=ws?.event; if(!ev?.active) return;
-  grantWorldShatterTitles(data,success); ev.active=false; ev.stage=success?"victory":"failed"; ws.phase="complete"; ws.postShatter=true; ws.completedAt=Date.now(); data.worldShatterUnlocked=true;
-  addSeasonMoment(data,{type:"world_shatter_end",icon:success?"🌅":"🕳️",text:success?"The Architect of Nothing fell and the World Shatter was survived.":"The World Shatter ended, but the Architect escaped into the collapsing breach.",uniqueKey:"world:shatter:end"});
+  const rematch=Boolean(ev.rematch);
+  const heroSummary=worldShatterHeroSummary(data,ev);
+  grantWorldShatterTitlesAndRewards(data,success,{rematch});
+  ev.active=false; ev.stage=success?"victory":"failed"; ws.phase="complete"; ws.postShatter=true; ws.completedAt=Date.now(); data.worldShatterUnlocked=true;
+  ws.outcome=success?"victory":"failure";
+  ws.unmadeReplacementChance=success?WORLD_SHATTER_VICTORY_UNMADE_CHANCE:WORLD_SHATTER_FAILURE_UNMADE_CHANCE;
+  if(success){ ws.architectDefeats=(ws.architectDefeats||0)+1; ws.architectRematchAt=0; ws.rematch24hSent=false; ws.rematch2hSent=false; }
+  else { ws.architectFailures=(ws.architectFailures||0)+1; scheduleArchitectRematch(data); }
+  addSeasonMoment(data,{type:"world_shatter_end",icon:success?"🌅":"🕳️",text:success?`The Architect of Nothing was defeated${rematch?" in the rematch":""} and the World Shatter was survived.`:`The Architect of Nothing survived. The Unmade took root in the hunting grounds.`,uniqueKey:`world:shatter:end:${ws.architectDefeats||0}:${ws.architectFailures||0}`});
+  if(ev.finalBlowUserId) addSeasonMoment(data,{type:"architect_final_blow",icon:"👁️",text:`${formatPlayerMention(data,ev.finalBlowUserId)} struck the final blow against the Architect of Nothing.`});
   saveData(data); const channel=await getTextChannel(MONSTER_CHANNEL_ID);
-  await sendWorldEvent(channel,success?`@everyone\n\n# 🌅 THE WORLD SHATTER IS OVER\n\n⚔️ **THE ARCHITECT HAS FALLEN.**\nThe creature fractures into impossible geometry and The Unmade begins collapsing.\n\nFor the first time in weeks... **the sky is quiet.**\n\n🏆 Every participant unlocked **Shatterborn**.\n🌎 Hunters who helped stabilize all five planes unlocked **World Mender**.\n\nNormal hunting has returned.\nBut the world will never be exactly what it was.\n\n🕳️ From now on, an extremely rare Distortion may originate from somewhere that should not exist.`:`@everyone\n\n# 🕳️ THE BREACH COLLAPSED\n\nThe Architect escaped before it could be destroyed.\nThe world survived—but something from The Unmade is still out there.\n\n🏆 Participants unlocked **Shatterborn**.\nNormal hunting has returned.\n\nThe Unmade can now return.`,"distortion_warning.png",true);
+  if(success){
+    await sendWorldEvent(channel,`@everyone\n\n# ⚔️ THE ARCHITECT HAS FALLEN\n\nThe final blow tears through the Architect's hollow core.\nViolet-white fractures race across its impossible body.\n\nThe Architect reaches toward the breach...\n\n**and misses.**`,null,true);
+    await wait(2500);
+    await sendWorldEvent(channel,`# 🌌 THE UNMADE IS COLLAPSING\n\nThe Architect fractures into thousands of pieces.\nSome fall. Some disappear. Some were apparently never there at all.\n\nFor the first time in weeks... **the sky is quiet.**\n\n🏆 **Shatterborn** — every participant\n🌎 **World Mender** — hunters who helped all five planes${rematch?" and returned for the rematch":""}\n🎁 **Victory Bundle:** +${WORLD_SHATTER_PARTICIPATION_POINTS} Hunter Points, 1 Legendary Egg, 1 Master Charm\n\n### WORLD SHATTER HEROES\n${heroSummary}\n\n🕳️ Future Unmade Distortion chance: **${WORLD_SHATTER_VICTORY_UNMADE_CHANCE}%**`,null,false);
+    setTimeout(async()=>{const ch=await getTextChannel(MONSTER_CHANNEL_ID);if(ch)await sendWorldEvent(ch,"...\n\n*something moved inside the closed breach.*",null,false);},30000);
+  } else {
+    const rematchAt=ws.architectRematchAt;
+    await sendWorldEvent(channel,`@everyone\n\n# ⬛ WE FAILED\n\nThe Architect was not defeated.\nThe breach does not close.\n\nInstead...\n\n**it stabilizes.**\n\n# ❓ THE UNMADE HAS TAKEN ROOT\nThe world survived the Shatter.\n**But it did not survive unchanged.**\n\n🏆 Participants unlocked **Shatterborn**.\n🌎 **World Mender was not awarded.**\n🕳️ Future Unmade Distortion chance: **${WORLD_SHATTER_FAILURE_UNMADE_CHANCE}%**\n\nThe Architect will return <t:${Math.floor(rematchAt/1000)}:F> (<t:${Math.floor(rematchAt/1000)}:R>).\n\n### WORLD SHATTER HEROES\n${heroSummary}`,ARCHITECT_IMAGE,true);
+    setTimeout(async()=>{const ch=await getTextChannel(MONSTER_CHANNEL_ID);if(ch)await sendWorldEvent(ch,"...\n\n*it wasn't alone.*",null,false);},30000);
+  }
 }
 
 function registerWorldShatterCatch(data,userId,monster) {
@@ -4734,6 +4844,12 @@ async function processWorldStorySystem() {
     if(ev.stage==="stabilize" && now>=ev.stageEndsAt){await revealUnmade(data,true);return;}
     if(ev.stage==="unmade" && now>=ev.stageEndsAt){await beginArchitectBoss(data);return;}
     if(ev.stage==="boss" && now>=ev.bossEndsAt){await finishWorldShatter(data,false);return;}
+  }
+  if(ws.postShatter && ws.outcome==="failure" && ws.architectRematchAt && !ws.event?.active){
+    const ch=await getTextChannel(MONSTER_CHANNEL_ID);
+    if(!ws.rematch24hSent && now>=ws.architectRematchAt-24*60*60*1000 && now<ws.architectRematchAt){ws.rematch24hSent=true;saveData(data);await sendWorldEvent(ch,`@everyone\n\n# 👁️ THE ARCHITECT RETURNS — 24 HOURS\n\nThe breach is moving.\n\nThe Architect has been sighted again.\nIt remembers you.\n\nHunters are requested <t:${Math.floor(ws.architectRematchAt/1000)}:F>.`,ARCHITECT_IMAGE,true);return;}
+    if(!ws.rematch2hSent && now>=ws.architectRematchAt-2*60*60*1000 && now<ws.architectRematchAt){ws.rematch2hSent=true;saveData(data);await sendWorldEvent(ch,`@everyone\n\n# 👁️ ARCHITECT REMATCH — 2 HOURS\n\nThe Unmade breach is reopening.\n\n**This time, finish it.**`,ARCHITECT_IMAGE,true);return;}
+    if(now>=ws.architectRematchAt && now<=ws.architectRematchAt+WORLD_SHATTER_START_GRACE_MS){await startArchitectRematch(data);return;}
   }
   if(dirty) saveData(data);
 }
@@ -4809,7 +4925,8 @@ async function sendImageAnnouncement(channel, content, filename, pingEveryone = 
 async function startLiveDistortion(data, event, forcedKey = null) {
   if (data.activeDistortion && !data.activeDistortion.ended && Date.now() < data.activeDistortion.endAt) return false;
   let key = forcedKey || event.scheduledKey;
-  if (!forcedKey && data.worldStory?.postShatter && Math.random()*100 < UNMADE_REPLACEMENT_CHANCE) key = "unmade";
+  const postShatterUnmadeChance = Number(data.worldStory?.unmadeReplacementChance ?? UNMADE_REPLACEMENT_CHANCE);
+  if (!forcedKey && data.worldStory?.postShatter && Math.random()*100 < postShatterUnmadeChance) key = "unmade";
   const definition = DISTORTIONS[key];
   if (!definition) return false;
   const now = Date.now();
@@ -5783,10 +5900,11 @@ ${captureChoicesText(choices)}
 
   if (command === "!world") {
     const fresh=loadData(); const count=discoveredWorldRelicCount(fresh); const ws=fresh.worldStory||{};
-    const stability = ws.postShatter ? "🟢 STABILIZED — ALTERED" : count>=5 ? "🔴 FAILURE IMMINENT" : count===4 ? "🔴 CRITICAL" : count===3 ? "🟠 UNSTABLE" : "🟢 STABLE";
+    const stability = ws.postShatter ? (ws.outcome==="failure" ? "🟠 FRACTURED" : "🟢 STABLE") : count>=5 ? "🔴 FAILURE IMMINENT" : count===4 ? "🔴 CRITICAL" : count===3 ? "🟠 UNSTABLE" : "🟢 STABLE";
     const bar = `${"█".repeat(Math.min(10,count*2))}${"░".repeat(Math.max(0,10-count*2))}`;
     const schedule = ws.shatterScheduledAt && !ws.postShatter ? `\n\n🚨 Emergency gathering: <t:${Math.floor(ws.shatterScheduledAt/1000)}:F> (<t:${Math.floor(ws.shatterScheduledAt/1000)}:R>)` : "";
-    return message.reply(`🌎 **WORLD STATUS**\n\n**Stability:** ${stability}\nUnknown Relic signatures: **${count}**\nPlanar boundaries: **${count>=4?"FAILING":"Fluctuating"}**\n\n${bar}\n\n${count>=5?"The world is no longer repairing itself.":count===4?"Something remains missing.":"The world is watching."}${schedule}`);
+    const postText = ws.postShatter ? (ws.outcome==="failure" ? `An unknown planar presence remains embedded within reality.\n**Removal attempts have failed.**${ws.architectRematchAt?`\n\n👁️ Architect rematch: <t:${Math.floor(ws.architectRematchAt/1000)}:F>`:""}` : "The World Shatter has ended. Scars between realities remain.\nSomething beyond them is still watching.") : (count>=5?"The world is no longer repairing itself.":count===4?"Something remains missing.":"The world is watching.");
+    return message.reply(`🌎 **WORLD STATUS**\n\n**Stability:** ${stability}\nUnknown Relic signatures: **${count}**\nPlanar boundaries: **${ws.postShatter?(ws.outcome==="failure"?"FRACTURED":"SCARRED"):count>=4?"FAILING":"Fluctuating"}**\n\n${bar}\n\n${postText}${schedule}`);
   }
 
   if (command.startsWith("!worldshatter")) {
@@ -5814,15 +5932,23 @@ ${captureChoicesText(choices)}
       const stage=(args[0]||"").toLowerCase(); if(!ws.event?.active) return message.reply("The World Shatter is not active.");
       if(stage==="stabilize") await beginStabilization(fresh); else if(stage==="unmade") await revealUnmade(fresh,false); else if(stage==="boss") await beginArchitectBoss(fresh); else return message.reply("Stages: `stabilize`, `unmade`, `boss`."); return message.reply(`✅ Forced World Shatter stage: **${stage}**.`);
     }
-    if(sub==="end") { if(!ws.event?.active) return message.reply("No World Shatter event is active."); await finishWorldShatter(fresh,true); return message.reply("✅ World Shatter ended as a victory."); }
-    return message.reply("World Shatter admin: `!worldshatter status`, `schedule saturday 7pm`, `delay 1d`, `start`, `stage stabilize|unmade|boss`, `end`, `preview anomaly|final|shatter`.");
+    if(sub==="end") { if(!ws.event?.active) return message.reply("No World Shatter event is active."); const result=(args[0]||"victory").toLowerCase(); const success=result!=="failure"; await finishWorldShatter(fresh,success); return message.reply(`✅ World Shatter ended as a **${success?"victory":"failure"}**.`); }
+    if(sub==="rematch") { if(ws.outcome!=="failure") return message.reply("A rematch is only available after an Architect failure."); if(ws.event?.active) return message.reply("A World Shatter event is already active."); await startArchitectRematch(fresh); return message.reply("✅ Architect rematch started."); }
+    return message.reply("World Shatter admin: `!worldshatter status`, `schedule saturday 7pm`, `delay 1d`, `start`, `stage stabilize|unmade|boss`, `end victory|failure`, `rematch`, `preview anomaly|final|shatter`.");
   }
 
   if (command === "!shatterattack") {
     const fresh=loadData(); const ev=fresh.worldStory?.event; if(!ev?.active || ev.stage!=="boss") return message.reply("There is no World Shatter boss to attack right now.");
-    const ps=ev.participants[message.author.id] || (ev.participants[message.author.id]={planes:{},catches:0,attacks:0,lastBossAttack:0}); const now=Date.now(); const left=WORLD_SHATTER_BOSS_COOLDOWN-(now-(ps.lastBossAttack||0)); if(left>0) return message.reply(`⏳ You can strike the Architect again in **${formatTime(left)}**.`);
-    ps.lastBossAttack=now; ps.attacks=(ps.attacks||0)+1; const damage=20+Math.floor(Math.random()*21); ev.bossHp=Math.max(0,(ev.bossHp||0)-damage); saveData(fresh);
-    await message.reply(`⚔️ **WORLD SHATTER ATTACK**\nYou dealt **${damage} damage** to the Architect of Nothing!\n👁️ HP: **${ev.bossHp}/${ev.bossMaxHp}**`);
+    const ps=ev.participants[message.author.id] || (ev.participants[message.author.id]={planes:{},catches:0,attacks:0,lastBossAttack:0,hunterDamage:0,petDamage:0,totalDamage:0});
+    const now=Date.now(); const left=WORLD_SHATTER_BOSS_COOLDOWN-(now-(ps.lastBossAttack||0)); if(left>0) return message.reply(`⏳ You can strike the Architect again in **${formatTime(left)}**.`);
+    const attackPlayer=getPlayer(fresh,message.author.id); const result=rollArchitectAttack(attackPlayer,ev);
+    ps.lastBossAttack=now; ps.attacks=(ps.attacks||0)+1; ps.hunterDamage=(ps.hunterDamage||0)+result.hunterDamage; ps.petDamage=(ps.petDamage||0)+result.petDamage; ps.totalDamage=(ps.totalDamage||0)+result.total;
+    const before=Number(ev.bossHp||0); ev.bossHp=Math.max(0,before-result.total); if(before>0 && ev.bossHp<=0) ev.finalBlowUserId=message.author.id;
+    saveData(fresh);
+    const petLine=result.definition ? `${getPetDisplayIcon(result.definition)} **${result.definition.name}** attacks beside you!\n🐾 Companion Damage: **${result.petDamage}**` : `🐾 **No companion equipped** — Companion Damage: **0**`;
+    const bonusLine=result.inheritedBonus>0 ? `\n❄️ Frozen Opening Bonus: **+${result.inheritedBonus} Hunter Damage**` : "";
+    const effectText=result.effects.length?`\n\n${result.effects.join("\n")}`:"";
+    await message.reply(`⚔️ **WORLD SHATTER ATTACK**\n\n🏹 Hunter Damage: **${result.hunterDamage}**${bonusLine}\n${petLine}${effectText}\n\n💥 **TOTAL DAMAGE: ${result.total}**\n👁️ Architect of Nothing: **${ev.bossHp}/${ev.bossMaxHp} HP**`);
     if(ev.bossHp<=0){const finalData=loadData();await finishWorldShatter(finalData,true);} return;
   }
 
