@@ -362,7 +362,14 @@ const PET_COLLECTIONS = {
 
 const GRAND_PET_COLLECTION_REWARD = {
   achievement: "Complete Companion Collection",
-  title: "Master Beast Tamer"
+  title: "Master Beast Tamer",
+  pointReward: 100,
+  eggRarity: "Legendary",
+  legendaryTitles: [
+    "Warden of Every Habitat",
+    "The Thirty-Twofold Bond",
+    "Keeper of the Wild Covenant"
+  ]
 };
 
 const LEGACY_PET_KEY_MIGRATION = {
@@ -799,7 +806,7 @@ function getTitleDefinition(titleName) {
   const specialRarity = [
     "The Chosen Mixer", "Master Beast Tamer", "You Were Never Here"
   ].includes(titleName) ? "Mythic" :
-  ["Worldbreaker", "The All-Seeing", "Timewalker", "Starforged", "Soulkeeper", "Ultra Hunter", "Relic Keeper", "World Summoner", "Legendary Hunter", "Shatterborn", "World Mender", "Should Not Exist"].includes(titleName)
+  ["Worldbreaker", "The All-Seeing", "Timewalker", "Starforged", "Soulkeeper", "Ultra Hunter", "Relic Keeper", "World Summoner", "Legendary Hunter", "Shatterborn", "World Mender", "Should Not Exist", "Warden of Every Habitat", "The Thirty-Twofold Bond", "Keeper of the Wild Covenant"].includes(titleName)
     ? "Legendary"
     : "Epic";
 
@@ -1041,6 +1048,8 @@ function getPlayer(data, userId) {
       incubatingEggs: [],
       lastIncubatorSlots: 1,
       pets: [],
+      discoveredPetKeys: [],
+      grandPetCollectionRewardClaimed: false,
       equippedPetId: null,
       nextPetId: 1,
       lastFetch: 0,
@@ -1207,6 +1216,12 @@ function getPlayer(data, userId) {
       ownedPet.progressionV2 = true;
     }
   }
+  if (!Array.isArray(player.discoveredPetKeys)) player.discoveredPetKeys = [];
+  player.discoveredPetKeys = [...new Set([
+    ...player.discoveredPetKeys.map(key => LEGACY_PET_KEY_MIGRATION[key] || key),
+    ...player.pets.map(pet => pet.key)
+  ].filter(key => pets.some(definition => definition.key === key)))];
+  if (player.grandPetCollectionRewardClaimed === undefined) player.grandPetCollectionRewardClaimed = false;
   if (!player.adminTest || typeof player.adminTest !== "object") {
     player.adminTest = { distortionKey: null, cooldownBypass: false, generatedPetIds: [], generatedEggIds: [], generatedCatchIds: [] };
   }
@@ -3273,27 +3288,49 @@ function unlockSecretReward(player, achievementName, titleName) {
   return unlocked;
 }
 
-function evaluatePetCollectionRewards(player) {
+function evaluatePetCollectionRewards(data, player) {
   const unlocked = [];
-  const ownedKeys = new Set((player.pets || []).map(pet => pet.key));
+  unlocked.grandRewardGranted = false;
+  const discoveredKeys = new Set(player.discoveredPetKeys || []);
 
   for (const [habitat, reward] of Object.entries(PET_COLLECTIONS)) {
     const habitatKeys = pets
       .filter(pet => pet.habitat === habitat)
       .map(pet => pet.key);
 
-    if (habitatKeys.length > 0 && habitatKeys.every(key => ownedKeys.has(key))) {
+    if (habitatKeys.length > 0 && habitatKeys.every(key => discoveredKeys.has(key))) {
       unlocked.push(...unlockSecretReward(player, reward.achievement, reward.title));
     }
   }
 
   const knownCollectionPets = pets.filter(pet => Object.prototype.hasOwnProperty.call(PET_COLLECTIONS, pet.habitat));
-  if (knownCollectionPets.every(pet => ownedKeys.has(pet.key))) {
+  if (knownCollectionPets.every(pet => discoveredKeys.has(pet.key))) {
     unlocked.push(...unlockSecretReward(
       player,
       GRAND_PET_COLLECTION_REWARD.achievement,
       GRAND_PET_COLLECTION_REWARD.title
     ));
+
+    if (!player.grandPetCollectionRewardClaimed) {
+      player.grandPetCollectionRewardClaimed = true;
+      player.points += GRAND_PET_COLLECTION_REWARD.pointReward;
+      addWeeklyProgress(data, player, GRAND_PET_COLLECTION_REWARD.pointReward);
+      player.eggs.push({
+        rarity: GRAND_PET_COLLECTION_REWARD.eggRarity,
+        foundAt: Date.now(),
+        source: GRAND_PET_COLLECTION_REWARD.achievement
+      });
+      player.titleProgress.eggsFound = (player.titleProgress.eggsFound || 0) + 1;
+
+      for (const title of GRAND_PET_COLLECTION_REWARD.legendaryTitles) {
+        unlocked.push(...unlockSecretReward(
+          player,
+          `${GRAND_PET_COLLECTION_REWARD.achievement}: ${title}`,
+          title
+        ));
+      }
+      unlocked.grandRewardGranted = true;
+    }
   }
 
   const unmadeMonsterNames = new Set(["The Misplaced", "Stitchmaw", "The Empty Knight", "The Forgotten", "NULL"]);
@@ -3302,7 +3339,7 @@ function evaluatePetCollectionRewards(player) {
       .map(monster => cleanMonsterName(monster.name))
       .filter(name => unmadeMonsterNames.has(name))
   );
-  const hasUnmadePets = ownedKeys.has("mimicling") && ownedKeys.has("the_unwritten");
+  const hasUnmadePets = discoveredKeys.has("mimicling") && discoveredKeys.has("the_unwritten");
   if (unmadeMonstersCaught.size === 5 && hasUnmadePets) {
     unlocked.push(...unlockSecretReward(
       player,
@@ -3315,11 +3352,11 @@ function evaluatePetCollectionRewards(player) {
 }
 
 function petCollectionProgressText(player) {
-  const ownedKeys = new Set((player.pets || []).map(pet => pet.key));
+  const discoveredKeys = new Set(player.discoveredPetKeys || []);
 
   return Object.entries(PET_COLLECTIONS).map(([habitat, reward]) => {
     const habitatPets = pets.filter(pet => pet.habitat === habitat);
-    const collected = habitatPets.filter(pet => ownedKeys.has(pet.key)).length;
+    const collected = habitatPets.filter(pet => discoveredKeys.has(pet.key)).length;
     const complete = collected === habitatPets.length;
 
     return (
@@ -3364,6 +3401,26 @@ function formatSecretUnlocks(unlocks) {
     `✨ **New Equipable Title:** **${unlock.title}**\n` +
     `Use \`!title ${unlock.title}\` to equip it.`
   ).join("");
+}
+
+async function announceGrandPetCollectionReward(channel, data, userId) {
+  const titleLines = GRAND_PET_COLLECTION_REWARD.legendaryTitles
+    .map(title => `🟠 **${title}**`)
+    .join("\n");
+  return sendRoleImageAnnouncement(
+    channel,
+    `🏆━━━━━━━━━━━━━━━━━━━━━━🏆\n\n` +
+    `# MASTER BEAST TAMER\n\n` +
+    `${formatPlayerMention(data, userId)} has permanently discovered all **32 standard habitat companions!**\n\n` +
+    `⭐ **+${GRAND_PET_COLLECTION_REWARD.pointReward} Hunter Points**\n` +
+    `🟡 **+1 Legendary Egg**\n` +
+    `🌈 **Master Beast Tamer** — Mythic Title\n` +
+    `${titleLines}\n\n` +
+    `Every standard habitat species will remain permanently checked in their Pet Dex.\n\n` +
+    `🏆━━━━━━━━━━━━━━━━━━━━━━🏆`,
+    null,
+    false
+  );
 }
 
 function getDexStats(data) {
@@ -7630,7 +7687,7 @@ ${captureChoicesText(choices)}
       );
     }
 
-    const alreadyOwnedSpecies = player.pets.some(pet => pet.key === definition.key);
+    const alreadyDiscoveredSpecies = player.discoveredPetKeys.includes(definition.key);
     const ownedPet = {
       id: player.nextPetId++,
       key: definition.key,
@@ -7645,9 +7702,10 @@ ${captureChoicesText(choices)}
 
     const previousPoints = player.points;
     const hatchPoints = HATCH_POINT_REWARDS[distortionEgg ? definition.rarity : rarity] || 0;
-    const dexBonus = alreadyOwnedSpecies ? 0 : NEW_PET_SPECIES_BONUS;
+    const dexBonus = alreadyDiscoveredSpecies ? 0 : NEW_PET_SPECIES_BONUS;
 
     player.pets.push(ownedPet);
+    if (!player.discoveredPetKeys.includes(definition.key)) player.discoveredPetKeys.push(definition.key);
     if (ownedPet.adminTest) player.adminTest.generatedPetIds.push(ownedPet.id);
     player.incubatingEggs.splice(incubationIndex, 1);
     const hatchTotalPoints = applyCommunityPointBlessing(data, hatchPoints + dexBonus);
@@ -7670,7 +7728,7 @@ ${captureChoicesText(choices)}
     }
 
     const incubatorUnlockText = getNewIncubatorUnlockText(player, previousPoints);
-    const petCollectionUnlocks = evaluatePetCollectionRewards(player);
+    const petCollectionUnlocks = evaluatePetCollectionRewards(data, player);
     const automaticTitleUnlocks = checkTitleUnlocks(player);
 
     const hatchHunterName = seasonMomentPlayerName(data, message.author.id);
@@ -7761,11 +7819,15 @@ ${captureChoicesText(choices)}
       hatchEmbed.setImage(artworkUrl);
     }
 
-    return hatchMessage.edit({
+    const finalHatchMessage = await hatchMessage.edit({
       content: "",
       embeds: [hatchEmbed],
       files: hatchFiles
     });
+    if (petCollectionUnlocks.grandRewardGranted) {
+      await announceGrandPetCollectionReward(message.channel, data, message.author.id);
+    }
+    return finalHatchMessage;
   }
 
   if (command === "!namepet" || command.startsWith("!namepet ")) {
@@ -7870,7 +7932,16 @@ ${captureChoicesText(choices)}
   }
 
   if (command === "!petdex" || command.startsWith("!petdex ")) {
-    const ownedKeys = new Set(player.pets.map(pet => pet.key));
+    const petDexUnlocks = evaluatePetCollectionRewards(data, player);
+    if (petDexUnlocks.length || petDexUnlocks.grandRewardGranted) saveData(data);
+    for (const unlock of petDexUnlocks) {
+      await message.channel.send(formatSecretUnlocks([unlock]));
+    }
+    if (petDexUnlocks.grandRewardGranted) {
+      await announceGrandPetCollectionReward(message.channel, data, message.author.id);
+    }
+
+    const discoveredKeys = new Set(player.discoveredPetKeys || []);
     const habitatNames = Object.keys(PET_COLLECTIONS);
     const habitatsPerPage = 2;
     const totalPages = Math.ceil(habitatNames.length / habitatsPerPage);
@@ -7881,17 +7952,17 @@ ${captureChoicesText(choices)}
     const habitatSections = pageHabitats.map(habitat => {
       const habitatPets = pets.filter(pet => pet.habitat === habitat);
       const reward = PET_COLLECTIONS[habitat];
-      const collected = habitatPets.filter(pet => ownedKeys.has(pet.key)).length;
+      const collected = habitatPets.filter(pet => discoveredKeys.has(pet.key)).length;
       const entries = habitatPets.map(definition =>
-        `${ownedKeys.has(definition.key) ? "✅" : "⬜"} ${getPetDisplayIcon(definition)} **${definition.name}** — ${definition.rarity}`
+        `${discoveredKeys.has(definition.key) ? "✅" : "⬜"} ${getPetDisplayIcon(definition)} **${definition.name}** — ${definition.rarity}`
       ).join("\n");
       return `${reward.icon} **${habitat} Companions — ${collected}/${habitatPets.length}**\n${entries}`;
     }).join("\n\n");
 
     const knownPets = pets.filter(pet => Object.prototype.hasOwnProperty.call(PET_COLLECTIONS, pet.habitat));
-    const knownOwnedCount = knownPets.filter(pet => ownedKeys.has(pet.key)).length;
+    const knownOwnedCount = knownPets.filter(pet => discoveredKeys.has(pet.key)).length;
     const discoveredBeyond = pets.filter(
-      pet => !Object.prototype.hasOwnProperty.call(PET_COLLECTIONS, pet.habitat) && ownedKeys.has(pet.key)
+      pet => !Object.prototype.hasOwnProperty.call(PET_COLLECTIONS, pet.habitat) && discoveredKeys.has(pet.key)
     );
     const beyondText = discoveredBeyond.length
       ? `\n\n🌀 **Discoveries Beyond the Known Habitats**\n` +
@@ -8669,8 +8740,8 @@ ${captureChoicesText(choices)}
       `✨ **Pet Passives**\n` +
       `Passives can improve capture chance, egg discovery, shiny odds, points, item finds, or hunt cooldowns.\n\n` +
       `📖 **Pet Dex Collections**\n` +
-      `Use \`!petdex\` to track all **32 companions**.\n` +
-      `Collect all four pets from a habitat for a unique title. Collect all 32 for **Master Beast Tamer**.`
+      `Use \`!petdex\` to track all **32 standard habitat companions**. Once hatched, a species remains permanently checked—even if that pet is later combined or sacrificed.\n` +
+      `Collect all four pets from a habitat for a unique title. Complete all 32 to receive **100 Hunter Points**, **1 Legendary Egg**, the Mythic **Master Beast Tamer** title, and **3 additional Legendary titles**.`
     );
   }
 
@@ -8892,8 +8963,30 @@ ${captureChoicesText(choices)}
         : [];
       const preservedMerchantCollection = { ...(oldPlayerData.merchantCollection || {}) };
       const preservedMerchantPurchases = Array.isArray(oldPlayerData.merchantPurchases) ? [...oldPlayerData.merchantPurchases] : [];
+      const preservedDiscoveredPetKeys = [...new Set([
+        ...(oldPlayerData.discoveredPetKeys || []),
+        ...(oldPlayerData.pets || []).map(pet => pet.key)
+      ])];
+      const grandPetCollectionRewardClaimed = Boolean(oldPlayerData.grandPetCollectionRewardClaimed);
+      const permanentPetTitles = new Set([
+        ...Object.values(PET_COLLECTIONS).map(reward => reward.title),
+        GRAND_PET_COLLECTION_REWARD.title,
+        ...GRAND_PET_COLLECTION_REWARD.legendaryTitles
+      ]);
+      const preservedPetTitles = (oldPlayerData.unlockedTitles || []).filter(title => permanentPetTitles.has(title));
+      if (grandPetCollectionRewardClaimed) {
+        for (const title of [GRAND_PET_COLLECTION_REWARD.title, ...GRAND_PET_COLLECTION_REWARD.legendaryTitles]) {
+          if (!preservedPetTitles.includes(title)) preservedPetTitles.push(title);
+        }
+      }
+      const permanentPetAchievements = new Set([
+        ...Object.values(PET_COLLECTIONS).map(reward => reward.achievement),
+        GRAND_PET_COLLECTION_REWARD.achievement,
+        ...GRAND_PET_COLLECTION_REWARD.legendaryTitles.map(title => `${GRAND_PET_COLLECTION_REWARD.achievement}: ${title}`)
+      ]);
+      const preservedPetAchievements = (oldPlayerData.secretAchievements || []).filter(achievement => permanentPetAchievements.has(achievement));
 
-      if (lifetimeCaught.length > 0) {
+      if (lifetimeCaught.length > 0 || preservedDiscoveredPetKeys.length > 0) {
         preservedPlayers++;
         preservedCreatures += lifetimeCaught.length;
       }
@@ -8905,8 +8998,8 @@ ${captureChoicesText(choices)}
         currentMonster: null,
         lastHunt: 0,
         title: null,
-        unlockedTitles: [],
-        secretAchievements: [],
+        unlockedTitles: preservedPetTitles,
+        secretAchievements: preservedPetAchievements,
         ultraCaughtKeys: [],
         ultraSummonedKeys: [],
         ultraParticipationCount: 0,
@@ -8932,6 +9025,8 @@ ${captureChoicesText(choices)}
         incubatingEggs: [],
         lastIncubatorSlots: 1,
         pets: [],
+        discoveredPetKeys: preservedDiscoveredPetKeys,
+        grandPetCollectionRewardClaimed,
         equippedPetId: null,
         nextPetId: 1,
         titleProgress: {
@@ -8977,9 +9072,9 @@ ${captureChoicesText(choices)}
 
     return message.reply(
       `🔄 **Monster Hunt season has been fully reset!**\n\n` +
-      `✅ Preserved permanent Monster Dex and merchant collections for **${preservedPlayers} players**\n` +
+      `✅ Preserved permanent Monster Dex, Pet Dex discoveries, and merchant collections for **${preservedPlayers} players**\n` +
       `✅ Preserved **${preservedCreatures} lifetime monster catches**\n\n` +
-      `✅ Preserved Hunt Token wallets, lifetime token history, Big Game records, and purchased collectibles\n\n` +
+      `✅ Preserved Hunt Token wallets, lifetime token history, Big Game records, purchased collectibles, and permanent pet-collection titles\n\n` +
       `Reset: points, seasonal catches, hunt timers, quests, bait, capture items, active merchant effects, ` +
       `knowledge, titles, achievements, eggs, incubators, pets, Companion XP, ` +
       `Relics, trades, Ultra records, world progress, and the random Ultra schedule.`
