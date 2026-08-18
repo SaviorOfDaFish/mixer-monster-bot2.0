@@ -7915,6 +7915,13 @@ ${captureChoicesText(choices)}
   }
 
   if (command === "!pets") {
+    if (message.channel.id === MONSTER_CHANNEL_ID) {
+      return message.reply(
+        `🐾 **Pets belong in <#${EGGS_PETS_CHANNEL_ID}>!**\n` +
+        `Please use \`!pets\` there so the Hunt channel stays clean.`
+      );
+    }
+
     if (player.pets.length === 0) {
       return message.reply("🐾 You have not hatched any pets yet. Find eggs during successful hunts!");
     }
