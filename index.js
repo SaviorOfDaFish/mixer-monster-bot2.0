@@ -1401,6 +1401,64 @@ function awardInheritedAbilityXp(ownedPet, amount) {
   return leveled;
 }
 
+function distributePetXpAcrossAbilities(ownedPet, totalXp) {
+  const definition = getOwnedPetDefinition(ownedPet);
+  const amount = Math.max(0, Math.floor(Number(totalXp || 0)));
+  if (!ownedPet || !definition || amount <= 0) {
+    return { totalXp: 0, abilityCount: 0, allocations: [], levelUps: [] };
+  }
+
+  const inheritedAbilities = Array.isArray(ownedPet.inheritedAbilities)
+    ? ownedPet.inheritedAbilities
+    : [];
+  const abilityCount = 1 + inheritedAbilities.length;
+  const baseShare = Math.floor(amount / abilityCount);
+  let remainder = amount % abilityCount;
+  const allocations = [];
+  const levelUps = [];
+
+  // The natural passive is powered by Companion XP.
+  const naturalBefore = getCompanionLevelInfo(ownedPet).level;
+  const naturalShare = baseShare + (remainder > 0 ? 1 : 0);
+  if (remainder > 0) remainder--;
+  ownedPet.companionXp = Math.max(0, Number(ownedPet.companionXp || 0)) + naturalShare;
+  const naturalAfter = getCompanionLevelInfo(ownedPet).level;
+  allocations.push({
+    ability: definition.ability,
+    natural: true,
+    amount: naturalShare
+  });
+  if (naturalAfter > naturalBefore) {
+    levelUps.push(`${abilityDisplayName(definition.ability)} reached Ability Level ${naturalAfter}`);
+  }
+
+  // Every inherited ability receives an equal share of the same XP pool.
+  for (const inherited of inheritedAbilities) {
+    const share = baseShare + (remainder > 0 ? 1 : 0);
+    if (remainder > 0) remainder--;
+    const before = getInheritedAbilityLevelInfo(inherited).level;
+    inherited.xp = Math.max(0, Number(inherited.xp || 0)) + share;
+    const after = getInheritedAbilityLevelInfo(inherited).level;
+    allocations.push({
+      ability: inherited.ability,
+      natural: false,
+      amount: share
+    });
+    if (after > before) {
+      levelUps.push(`${abilityDisplayName(inherited.ability)} reached Ability Level ${after}`);
+    }
+  }
+
+  return { totalXp: amount, abilityCount, allocations, levelUps };
+}
+
+function formatDistributedPetXp(distribution) {
+  if (!distribution || !distribution.allocations?.length) return "";
+  return distribution.allocations
+    .map(entry => `${entry.natural ? "✨" : "🧬"} **${abilityDisplayName(entry.ability)}:** +${entry.amount} XP`)
+    .join("\n");
+}
+
 function formatAllPetAbilityProgress(ownedPet) {
   const definition = getOwnedPetDefinition(ownedPet);
   if (!ownedPet || !definition) return "";
@@ -1500,45 +1558,19 @@ function addSameAbilityCombineXp(ownedPet, ability, sacrificeRarity) {
   if (!known) return null;
 
   const amount = PET_ABILITY_COMBINE_XP[sacrificeRarity] || PET_ABILITY_COMBINE_XP.Common;
-
-  // Natural abilities level with Companion XP, so matching a natural ability
-  // strengthens the companion itself. Inherited abilities have their own XP bar.
-  if (known.natural) {
-    const before = getCompanionLevelInfo(ownedPet).level;
-    ownedPet.companionXp = Math.max(0, Number(ownedPet.companionXp || 0)) + amount;
-    const after = getCompanionLevelInfo(ownedPet).level;
-
-    return {
-      type: "natural",
-      amount,
-      before,
-      after,
-      text:
-        `🧬 **ABILITY TRAINING!**\n` +
-        `This companion already knows **${abilityDisplayName(ability)}** as its natural ability.\n` +
-        `The sacrificed pet was converted into **${amount} Companion XP** instead.\n\n` +
-        `${companionXpBar(ownedPet)}` +
-        `${after > before ? `\n🎉 **LEVEL UP!** Its ${abilityDisplayName(ability)} ability grew stronger!` : ""}`
-    };
-  }
-
-  const before = getInheritedAbilityLevelInfo(known.inherited).level;
-  known.inherited.xp = Math.max(0, Number(known.inherited.xp || 0)) + amount;
-  const after = getInheritedAbilityLevelInfo(known.inherited).level;
-  const info = getInheritedAbilityLevelInfo(known.inherited);
+  const distribution = distributePetXpAcrossAbilities(ownedPet, amount);
 
   return {
-    type: "inherited",
+    type: "distributed",
     amount,
-    before,
-    after,
+    distribution,
     text:
       `🧬 **ABILITY TRAINING!**\n` +
       `This companion already knows **${abilityDisplayName(ability)}**.\n` +
-      `The sacrificed pet strengthened the existing ability by **${amount} Ability XP**!\n\n` +
-      `**${abilityDisplayName(ability)} — Ability Lv. ${info.level}** | ` +
-      `${info.level >= MAX_COMPANION_LEVEL ? "**MAX**" : `**${info.xpIntoLevel}/${info.xpNeeded} XP**`}` +
-      `${after > before ? `\n🎉 **ABILITY LEVEL UP!** ${abilityDisplayName(ability)} reached Level ${after}!` : ""}`
+      `The sacrificed pet became **${amount} XP**, evenly distributed across all **${distribution.abilityCount}** abilities this companion owns.\n\n` +
+      `${formatDistributedPetXp(distribution)}\n\n` +
+      `**Ability Progress**\n${formatAllPetAbilityProgress(ownedPet)}` +
+      `${distribution.levelUps.length ? `\n🎉 **ABILITY LEVEL UP!** ${distribution.levelUps.join("\n🎉 **ABILITY LEVEL UP!** ")}` : ""}`
   };
 }
 
@@ -6693,12 +6725,7 @@ client.on("messageCreate", async (message) => {
     }
 
     const xp = PET_COMBINE_XP[hatchDefinition.rarity] || 50;
-    const before = getCompanionLevelInfo(equippedPet).level;
-
-    equippedPet.companionXp =
-      Math.max(0, Number(equippedPet.companionXp || 0)) + xp;
-
-    const after = getCompanionLevelInfo(equippedPet).level;
+    const distribution = distributePetXpAcrossAbilities(equippedPet, xp);
 
     player.pets = player.pets.filter(
       pet => String(pet.id) !== String(hatchedPet.id)
@@ -6710,12 +6737,12 @@ client.on("messageCreate", async (message) => {
     return message.reply(
       `✨ **HATCH SACRIFICED!**\n\n` +
       `${getPetDisplayIcon(hatchDefinition)} **${hatchDefinition.name}** was converted into ` +
-      `**${xp} Companion XP** for your equipped companion:\n` +
+      `**${xp} XP** for your equipped companion:\n` +
       `${getPetDisplayIcon(equippedDefinition)} **${getOwnedPetIdentity(equippedPet)}**\n\n` +
-      `${companionXpBar(equippedPet)}` +
-      `${after > before
-        ? `\n🎉 **LEVEL UP!** ${getOwnedPetName(equippedPet)} reached Level ${after}!`
-        : ""}\n\n` +
+      `⚖️ XP was evenly distributed across all **${distribution.abilityCount}** owned abilities:\n` +
+      `${formatDistributedPetXp(distribution)}\n\n` +
+      `**Ability Progress**\n${formatAllPetAbilityProgress(equippedPet)}` +
+      `${distribution.levelUps.length ? `\n🎉 **ABILITY LEVEL UP!** ${distribution.levelUps.join("\n🎉 **ABILITY LEVEL UP!** ")}` : ""}\n\n` +
       `The sacrificed hatch does **not** transfer its ability through this quick option.`
     );
   }
@@ -6778,14 +6805,13 @@ client.on("messageCreate", async (message) => {
       const xp = PET_COMBINE_XP[sacrificeDef.rarity] || 50;
       combineMode = "sameSpecies";
       confirmationResult =
-        `Result: **+${xp} Companion XP** to ${keeperName}.`;
+        `Result: **${xp} XP**, evenly split across all **${currentAbilities}** abilities owned by ${keeperName}.`;
     } else if (knownAbility) {
       const xp = PET_ABILITY_COMBINE_XP[sacrificeDef.rarity] || 25;
       combineMode = "sameAbility";
 
-      confirmationResult = knownAbility.natural
-        ? `Result: ${keeperName} already knows **${abilityDisplayName(sacrificeDef.ability)}** naturally, so the duplicate ability becomes **+${xp} Companion XP**.`
-        : `Result: ${keeperName} already knows **${abilityDisplayName(sacrificeDef.ability)}**, so the duplicate ability becomes **+${xp} Ability XP** for that ability.`;
+      confirmationResult =
+        `Result: ${keeperName} already knows **${abilityDisplayName(sacrificeDef.ability)}**, so the duplicate ability becomes **${xp} XP**, evenly split across all **${currentAbilities}** owned abilities.`;
     } else {
       if (currentAbilities >= capacity) {
         return message.reply(
@@ -6800,7 +6826,7 @@ client.on("messageCreate", async (message) => {
 
       confirmationResult =
         `Result: **${chance}% chance** to inherit **${abilityDisplayName(sacrificeDef.ability)}**. ` +
-        `Failure grants **${Math.floor(xp / 3)} Companion XP**.`;
+        `Failure grants **${Math.floor(xp / 3)} XP**, evenly split across all **${currentAbilities}** currently owned abilities.`;
     }
 
     const prompt = await message.reply(
@@ -6858,19 +6884,15 @@ client.on("messageCreate", async (message) => {
 
     if (freshKeeper.key === freshSacrifice.key) {
       const xp = PET_COMBINE_XP[freshSacrificeDef.rarity] || 50;
-      const before = getCompanionLevelInfo(freshKeeper).level;
-
-      freshKeeper.companionXp =
-        Math.max(0, Number(freshKeeper.companionXp || 0)) + xp;
-
-      const after = getCompanionLevelInfo(freshKeeper).level;
+      const distribution = distributePetXpAcrossAbilities(freshKeeper, xp);
 
       result =
         `🧬 **COMPANION ENHANCED!**\n` +
         `${getOwnedPetIdentity(freshKeeper)} absorbed ${getOwnedPetIdentity(freshSacrifice)} and gained ` +
-        `**${xp} Companion XP**.\n\n` +
-        `${companionXpBar(freshKeeper)}` +
-        `${after > before ? `\n🎉 **LEVEL UP!** ${getOwnedPetName(freshKeeper)} reached Level ${after}!` : ""}`;
+        `**${xp} XP**, evenly distributed across all **${distribution.abilityCount}** owned abilities.\n\n` +
+        `${formatDistributedPetXp(distribution)}\n\n` +
+        `**Ability Progress**\n${formatAllPetAbilityProgress(freshKeeper)}` +
+        `${distribution.levelUps.length ? `\n🎉 **ABILITY LEVEL UP!** ${distribution.levelUps.join("\n🎉 **ABILITY LEVEL UP!** ")}` : ""}`;
     } else {
       const duplicateAbility = getKnownPetAbility(
         freshKeeper,
@@ -6919,14 +6941,15 @@ client.on("messageCreate", async (message) => {
             (PET_COMBINE_XP[freshSacrificeDef.rarity] || 50) / 3
           );
 
-          freshKeeper.companionXp =
-            Math.max(0, Number(freshKeeper.companionXp || 0)) + consolation;
+          const distribution = distributePetXpAcrossAbilities(freshKeeper, consolation);
 
           result =
             `💨 **INHERITANCE FAILED**\n` +
             `The ability did not transfer, but ${getOwnedPetName(freshKeeper)} absorbed ` +
-            `**${consolation} Companion XP**.\n\n` +
-            `${companionXpBar(freshKeeper)}`;
+            `**${consolation} XP**, evenly distributed across all **${distribution.abilityCount}** owned abilities.\n\n` +
+            `${formatDistributedPetXp(distribution)}\n\n` +
+            `**Ability Progress**\n${formatAllPetAbilityProgress(freshKeeper)}` +
+            `${distribution.levelUps.length ? `\n🎉 **ABILITY LEVEL UP!** ${distribution.levelUps.join("\n🎉 **ABILITY LEVEL UP!** ")}` : ""}`;
         }
       }
     }
