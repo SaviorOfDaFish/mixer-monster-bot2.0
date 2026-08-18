@@ -7565,14 +7565,32 @@ ${captureChoicesText(choices)}
   }
 
 
-  if (command === "!eggs" || command === "!egg") {
-    if (message.channel.id === MONSTER_CHANNEL_ID) {
-      return message.reply(
-        `🥚 **Eggs & Pets belong in <#${EGGS_PETS_CHANNEL_ID}>!**\n` +
-        `Please use \`!eggs\` there so the Hunt channel stays clean.`
-      );
-    }
+  // ==================== EGGS & PETS CHANNEL ROUTING ====================
+  // Keep egg/pet management out of the Hunt channel.
+  const eggsAndPetsOnlyCommand =
+    command === "!eggs" ||
+    command === "!egg" ||
+    command === "!hatch" ||
+    command.startsWith("!hatch ") ||
+    command === "!pets" ||
+    command === "!petdex" ||
+    command === "!pethelp" ||
+    command.startsWith("!pet ") ||
+    command.startsWith("!equippet ") ||
+    command.startsWith("!namepet ") ||
+    command.startsWith("!resetpetname ") ||
+    command.startsWith("!incubate ") ||
+    command.startsWith("!combinepet ") ||
+    command.startsWith("!fetch");
 
+  if (eggsAndPetsOnlyCommand && message.channel.id === MONSTER_CHANNEL_ID) {
+    return message.reply(
+      `🥚🐾 **Eggs & Pets commands belong in <#${EGGS_PETS_CHANNEL_ID}>!**\n` +
+      `Please use that channel so the Hunt channel stays focused on hunting.`
+    );
+  }
+
+  if (command === "!eggs" || command === "!egg") {
     const slots = getIncubatorSlots(player);
     const active = player.incubatingEggs || [];
 
@@ -7915,13 +7933,6 @@ ${captureChoicesText(choices)}
   }
 
   if (command === "!pets") {
-    if (message.channel.id === MONSTER_CHANNEL_ID) {
-      return message.reply(
-        `🐾 **Pets belong in <#${EGGS_PETS_CHANNEL_ID}>!**\n` +
-        `Please use \`!pets\` there so the Hunt channel stays clean.`
-      );
-    }
-
     if (player.pets.length === 0) {
       return message.reply("🐾 You have not hatched any pets yet. Find eggs during successful hunts!");
     }
