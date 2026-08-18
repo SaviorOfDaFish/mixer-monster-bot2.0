@@ -417,6 +417,7 @@ const CAPTURE_ITEMS = {
 
 const MONSTER_NOTIFY_ROLE = "1531471045805084743";
 const MONSTER_CHANNEL_ID = "1533218205496115471";
+const EGGS_PETS_CHANNEL_ID = "1539117649840046140";
 
 // ==================== BIG GAME HUNT & TRAVELING MERCHANT ====================
 // Official schedule: every Sunday, 12:00 PM-2:00 PM Mountain Time.
@@ -3999,6 +4000,18 @@ async function getMonsterHuntChannel() {
   return fetched && fetched.isTextBased() ? fetched : null;
 }
 
+async function getEggsPetsChannel() {
+  const cached = client.channels.cache.get(EGGS_PETS_CHANNEL_ID);
+  if (cached && cached.isTextBased()) return cached;
+
+  const fetched = await client.channels.fetch(EGGS_PETS_CHANNEL_ID).catch(error => {
+    console.error("Failed to fetch Eggs & Pets channel:", error);
+    return null;
+  });
+
+  return fetched && fetched.isTextBased() ? fetched : null;
+}
+
 function scheduleUltraArrivalCheck(startAt) {
   const delay = Math.max(0, startAt - Date.now() + 1000);
 
@@ -4528,7 +4541,7 @@ function giveQuestBonusBait(player) {
 
 async function checkReadyEggNotifications() {
   const data = loadData();
-  const channel = await getMonsterHuntChannel();
+  const channel = await getEggsPetsChannel();
   if (!channel) return;
 
   const now = Date.now();
@@ -4688,15 +4701,18 @@ async function checkOneTimeSeasonLaunch() {
 
 async function processFetchReturnsAndReminders() {
   const data = loadData();
+  const huntChannel = await getMonsterHuntChannel();
+  const petChannel = await getEggsPetsChannel();
   let changed = false;
+
   for (const [userId, playerRaw] of Object.entries(data.players || {})) {
     const player = getPlayer(data, userId);
-    const channelId = player.reminderState?.channelId || player.fetchState?.channelId || MONSTER_CHANNEL_ID;
-    const channel = client.channels.cache.get(channelId) || client.channels.cache.get(MONSTER_CHANNEL_ID);
+
+    // Pet fetch returns always belong in the dedicated Eggs & Pets channel.
     if (player.fetchState && !player.fetchState.completed && Date.now() >= player.fetchState.readyAt) {
       const ownedPet = player.pets.find(p => String(p.id) === String(player.fetchState.petId));
       const definition = getOwnedPetDefinition(ownedPet);
-      if (ownedPet && definition && channel?.isTextBased()) {
+      if (ownedPet && definition && petChannel?.isTextBased()) {
         const fetchResult = rollFetchRewards(data, player, ownedPet, definition);
         const rewards = fetchResult.rewards;
         const xpText = awardCompanionXp(player, FETCH_COMPANION_XP, "Fetch Adventure");
@@ -4704,20 +4720,27 @@ async function processFetchReturnsAndReminders() {
           .setTitle(`🐾 ${getOwnedPetName(ownedPet)} Returned!`)
           .setDescription(`${fetchFlavor(definition, ownedPet.personality, true, ownedPet)}\n\n**Found:**\n${rewards.map(x => `• ${x}`).join("\n")}\n\n⭐ ${xpText}`);
         const art = getPetArtworkUrl(definition); if (art) embed.setImage(art);
-        await channel.send({ content: `<@${userId}>`, embeds: [embed] }).catch(() => null);
+        await petChannel.send({ content: `<@${userId}>`, embeds: [embed] }).catch(() => null);
 
         if (fetchResult.relicDiscovery) {
-          await announceWorldRelicDiscovery(channel, fetchResult.relicDiscovery, userId);
+          await announceWorldRelicDiscovery(petChannel, fetchResult.relicDiscovery, userId);
         }
       }
       player.fetchState.completed = true;
       changed = true;
     }
+
+    // Cooldown alerts are routed by system instead of whichever channel the player last used.
     for (const type of ["hunt", "fetch"]) {
       const dueKey = `${type}DueAt`, sentKey = `${type}Sent`;
       if (player.cooldownReminders?.[type] && player.reminderState?.[dueKey] && !player.reminderState[sentKey] && Date.now() >= player.reminderState[dueKey]) {
-        if (channel?.isTextBased()) {
-          await channel.send(type === "hunt" ? `<@${userId}> 🏹 Your **\`!hunt\` cooldown is over!** The wilds are ready again.` : `<@${userId}> 🐾 Your pet is ready to use **\`!fetch\`** again!`).catch(() => null);
+        const notificationChannel = type === "hunt" ? huntChannel : petChannel;
+        if (notificationChannel?.isTextBased()) {
+          await notificationChannel.send(
+            type === "hunt"
+              ? `<@${userId}> 🏹 Your **\`!hunt\` cooldown is over!** The wilds are ready again.`
+              : `<@${userId}> 🐾 Your pet is ready to use **\`!fetch\`** again!`
+          ).catch(() => null);
         }
         player.reminderState[sentKey] = true;
         changed = true;
@@ -6704,8 +6727,8 @@ client.on("messageCreate", async (message) => {
     const left = FETCH_COOLDOWN - (Date.now() - (player.lastFetch || 0));
     if (left > 0) return message.reply(`⏳ Your pet can fetch again in **${formatTime(left)}**.`);
     player.lastFetch = Date.now();
-    player.fetchState = { petId: ownedPet.id, startedAt: Date.now(), readyAt: Date.now()+FETCH_DURATION, completed:false, channelId: message.channel.id };
-    player.reminderState.channelId = message.channel.id; player.reminderState.fetchDueAt = Date.now()+FETCH_COOLDOWN; player.reminderState.fetchSent = false;
+    player.fetchState = { petId: ownedPet.id, startedAt: Date.now(), readyAt: Date.now()+FETCH_DURATION, completed:false, channelId: EGGS_PETS_CHANNEL_ID };
+    player.reminderState.channelId = EGGS_PETS_CHANNEL_ID; player.reminderState.fetchDueAt = Date.now()+FETCH_COOLDOWN; player.reminderState.fetchSent = false;
     saveData(data);
     const embed = new EmbedBuilder().setTitle(`🐾 ${getOwnedPetName(ownedPet)} Went Fetching!`).setDescription(`${fetchFlavor(definition, ownedPet.personality, false, ownedPet)}\n\nIt will return <t:${Math.floor(player.fetchState.readyAt/1000)}:R> with whatever it finds.`);
     const art=getPetArtworkUrl(definition); if(art) embed.setImage(art);
@@ -7445,6 +7468,13 @@ ${captureChoicesText(choices)}
   }
 
   if (command === "!hunt") {
+    if (message.channel.id === EGGS_PETS_CHANNEL_ID) {
+      return message.reply(
+        `🏹 **Hunting happens in <#${MONSTER_CHANNEL_ID}>!**\n` +
+        `Please use \`!hunt\` there so the Eggs & Pets channel stays clean.`
+      );
+    }
+
     const now = Date.now();
     const huntCooldown = getPlayerHuntCooldown(player, data, message.author.id);
     const timeLeft = huntCooldown - (now - player.lastHunt);
@@ -7466,7 +7496,7 @@ ${captureChoicesText(choices)}
     player.lastHunt = now;
     const huntSig = getSignaturePet(player);
     if (huntSig?.definition.signatureAbility === "frozen_time" && ensureSignatureState(huntSig.owned).frozenTimeReady) ensureSignatureState(huntSig.owned).frozenTimeReady = false;
-    player.reminderState.channelId = message.channel.id;
+    player.reminderState.channelId = MONSTER_CHANNEL_ID;
     player.reminderState.huntDueAt = now + huntCooldown;
     player.reminderState.huntSent = false;
     player.huntCount++;
