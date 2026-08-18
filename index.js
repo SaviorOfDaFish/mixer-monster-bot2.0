@@ -7566,6 +7566,13 @@ ${captureChoicesText(choices)}
 
 
   if (command === "!eggs" || command === "!egg") {
+    if (message.channel.id === MONSTER_CHANNEL_ID) {
+      return message.reply(
+        `🥚 **Eggs & Pets belong in <#${EGGS_PETS_CHANNEL_ID}>!**\n` +
+        `Please use \`!eggs\` there so the Hunt channel stays clean.`
+      );
+    }
+
     const slots = getIncubatorSlots(player);
     const active = player.incubatingEggs || [];
 
