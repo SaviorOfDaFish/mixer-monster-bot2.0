@@ -2240,11 +2240,91 @@ function getLeaderPoints(data, excludedId = null) {
 }
 
 function getComebackTier(data, player, userId = null) {
-  const behind = Math.max(0, getLeaderPoints(data, userId) - Number(player.points || 0));
-  if (behind >= 200) return { behind, pointMultiplier: 1.75, catchBonus: 8, label: "+75%" };
-  if (behind >= 100) return { behind, pointMultiplier: 1.40, catchBonus: 5, label: "+40%" };
-  if (behind >= 50) return { behind, pointMultiplier: 1.20, catchBonus: 2, label: "+20%" };
-  return { behind, pointMultiplier: 1, catchBonus: 0, label: null };
+  const leaderPoints = getLeaderPoints(data, userId);
+  const playerPoints = Math.max(0, Number(player.points || 0));
+  const behind = Math.max(0, leaderPoints - playerPoints);
+
+  // Comeback strength now scales with how far behind the current leader
+  // a player is as a percentage of the leader's score. This keeps the
+  // system useful even when season scores grow into the thousands.
+  const behindPercent = leaderPoints > 0
+    ? Math.max(0, Math.min(1, behind / leaderPoints))
+    : 0;
+
+  // 80%+ behind: +250% points (3.5x total) and +8% capture chance.
+  if (behindPercent >= 0.80) {
+    return {
+      behind,
+      behindPercent,
+      pointMultiplier: 3.50,
+      catchBonus: 8,
+      label: "+250%"
+    };
+  }
+
+  // 65%-79.99% behind: +200% points (3x total) and +6% capture chance.
+  if (behindPercent >= 0.65) {
+    return {
+      behind,
+      behindPercent,
+      pointMultiplier: 3.00,
+      catchBonus: 6,
+      label: "+200%"
+    };
+  }
+
+  // 50%-64.99% behind: +150% points (2.5x total) and +5% capture chance.
+  if (behindPercent >= 0.50) {
+    return {
+      behind,
+      behindPercent,
+      pointMultiplier: 2.50,
+      catchBonus: 5,
+      label: "+150%"
+    };
+  }
+
+  // 35%-49.99% behind: +100% points (2x total) and +4% capture chance.
+  if (behindPercent >= 0.35) {
+    return {
+      behind,
+      behindPercent,
+      pointMultiplier: 2.00,
+      catchBonus: 4,
+      label: "+100%"
+    };
+  }
+
+  // 20%-34.99% behind: +50% points (1.5x total) and +3% capture chance.
+  if (behindPercent >= 0.20) {
+    return {
+      behind,
+      behindPercent,
+      pointMultiplier: 1.50,
+      catchBonus: 3,
+      label: "+50%"
+    };
+  }
+
+  // 10%-19.99% behind: +25% points (1.25x total) and +2% capture chance.
+  if (behindPercent >= 0.10) {
+    return {
+      behind,
+      behindPercent,
+      pointMultiplier: 1.25,
+      catchBonus: 2,
+      label: "+25%"
+    };
+  }
+
+  // Less than 10% behind the leader receives no comeback assistance.
+  return {
+    behind,
+    behindPercent,
+    pointMultiplier: 1,
+    catchBonus: 0,
+    label: null
+  };
 }
 
 function isWeeklyCompetitionActive(data) {
