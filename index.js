@@ -51,11 +51,11 @@ const HUNT_COOLDOWN = 2 * 60 * 60 * 1000;
 const SHINY_CHANCE = 5;
 const MAX_CAPTURE_CHANCE = 95;
 const ULTRA_HUNT_COOLDOWN = 5 * 60 * 1000;
-const ULTRA_RELIC_DROP_CHANCE = 25;
+const ULTRA_RELIC_DROP_CHANCE = 50;
 const ULTRA_CATCHER_REWARD = 50;
 const ULTRA_PARTICIPANT_REWARD = 25;
 const ULTRA_ESCAPE_REWARD = 10;
-const ULTRA_RANDOM_EVENTS_PER_WEEK = 3;
+const ULTRA_RANDOM_EVENTS_PER_WEEK = 5;
 const ULTRA_SUMMON_DELAY = 5 * 60 * 1000;
 
 // ==================== SEASON 2 QUALITY-OF-LIFE OVERHAUL ====================
@@ -164,7 +164,7 @@ const DISTORTION_HUNT_COOLDOWN = 30 * 60 * 1000;
 const DISTORTION_DURATION = 3 * 60 * 60 * 1000;
 const DISTORTION_EVENT_MONSTER_CHANCE = 60;
 const DISTORTION_EGG_DROP_CHANCE = 40;
-const DISTORTION_EVENTS_PER_WEEK = 4;
+const DISTORTION_EVENTS_PER_WEEK = 5;
 const DISTORTION_WARNING_MINUTES = 5;
 const DISTORTION_FINAL_RESET_MINUTES = 10;
 const UNMADE_REPLACEMENT_CHANCE = 3;
@@ -420,12 +420,16 @@ const MONSTER_CHANNEL_ID = "1533218205496115471";
 const EGGS_PETS_CHANNEL_ID = "1539117649840046140";
 
 // ==================== BIG GAME HUNT & TRAVELING MERCHANT ====================
-// Official schedule: every Sunday, 12:00 PM-2:00 PM Mountain Time.
-// All dates are evaluated in America/Denver so the event remains at noon through DST.
+// Three Big Game Hunts are generated every week on different days.
+// Each one lasts 2 hours and starts randomly between 3:30 PM and 8:00 PM Mountain Time,
+// so every event ends no later than 10:00 PM. America/Denver keeps DST correct.
 const BIG_GAME_TIMEZONE = "America/Denver";
 const BIG_GAME_COOLDOWN = 30 * 60 * 1000;
-const BIG_GAME_START_HOUR = 12;
-const BIG_GAME_END_HOUR = 14;
+const BIG_GAME_EVENTS_PER_WEEK = 3;
+const BIG_GAME_DURATION = 2 * 60 * 60 * 1000;
+const BIG_GAME_EARLIEST_START_MINUTE = 15 * 60 + 30;
+const BIG_GAME_LATEST_START_MINUTE = 20 * 60;
+const MERCHANT_VISITS_PER_WEEK = 3;
 const BIG_GAME_TOKEN_REWARDS = {
   Common: 1,
   Rare: 2,
@@ -880,7 +884,7 @@ function loadData() {
       phase: "dormant", anomalyIndex: 0, nextAnomalyAt: 0, finalWarningStartedAt: 0,
       shatterScheduledAt: 0, shatterScheduleManual: false, beats: [], event: null, postShatter: false, completedAt: 0,
       outcome: null, unmadeReplacementChance: 0, architectRematchAt: 0, rematch24hSent: false, rematch2hSent: false,
-      worldMenderEligible: [], architectDefeats: 0, architectFailures: 0
+      worldMenderEligible: [], architectDefeats: 0, architectFailures: 0, worldShatterEightPmMigrationDone: false
     };
   }
   if (!Array.isArray(data.worldStory.beats)) data.worldStory.beats = [];
@@ -893,6 +897,7 @@ function loadData() {
   if (!Array.isArray(data.worldStory.worldMenderEligible)) data.worldStory.worldMenderEligible = [];
   if (data.worldStory.architectDefeats === undefined) data.worldStory.architectDefeats = 0;
   if (data.worldStory.architectFailures === undefined) data.worldStory.architectFailures = 0;
+  if (data.worldStory.worldShatterEightPmMigrationDone === undefined) data.worldStory.worldShatterEightPmMigrationDone = false;
   if (!Array.isArray(data.seasonMoments)) data.seasonMoments = [];
   if (!data.seasonMomentFlags || typeof data.seasonMomentFlags !== "object") {
     data.seasonMomentFlags = {};
@@ -2008,7 +2013,9 @@ function getKnowledgeCount(player, monsterOrName) {
 
 function addEncounterKnowledge(player, monster) {
   const name = cleanMonsterName(monster.name);
-  player.knowledge[name] = (player.knowledge[name] || 0) + 1;
+  const event = getActiveEvent();
+  const gain = event?.knowledgeBoost ? 2 : 1;
+  player.knowledge[name] = (player.knowledge[name] || 0) + gain;
   return player.knowledge[name];
 }
 
@@ -2587,14 +2594,20 @@ async function performCaptureAttempt(message, userId, itemKey = null) {
 
   if (caught) {
     let pointsEarned = monster.points;
-    if (event?.doublePoints) pointsEarned *= 2;
+    // Double Points Day was removed for Season 2 balance. Hunter's Fortune is a
+    // true flat +2 that is added AFTER multipliers, so high-frequency hunters
+    // cannot amplify it with comeback or community point multipliers.
+    const eventFlatBonus = event?.flatPointBonus && !monster.distortionEncounter && !monster.worldShatterEncounter
+      ? event.flatPointBonus
+      : 0;
     pointsEarned += getPetBonus(player, "points");
     const comeback = getComebackTier(data, player, userId);
     const baseBeforeComeback = pointsEarned;
     pointsEarned = Math.max(pointsEarned, Math.ceil(pointsEarned * comeback.pointMultiplier));
     if (criticalCatch) pointsEarned += CRITICAL_CATCH_BONUS_POINTS;
     pointsEarned = applyCommunityPointBlessing(data, pointsEarned);
-    const comebackExtra = pointsEarned - baseBeforeComeback - (criticalCatch ? CRITICAL_CATCH_BONUS_POINTS : 0);
+    pointsEarned += eventFlatBonus;
+    const comebackExtra = pointsEarned - eventFlatBonus - baseBeforeComeback - (criticalCatch ? CRITICAL_CATCH_BONUS_POINTS : 0);
 
     const previousPoints = player.points;
     player.points += pointsEarned;
@@ -2878,19 +2891,28 @@ function dateKey() {
   return `${now.getMonth() + 1}-${now.getDate()}`;
 }
 
-function dailySeed() {
-  const d = new Date().toDateString();
-
-  return d
-    .split("")
-    .reduce(
-      (sum, char) => sum + char.charCodeAt(0),
-      0
-    );
+function dailySeed(date = new Date()) {
+  // Use the Mountain calendar date so the Daily Event changes at the same time
+  // for every player regardless of Railway/server timezone.
+  const d = getMountainDateTimeParts(date).date;
+  return d.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
 }
 
-function getActiveEvent() {
-  const today = dateKey();
+const DAILY_EVENT_POOL = [
+  { id: "shinyStorm", name: "✨ Shiny Storm Day", description: "Shiny odds are tripled today!", shinyBoost: true },
+  { id: "legendaryRift", name: "🐉 Legendary Rift Day", description: "Legendary monsters are easier to find today!", legendaryBoost: true },
+  { id: "forestFrenzy", name: "🌲 Forest Frenzy Day", description: "Forest monsters are much more common today!", habitatBoost: "Forest" },
+  { id: "baitBonanza", name: "🪤 Bait Bonanza", description: "All bait rewards are doubled today!", doubleBait: true },
+  { id: "treasureDay", name: "💎 Treasure Hunter Day", description: "Treasure drops are three times more likely today!", treasureBoost: true },
+  { id: "hunterLuck", name: "🍀 Lucky Hunter Day", description: "All normal capture chances are increased by 10% today!", captureBoost: true },
+  { id: "knowledgeSurge", name: "📚 Knowledge Surge Day", description: "Every monster encounter counts as 2 Species Knowledge encounters today!", knowledgeBoost: true },
+  { id: "huntersFortune", name: "💰 Hunter's Fortune Day", description: "Every successful normal catch earns +2 bonus Hunter Points today!", flatPointBonus: 2 },
+  { id: "tokenRush", name: "🪙 Token Rush Day", description: "Every successful normal catch earns +1 Hunt Token today!", tokenRush: true }
+];
+
+function getActiveEvent(date = new Date()) {
+  const parts = getMountainDateTimeParts(date);
+  const today = parts.date.slice(5).replace(/^0/, "").replace("-0", "-");
 
   if (today === "7-4") {
     return {
@@ -2901,18 +2923,14 @@ function getActiveEvent() {
     };
   }
 
-  const seed = dailySeed();
-  const roll = seed % 100;
-
-  if (roll < 10) return { id: "shinyStorm", name: "✨ Shiny Storm Day", description: "Shiny odds are boosted today!", shinyBoost: true };
-  if (roll < 18) return { id: "legendaryRift", name: "🐉 Legendary Rift Day", description: "Legendary monsters are easier to find today!", legendaryBoost: true };
-  if (roll < 26) return { id: "doublePoints", name: "💰 Double Points Day", description: "Caught monsters give double points today!", doublePoints: true };
-  if (roll < 34) return { id: "forestFrenzy", name: "🌲 Forest Frenzy Day", description: "Forest monsters are much more common today!", habitatBoost: "Forest" };
-  if (roll < 42) return { id: "baitBonanza", name: "🪤 Bait Bonanza", description: "All bait rewards are doubled today!", doubleBait: true };
-  if (roll < 50) return { id: "treasureDay", name: "💎 Treasure Hunter Day", description: "Treasure drops are three times more likely today!", treasureBoost: true };
-  if (roll < 58) return { id: "hunterLuck", name: "🍀 Lucky Hunter Day", description: "All capture chances are increased by 10% today!", captureBoost: true };
-
-  return null;
+  // Every day is guaranteed to have an event. The previous day's result is
+  // checked so the same event can never repeat on back-to-back days.
+  const seed = dailySeed(date);
+  let index = seed % DAILY_EVENT_POOL.length;
+  const yesterday = new Date(date.getTime() - 24 * 60 * 60 * 1000);
+  const previousIndex = dailySeed(yesterday) % DAILY_EVENT_POOL.length;
+  if (index === previousIndex) index = (index + 1 + (seed % (DAILY_EVENT_POOL.length - 1))) % DAILY_EVENT_POOL.length;
+  return { ...DAILY_EVENT_POOL[index] };
 }
 
 function applyShiny(monster, player = null, data = null) {
@@ -4022,7 +4040,30 @@ function ensureUltraWeeklySchedule(data, date = new Date()) {
     return true;
   }
 
-  return false;
+  // Mid-week migration: older deployments may already have only 3 scheduled Ultras.
+  // Add future slots until this week's schedule reaches the new 5-event target.
+  const events = data.ultraWeeklySchedule.events || (data.ultraWeeklySchedule.events = []);
+  if (events.length >= ULTRA_RANDOM_EVENTS_PER_WEEK) return false;
+
+  const parts = getMountainDateParts(date);
+  const currentMinuteOfWeek = parts.weekdayIndex * 1440 + parts.hour * 60 + parts.minute;
+  let attempts = 0;
+  while (events.length < ULTRA_RANDOM_EVENTS_PER_WEEK && attempts < 200) {
+    attempts++;
+    const dayIndex = parts.weekdayIndex + Math.floor(Math.random() * (7 - parts.weekdayIndex));
+    let minuteOfDay = getWeightedUltraSpawnMinute();
+    let minuteOfWeek = dayIndex * 1440 + minuteOfDay;
+    if (minuteOfWeek <= currentMinuteOfWeek + 30) {
+      if (dayIndex !== parts.weekdayIndex) continue;
+      minuteOfDay = Math.min(1439, parts.hour * 60 + parts.minute + 30 + Math.floor(Math.random() * 180));
+      minuteOfWeek = dayIndex * 1440 + minuteOfDay;
+    }
+    const tooClose = events.some(event => Math.abs((event.dayIndex * 1440 + event.minuteOfDay) - minuteOfWeek) < 90);
+    if (tooClose) continue;
+    events.push({ dayIndex, minuteOfDay, completed: false });
+  }
+  events.sort((a, b) => (a.dayIndex * 1440 + a.minuteOfDay) - (b.dayIndex * 1440 + b.minuteOfDay));
+  return true;
 }
 
 function getDueWeeklyUltraEvent(schedule, date = new Date()) {
@@ -4584,7 +4625,7 @@ async function resolveUltraCatch(message, monster, state, roll, chance, itemKey 
 
   // If an Ultra Hunt overlaps Big Game Hunt, only the successful catcher earns
   // the Ultra Rare token reward. Participation points remain unchanged.
-  const ultraTokenText = awardHuntTokens(data, catcher, message.author.id, caughtMonster);
+  const ultraTokenText = awardHuntTokens(data, catcher, message.author.id, caughtMonster, { allowDaily: false });
 
   saveData(data);
   await announceTitleUnlocks(message, automaticTitleUnlocks);
@@ -4933,10 +4974,30 @@ function nextWorldShatterSaturday(now = Date.now()) {
     const d = new Date(base); d.setUTCDate(base.getUTCDate()+add);
     if (d.getUTCDay() !== 6) continue;
     const dateString = d.toISOString().slice(0,10);
-    const ts = mountainLocalTimestamp(dateString,19,0);
+    const ts = mountainLocalTimestamp(dateString,20,0);
     if (ts >= minAt) return ts;
   }
   return now + 7*24*60*60*1000;
+}
+
+function migratePendingWorldShatterToEightPm(data) {
+  const ws = data.worldStory;
+  if (!ws || ws.worldShatterEightPmMigrationDone) return false;
+  let changed = false;
+
+  // Move the already-triggered pending Saturday finale from 7:00 PM to 8:00 PM
+  // once, without changing any discovered Relics or story progress.
+  if (ws.shatterScheduledAt && !ws.event?.active && !ws.postShatter) {
+    const parts = getMountainDateTimeParts(new Date(ws.shatterScheduledAt));
+    if (parts.hour === 19) {
+      ws.shatterScheduledAt = mountainLocalTimestamp(parts.date, 20, 0);
+      ws.beats = buildFinalWarningBeats(ws.finalWarningStartedAt || Date.now(), ws.shatterScheduledAt);
+      ws.missedStart = false;
+      changed = true;
+    }
+  }
+  ws.worldShatterEightPmMigrationDone = true;
+  return true || changed;
 }
 
 function initializeFourOfFiveAnomalyState(data) {
@@ -5214,13 +5275,53 @@ function mountainLocalTimestamp(dateString, hour, minute) {
 
 function generateDistortionSchedule(data) {
   const weekKey = mountainWeekKey();
-  if (data.distortionSchedule?.weekKey === weekKey && Array.isArray(data.distortionSchedule.events) && data.distortionSchedule.events.length) return false;
   if (discoveredWorldRelicCount(data) < 3) return false;
 
   const monday = new Date(`${weekKey}T12:00:00Z`);
+  const now = Date.now();
+
+  if (data.distortionSchedule?.weekKey === weekKey && Array.isArray(data.distortionSchedule.events) && data.distortionSchedule.events.length) {
+    const events = data.distortionSchedule.events;
+    if (events.length >= DISTORTION_EVENTS_PER_WEEK) return false;
+
+    // Mid-week migration from the previous 4-Rift schedule: add future Rift slots
+    // without touching events that already happened or are already announced.
+    let attempts = 0;
+    const realmKeys = ["infernal","frost","arcane","hollow","astral"];
+    while (events.length < DISTORTION_EVENTS_PER_WEEK && attempts < 200) {
+      attempts++;
+      const currentParts = getMountainDateTimeParts(new Date(now));
+      const currentLocalDate = new Date(`${currentParts.date}T12:00:00Z`);
+      const currentDayIndex = Math.max(0, Math.min(6, Math.round((currentLocalDate - monday) / (24 * 60 * 60 * 1000))));
+      const dayIndex = currentDayIndex + Math.floor(Math.random() * (7 - currentDayIndex));
+      const date = new Date(monday); date.setUTCDate(monday.getUTCDate() + dayIndex);
+      const dateString = date.toISOString().slice(0,10);
+      const weekend = dayIndex >= 5;
+      let startHour = weekend ? 12 + Math.floor(Math.random()*9) : 17 + Math.floor(Math.random()*4);
+      let minute = Math.floor(Math.random()*60);
+      let startAt = mountainLocalTimestamp(dateString,startHour,minute);
+      if (startAt <= now + 30 * 60 * 1000) {
+        if (dayIndex !== currentDayIndex) continue;
+        const currentClock = getMountainDateTimeParts(new Date(now));
+        const futureMinute = Math.min(23*60+50, currentClock.hour*60 + currentClock.minute + 30 + Math.floor(Math.random()*180));
+        startHour = Math.floor(futureMinute/60); minute = futureMinute%60;
+        startAt = mountainLocalTimestamp(dateString,startHour,minute);
+      }
+      if (events.some(event => Math.abs(Number(event.startAt||0)-startAt) < 3*60*60*1000)) continue;
+      const scheduledKey = realmKeys[events.length % realmKeys.length];
+      events.push({
+        id: `${weekKey}-extra-${events.length+1}-${startAt}`,
+        scheduledKey,
+        startAt,
+        warned:false, criticalWarned:false, started:false, ended:false, skipped:false, skipReason:null
+      });
+    }
+    events.sort((a,b)=>a.startAt-b.startAt);
+    return true;
+  }
+
   const dayIndexes = [0,1,2,3,4,5,6].sort(() => Math.random() - 0.5).slice(0, DISTORTION_EVENTS_PER_WEEK).sort((a,b)=>a-b);
   const realmKeys = ["infernal","frost","arcane","hollow","astral"].sort(() => Math.random() - 0.5);
-  const now = Date.now();
 
   const events = dayIndexes.map((dayIndex, i) => {
     const date = new Date(monday);
@@ -5262,6 +5363,7 @@ function ensureBigGameMerchantData(data) {
   const big = data.bigGame;
   if (big.active === undefined) big.active = false;
   if (big.weekKey === undefined) big.weekKey = null;
+  if (big.eventId === undefined) big.eventId = null;
   if (!Number.isFinite(big.startedAt)) big.startedAt = 0;
   if (!Number.isFinite(big.endsAt)) big.endsAt = 0;
   if (!big.scores || typeof big.scores !== "object") big.scores = {};
@@ -5270,12 +5372,16 @@ function ensureBigGameMerchantData(data) {
   if (big.resultsSent === undefined) big.resultsSent = false;
   if (big.lastCompletedWeek === undefined) big.lastCompletedWeek = null;
   if (!Array.isArray(big.history)) big.history = [];
+  if (!Array.isArray(big.completedEventIds)) big.completedEventIds = [];
+  if (!big.schedule || typeof big.schedule !== "object") big.schedule = { weekKey: null, events: [] };
+  if (!Array.isArray(big.schedule.events)) big.schedule.events = [];
   if (!big.reminders || typeof big.reminders !== "object") big.reminders = {};
 
   if (!data.merchant || typeof data.merchant !== "object") data.merchant = {};
   const merchant = data.merchant;
   if (merchant.active === undefined) merchant.active = false;
   if (merchant.type === undefined) merchant.type = null;
+  if (merchant.scheduleId === undefined) merchant.scheduleId = null;
   if (merchant.scheduledWeekKey === undefined) merchant.scheduledWeekKey = null;
   if (!Number.isFinite(merchant.arrivalAt)) merchant.arrivalAt = 0;
   if (!Number.isFinite(merchant.departureAt)) merchant.departureAt = 0;
@@ -5286,6 +5392,8 @@ function ensureBigGameMerchantData(data) {
   if (merchant.clearance === undefined) merchant.clearance = false;
   if (!Number.isFinite(merchant.lastVisitAt)) merchant.lastVisitAt = 0;
   if (!Array.isArray(merchant.history)) merchant.history = [];
+  if (!data.merchantSchedule || typeof data.merchantSchedule !== "object") data.merchantSchedule = { weekKey: null, visits: [] };
+  if (!Array.isArray(data.merchantSchedule.visits)) data.merchantSchedule.visits = [];
 
   if (!data.tokenSurge || typeof data.tokenSurge !== "object") data.tokenSurge = {};
   const surge = data.tokenSurge;
@@ -5301,15 +5409,121 @@ function mountainClock(date = new Date()) {
   return { ...base, weekKey: getMountainWeekKey(date), totalMinutes: base.hour * 60 + base.minute };
 }
 
-function nextBigGameStartAt(now = Date.now()) {
-  for (let dayOffset = 0; dayOffset <= 7; dayOffset++) {
-    let candidate = now + dayOffset * 24 * 60 * 60 * 1000;
-    const parts = getMountainDateParts(new Date(candidate));
-    if (parts.weekdayIndex !== 6) continue;
-    candidate += (BIG_GAME_START_HOUR - parts.hour) * 60 * 60 * 1000 - parts.minute * 60 * 1000 - new Date(candidate).getSeconds() * 1000;
-    if (candidate > now) return candidate;
+function weekDateString(weekKey, dayIndex) {
+  const d = new Date(`${weekKey}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + dayIndex);
+  return d.toISOString().slice(0, 10);
+}
+
+function eligibleScheduleDays(date = new Date(), latestSameDayMinute = 20 * 60) {
+  const clock = mountainClock(date);
+  const days = [];
+  for (let dayIndex = clock.weekdayIndex; dayIndex <= 6; dayIndex++) {
+    if (dayIndex === clock.weekdayIndex && clock.totalMinutes > latestSameDayMinute - 60) continue;
+    days.push(dayIndex);
   }
-  return now + 7 * 24 * 60 * 60 * 1000;
+  return days;
+}
+
+function randomMinuteBetween(minuteMin, minuteMax) {
+  const low = Math.ceil(minuteMin);
+  const high = Math.floor(minuteMax);
+  return low + Math.floor(Math.random() * Math.max(1, high - low + 1));
+}
+
+function generateBigGameWeeklySchedule(data, date = new Date()) {
+  ensureBigGameMerchantData(data);
+  const weekKey = getMountainWeekKey(date);
+  if (data.bigGame.schedule.weekKey === weekKey && data.bigGame.schedule.events.length) return false;
+
+  const clock = mountainClock(date);
+  const available = eligibleScheduleDays(date, BIG_GAME_LATEST_START_MINUTE);
+  const selectedDays = shuffled(available).slice(0, Math.min(BIG_GAME_EVENTS_PER_WEEK, available.length)).sort((a, b) => a - b);
+  const now = Date.now();
+
+  const events = selectedDays.map((dayIndex, index) => {
+    let earliest = BIG_GAME_EARLIEST_START_MINUTE;
+    if (dayIndex === clock.weekdayIndex) earliest = Math.max(earliest, clock.totalMinutes + 60);
+    const dateString = weekDateString(weekKey, dayIndex);
+    let latest = BIG_GAME_LATEST_START_MINUTE;
+    const shatterAt = Number(data.worldStory?.shatterScheduledAt || 0);
+    if (shatterAt && !data.worldStory?.postShatter) {
+      const shatterParts = getMountainDateTimeParts(new Date(shatterAt));
+      if (shatterParts.date === dateString) {
+        // Give the World Shatter a 30-minute buffer after Big Game Hunt ends.
+        latest = Math.min(latest, shatterParts.hour * 60 + shatterParts.minute - (BIG_GAME_DURATION / 60000) - 30);
+      }
+    }
+    if (latest < earliest) latest = earliest;
+    const startMinute = randomMinuteBetween(earliest, latest);
+    const startAt = mountainLocalTimestamp(dateString, Math.floor(startMinute / 60), startMinute % 60);
+    return {
+      id: `${weekKey}-big-${index + 1}-${dayIndex}-${startMinute}`,
+      dayIndex,
+      startMinute,
+      startAt,
+      endsAt: startAt + BIG_GAME_DURATION,
+      morningSent: false,
+      warningSent: false,
+      started: false,
+      completed: false,
+      skipped: startAt < now - 10 * 60 * 1000
+    };
+  });
+
+  data.bigGame.schedule = { weekKey, events };
+  return true;
+}
+
+function ensureBigGameWeeklySchedule(data, date = new Date()) {
+  return generateBigGameWeeklySchedule(data, date);
+}
+
+function nextBigGameStartAt(data = null, now = Date.now()) {
+  const working = data || loadData();
+  ensureBigGameWeeklySchedule(working, new Date(now));
+  const current = (working.bigGame.schedule?.events || [])
+    .filter(event => !event.completed && !event.skipped && event.startAt > now)
+    .sort((a, b) => a.startAt - b.startAt)[0];
+  if (current) return current.startAt;
+
+  // Preview next week's first event without altering the live current-week schedule.
+  const nextWeekDate = new Date(now + 7 * 24 * 60 * 60 * 1000);
+  const temp = { players: {}, bigGame: { schedule: { weekKey: null, events: [] } }, merchant: {}, merchantSchedule: {}, tokenSurge: {} };
+  ensureBigGameMerchantData(temp);
+  generateBigGameWeeklySchedule(temp, nextWeekDate);
+  return temp.bigGame.schedule.events.sort((a, b) => a.startAt - b.startAt)[0]?.startAt || now + 7 * 24 * 60 * 60 * 1000;
+}
+
+function generateMerchantWeeklySchedule(data, date = new Date()) {
+  ensureBigGameMerchantData(data);
+  const weekKey = getMountainWeekKey(date);
+  if (data.merchantSchedule.weekKey === weekKey && data.merchantSchedule.visits.length) return false;
+
+  const clock = mountainClock(date);
+  const latestMinute = 19 * 60;
+  const available = eligibleScheduleDays(date, latestMinute);
+  const selectedDays = shuffled(available).slice(0, Math.min(MERCHANT_VISITS_PER_WEEK, available.length)).sort((a, b) => a - b);
+
+  const visits = selectedDays.map((dayIndex, index) => {
+    let earliest = 9 * 60;
+    if (dayIndex === clock.weekdayIndex) earliest = Math.max(earliest, clock.totalMinutes + 60);
+    const startMinute = randomMinuteBetween(earliest, latestMinute);
+    const dateString = weekDateString(weekKey, dayIndex);
+    return {
+      id: `${weekKey}-merchant-${index + 1}-${dayIndex}-${startMinute}`,
+      startAt: mountainLocalTimestamp(dateString, Math.floor(startMinute / 60), startMinute % 60),
+      started: false,
+      completed: false
+    };
+  });
+
+  data.merchantSchedule = { weekKey, visits };
+  return true;
+}
+
+function ensureMerchantWeeklySchedule(data, date = new Date()) {
+  return generateMerchantWeeklySchedule(data, date);
 }
 
 function isBigGameActive(data, now = Date.now()) {
@@ -5332,10 +5546,11 @@ function bigGameLeaderboardText(data, limit = 5) {
   return ranked.map((entry, index) => `${medals[index] || `#${index + 1}`} ${formatPlayerMention(data, entry.userId)} — **${entry.score} 🪙**`).join("\n");
 }
 
-function activateBigGame(data, { weekKey = getMountainWeekKey(), startedAt = Date.now(), endsAt = Date.now() + 2 * 60 * 60 * 1000 } = {}) {
+function activateBigGame(data, { weekKey = getMountainWeekKey(), eventId = `manual-${Date.now()}`, startedAt = Date.now(), endsAt = Date.now() + BIG_GAME_DURATION } = {}) {
   ensureBigGameMerchantData(data);
   data.bigGame.active = true;
   data.bigGame.weekKey = weekKey;
+  data.bigGame.eventId = eventId;
   data.bigGame.startedAt = startedAt;
   data.bigGame.endsAt = endsAt;
   data.bigGame.scores = {};
@@ -5351,7 +5566,7 @@ function activateBigGame(data, { weekKey = getMountainWeekKey(), startedAt = Dat
   }
 }
 
-function awardHuntTokens(data, player, userId, monster) {
+function awardHuntTokens(data, player, userId, monster, { allowDaily = true } = {}) {
   const now = Date.now();
   let amount = 0;
   let source = null;
@@ -5360,6 +5575,9 @@ function awardHuntTokens(data, player, userId, monster) {
     source = "Big Game Hunt";
     data.bigGame.scores[userId] = Number(data.bigGame.scores[userId] || 0) + amount;
     data.bigGame.reachedAt[userId] = now;
+  } else if (allowDaily && getActiveEvent()?.tokenRush && !monster.distortionEncounter && !monster.worldShatterEncounter) {
+    amount = 1;
+    source = "Token Rush Day";
   } else if (data.tokenSurge?.active && now < data.tokenSurge.endsAt && Math.random() < 0.5) {
     amount = Math.max(1, Math.ceil((BIG_GAME_TOKEN_REWARDS[monster.rarity] || 1) / 2));
     source = "Token Surge";
@@ -5548,7 +5766,7 @@ async function announceBigGameStart(channel, data) {
     `⏱️ \`!hunt\` every **30 minutes**\n🪙 Successful catches earn **Hunt Tokens**\n` +
     `🥇 1st — **+50 Hunter Points**\n🥈 2nd — **+30 Hunter Points**\n🥉 3rd — **+15 Hunter Points**\n\n` +
     `Everyone can hunt **RIGHT NOW**. Tokens remain yours after the event.\n` +
-    `**Ends at 2:00 PM Mountain Time. GO!**`, BIG_GAME_IMAGE, true);
+    `**Ends <t:${Math.floor(data.bigGame.endsAt / 1000)}:t> Mountain Time (<t:${Math.floor(data.bigGame.endsAt / 1000)}:R>). GO!**`, BIG_GAME_IMAGE, true);
 }
 
 async function finishBigGameHunt(data, channel, { forced = false } = {}) {
@@ -5556,6 +5774,7 @@ async function finishBigGameHunt(data, channel, { forced = false } = {}) {
   if (!data.bigGame.active) return false;
   const endedAt = Date.now();
   const weekKey = data.bigGame.weekKey || getMountainWeekKey();
+  const eventId = data.bigGame.eventId || `manual-${endedAt}`;
   data.bigGame.active = false;
   const ranking = getBigGameRanking(data);
   const winners = ranking.slice(0, 3).map((entry, index) => ({ ...entry, place: index + 1, reward: BIG_GAME_PLACEMENT_REWARDS[index] }));
@@ -5571,14 +5790,17 @@ async function finishBigGameHunt(data, channel, { forced = false } = {}) {
     player.points += winner.reward;
     addWeeklyProgress(data, player, winner.reward);
     if (winner.place === 1) player.bigGameWins++;
-    player.bigGamePlacements.push({ weekKey, place: winner.place, score: winner.score, reward: winner.reward, at: endedAt });
+    player.bigGamePlacements.push({ weekKey, eventId, place: winner.place, score: winner.score, reward: winner.reward, at: endedAt });
     recordPointMilestoneMoments(data, winner.userId, previousPoints, player.points);
   }
-  const record = { weekKey, startedAt: data.bigGame.startedAt, endedAt, forced, winners };
+  const record = { weekKey, eventId, startedAt: data.bigGame.startedAt, endedAt, forced, winners };
   data.bigGame.history.push(record);
   data.bigGame.lastCompletedWeek = weekKey;
+  if (!data.bigGame.completedEventIds.includes(eventId)) data.bigGame.completedEventIds.push(eventId);
+  const scheduledEvent = (data.bigGame.schedule?.events || []).find(event => event.id === eventId);
+  if (scheduledEvent) { scheduledEvent.completed = true; scheduledEvent.started = true; }
   data.bigGame.resultsSent = true;
-  scheduleMerchantAfterBigGame(data, weekKey, endedAt);
+  data.bigGame.eventId = null;
   saveData(data);
 
   const resultLines = winners.length ? winners.map(winner =>
@@ -5642,40 +5864,85 @@ async function processBigGameMerchantSystem() {
     const clock = mountainClock(new Date(now));
     const channel = await getMonsterHuntChannel();
     let dirty = false;
-    if (!data.bigGame.reminders[clock.weekKey]) data.bigGame.reminders[clock.weekKey] = {};
-    const reminders = data.bigGame.reminders[clock.weekKey];
+    if (ensureBigGameWeeklySchedule(data, new Date(now))) dirty = true;
+    if (ensureMerchantWeeklySchedule(data, new Date(now))) dirty = true;
 
-    if (clock.weekdayIndex === 6 && clock.totalMinutes >= 9 * 60 && clock.totalMinutes < 11 * 60 + 30 && !reminders.morning) {
-      reminders.morning = true; dirty = true; saveData(data);
-      await sendRoleImageAnnouncement(channel,
-        `<@&${MONSTER_NOTIFY_ROLE}>\n\n🎯 **BIG GAME HUNT TODAY**\n\nMonster activity will surge from **12:00-2:00 PM Mountain Time**.\n\n` +
-        `⚔️ Hunt every 30 minutes\n🪙 Earn Hunt Tokens\n🏆 Compete for 50 / 30 / 15 Hunter Points\n\nGet your bait ready.`, BIG_GAME_IMAGE, true);
+    // ==================== THREE RANDOM BIG GAME HUNTS PER WEEK ====================
+    const bigEvents = data.bigGame.schedule?.events || [];
+    for (const event of bigEvents) {
+      if (event.completed || event.skipped) continue;
+      const eventClock = getMountainDateParts(new Date(event.startAt));
+      const sameMountainDay = eventClock.year === clock.year && eventClock.month === clock.month && eventClock.day === clock.day;
+
+      // Morning reveal: players learn today's random Big Game Hunt time at 9 AM.
+      if (sameMountainDay && clock.totalMinutes >= 9 * 60 && now < event.startAt - 30 * 60 * 1000 && !event.morningSent) {
+        event.morningSent = true; dirty = true; saveData(data);
+        await sendRoleImageAnnouncement(channel,
+          `<@&${MONSTER_NOTIFY_ROLE}>\n\n🎯 **BIG GAME HUNT TODAY**\n\n` +
+          `Monster activity is expected to surge **<t:${Math.floor(event.startAt / 1000)}:t> Mountain Time**.\n\n` +
+          `⚔️ Hunt every 30 minutes\n🪙 Earn Hunt Tokens\n🏆 Compete for 50 / 30 / 15 Hunter Points\n\nGet your bait ready.`, BIG_GAME_IMAGE, true);
+      }
+
+      if (now >= event.startAt - 30 * 60 * 1000 && now < event.startAt && !event.warningSent) {
+        event.warningSent = true; dirty = true; saveData(data);
+        await sendRoleImageAnnouncement(channel,
+          `<@&${MONSTER_NOTIFY_ROLE}>\n\n⚠️ **30 MINUTES UNTIL BIG GAME HUNT**\n\n` +
+          `At <t:${Math.floor(event.startAt / 1000)}:t>, hunt cooldowns drop to 30 minutes and successful catches begin awarding Hunt Tokens.\n\nCheck your bait. Check your inventory.`, BIG_GAME_IMAGE, true);
+      }
+
+      // Recover a scheduled event after a short Railway restart without extending its original end time.
+      if (!event.started && now >= event.startAt && now < event.endsAt && !data.bigGame.active) {
+        const elapsedMinutes = Math.floor((now - event.startAt) / 60000);
+        event.started = true; dirty = true;
+        activateBigGame(data, { weekKey: data.bigGame.schedule.weekKey, eventId: event.id, startedAt: event.startAt, endsAt: event.endsAt });
+        if (elapsedMinutes >= 60) data.bigGame.halftimeSent = true;
+        saveData(data);
+        await announceBigGameStart(channel, data);
+      }
+
+      if (!event.started && now >= event.endsAt) {
+        event.skipped = true; event.completed = true; dirty = true;
+      }
     }
-    if (clock.weekdayIndex === 6 && clock.totalMinutes >= 11 * 60 + 30 && clock.totalMinutes < 12 * 60 && !reminders.warning) {
-      reminders.warning = true; dirty = true; saveData(data);
-      await sendRoleImageAnnouncement(channel,
-        `<@&${MONSTER_NOTIFY_ROLE}>\n\n⚠️ **30 MINUTES UNTIL BIG GAME HUNT**\n\n` +
-        `At noon, hunt cooldowns drop to 30 minutes and successful catches begin awarding Hunt Tokens.\n\nCheck your bait. Check your inventory.`, BIG_GAME_IMAGE, true);
-    }
-    if (clock.weekdayIndex === 6 && clock.totalMinutes >= BIG_GAME_START_HOUR * 60 && clock.totalMinutes < BIG_GAME_END_HOUR * 60 && (!data.bigGame.active || data.bigGame.weekKey !== clock.weekKey) && data.bigGame.lastCompletedWeek !== clock.weekKey) {
-      const elapsedMinutes = clock.totalMinutes - BIG_GAME_START_HOUR * 60;
-      const startedAt = now - elapsedMinutes * 60 * 1000 - new Date(now).getSeconds() * 1000;
-      const endsAt = startedAt + 2 * 60 * 60 * 1000;
-      activateBigGame(data, { weekKey: clock.weekKey, startedAt, endsAt });
-      // A late Railway recovery after halftime should not emit an empty halftime
-      // board immediately after the recovered start announcement.
-      if (elapsedMinutes >= 60) data.bigGame.halftimeSent = true;
-      reminders.start = true; dirty = true; saveData(data);
-      await announceBigGameStart(channel, data);
-    }
+
     if (data.bigGame.active && now >= data.bigGame.startedAt + 60 * 60 * 1000 && now < data.bigGame.endsAt && !data.bigGame.halftimeSent) {
       data.bigGame.halftimeSent = true; dirty = true; saveData(data);
       await sendRoleImageAnnouncement(channel,
-        `⚔️ **BIG GAME HUNT — HALFTIME**\n\nOne hour remains!\n\n${bigGameLeaderboardText(data, 3)}\n\n**The hunt ends at 2:00 PM Mountain Time.**`, BIG_GAME_IMAGE, false);
+        `⚔️ **BIG GAME HUNT — HALFTIME**\n\nOne hour remains!\n\n${bigGameLeaderboardText(data, 3)}\n\n` +
+        `**The hunt ends <t:${Math.floor(data.bigGame.endsAt / 1000)}:t> Mountain Time.**`, BIG_GAME_IMAGE, false);
     }
     if (data.bigGame.active && now >= data.bigGame.endsAt) {
       await finishBigGameHunt(data, channel);
       dirty = false;
+    }
+
+    // ==================== THREE RANDOM MERCHANT VISITS PER WEEK ====================
+    const merchantSchedule = data.merchantSchedule?.visits || [];
+    if (!data.merchant.active) {
+      const dueVisit = merchantSchedule
+        .filter(visit => !visit.started && !visit.completed && now >= visit.startAt)
+        .sort((a, b) => a.startAt - b.startAt)[0];
+      if (dueVisit) {
+        dueVisit.started = true;
+        const type = weightedMerchantType(data);
+        const definition = MERCHANT_TYPE_DEFINITIONS[type];
+        const clearance = ["aldric", "gribble"].includes(type) && Math.random() < 0.12;
+        data.merchant = {
+          ...data.merchant,
+          active: false,
+          type,
+          scheduleId: dueVisit.id,
+          scheduledWeekKey: data.merchantSchedule.weekKey,
+          arrivalAt: now,
+          departureAt: now + definition.durationHours * 60 * 60 * 1000,
+          inventory: generateMerchantInventory(type, clearance),
+          reminderSent: false,
+          specialAt: Math.random() < 0.18 ? now + Math.floor(definition.durationHours / 2) * 60 * 60 * 1000 : 0,
+          specialDone: false,
+          clearance
+        };
+        dirty = true;
+      }
     }
 
     const merchant = data.merchant;
@@ -5712,8 +5979,11 @@ async function processBigGameMerchantSystem() {
     if (merchant.active && now >= merchant.departureAt) {
       const definition = MERCHANT_TYPE_DEFINITIONS[merchant.type];
       merchant.history.push({ type: merchant.type, arrivalAt: merchant.arrivalAt, departureAt: merchant.departureAt });
+      const scheduledVisit = (data.merchantSchedule?.visits || []).find(visit => visit.id === merchant.scheduleId);
+      if (scheduledVisit) scheduledVisit.completed = true;
       merchant.active = false;
       merchant.type = null;
+      merchant.scheduleId = null;
       merchant.arrivalAt = 0;
       merchant.departureAt = 0;
       merchant.inventory = [];
@@ -5958,7 +6228,7 @@ client.once("clientReady", () => {
   cron.schedule("* * * * *", async () => {
     await processBigGameMerchantSystem();
   });
-  // Recover an active Sunday event, merchant visit, or Token Surge immediately after a redeploy.
+  // Recover any active scheduled Big Game Hunt, merchant visit, or Token Surge immediately after a redeploy.
   processBigGameMerchantSystem().catch(error => console.error("Initial Big Game / Merchant check failed:", error));
   cron.schedule("* * * * *", async () => {
     try { await processDistortionSystem(); }
@@ -5969,7 +6239,7 @@ client.once("clientReady", () => {
     catch (error) { console.error("World Story / World Shatter monitor failed:", error); }
   });
   // Initialize story state safely on startup without immediately posting or starting the finale.
-  { const startupWorldData=loadData(); const c=discoveredWorldRelicCount(startupWorldData); if(c===4) initializeFourOfFiveAnomalyState(startupWorldData); if(c>=5 && !startupWorldData.worldStory?.postShatter) initializeFinalWarningState(startupWorldData); saveData(startupWorldData); }
+  { const startupWorldData=loadData(); migratePendingWorldShatterToEightPm(startupWorldData); const c=discoveredWorldRelicCount(startupWorldData); if(c===4) initializeFourOfFiveAnomalyState(startupWorldData); if(c>=5 && !startupWorldData.worldStory?.postShatter) initializeFinalWarningState(startupWorldData); saveData(startupWorldData); }
   // No immediate Distortion processing on startup; the minute cron handles only live future schedule windows.
 
   //
@@ -6018,8 +6288,6 @@ client.once("clientReady", () => {
       // On launch day, the one-time Season 2 launch system replaces
       // the normal noon reminder with the channel unlock and launch message.
       if (getMountainDateTimeParts().date === SEASON_LAUNCH_DATE) return;
-      // Sunday's noon post is replaced by the Big Game Hunt start announcement.
-      if (getMountainDateParts().weekdayIndex === 6) return;
 
       const guild = client.guilds.cache.first();
       if (!guild) return;
@@ -6187,7 +6455,7 @@ client.on("messageCreate", async (message) => {
     if (sub === "morning") {
       return sendRoleImageAnnouncement(message.channel,
         `🧪 **PRIVATE TEST — NO ROLE PING**\n\n🎯 **BIG GAME HUNT TODAY**\n\n` +
-        `Monster activity will surge from **12:00-2:00 PM Mountain Time**.\n\n` +
+        `This test represents one of the **3 random weekly hunts**. Live events begin between **3:30 PM and 8:00 PM Mountain Time** and last 2 hours.\n\n` +
         `⚔️ Hunt every 30 minutes\n🪙 Earn Hunt Tokens\n🏆 Compete for 50 / 30 / 15 Hunter Points\n\nGet your bait ready.`,
         BIG_GAME_IMAGE, false);
     }
@@ -6195,7 +6463,7 @@ client.on("messageCreate", async (message) => {
     if (sub === "warning") {
       return sendRoleImageAnnouncement(message.channel,
         `🧪 **PRIVATE TEST — NO ROLE PING**\n\n⚠️ **30 MINUTES UNTIL BIG GAME HUNT**\n\n` +
-        `At noon, hunt cooldowns drop to 30 minutes and successful catches begin awarding Hunt Tokens.\n\nCheck your bait. Check your inventory.`,
+        `At the scheduled start time, hunt cooldowns drop to 30 minutes and successful catches begin awarding Hunt Tokens.\n\nCheck your bait. Check your inventory.`,
         BIG_GAME_IMAGE, false);
     }
 
@@ -6363,10 +6631,11 @@ client.on("messageCreate", async (message) => {
 
   if (command === "!biggame") {
     if (!isBigGameActive(data)) {
-      const nextAt = nextBigGameStartAt();
+      if (ensureBigGameWeeklySchedule(data)) saveData(data);
+      const nextAt = nextBigGameStartAt(data);
       return message.reply(
         `🎯 **BIG GAME HUNT**\n\nNext event: <t:${Math.floor(nextAt / 1000)}:F> (<t:${Math.floor(nextAt / 1000)}:R>)\n` +
-        `Every Sunday from **12:00-2:00 PM Mountain Time**.\n\n` +
+        `There are **3 Big Game Hunts every week** on different random days. Each lasts 2 hours and begins between **3:30 PM and 8:00 PM Mountain Time**.\n\n` +
         `⏱️ 30-minute hunts • 🪙 Hunt Tokens • 🏆 50 / 30 / 15 Hunter Points\n` +
         `Your Token Balance: **${player.huntTokens} 🪙**`
       );
@@ -6517,10 +6786,11 @@ client.on("messageCreate", async (message) => {
   // ==================== BIG GAME / MERCHANT ADMIN COMMANDS ====================
   if (command === "!announcebiggame") {
     if (!message.member?.permissions.has(PermissionsBitField.Flags.Administrator)) return message.reply("Only admins can post the Big Game announcement.");
-    const nextAt = nextBigGameStartAt();
+    if (ensureBigGameWeeklySchedule(data)) saveData(data);
+    const nextAt = nextBigGameStartAt(data);
     return sendRoleImageAnnouncement(message.channel,
       `<@&${MONSTER_NOTIFY_ROLE}>\n\n🎯 **BIG GAME HUNT HAS ARRIVED!**\n\n` +
-      `Every Sunday from **12:00-2:00 PM Mountain Time**, hunt every 30 minutes, earn Hunt Tokens, and compete for bonus Hunter Points.\n\n` +
+      `There are **3 Big Game Hunts every week** on different random days. Each lasts 2 hours, starts between **3:30 PM and 8:00 PM Mountain Time**, and lets you hunt every 30 minutes for Hunt Tokens.\n\n` +
       `🥇 50 HP • 🥈 30 HP • 🥉 15 HP\n\nNext hunt: <t:${Math.floor(nextAt / 1000)}:F>.`, BIG_GAME_IMAGE, true);
   }
 
@@ -6543,10 +6813,15 @@ client.on("messageCreate", async (message) => {
     return;
   }
   if (command === "!biggamestatus") {
+    ensureBigGameWeeklySchedule(data); saveData(data);
+    const scheduleText = (data.bigGame.schedule?.events || []).map((event, index) =>
+      `${index + 1}. <t:${Math.floor(event.startAt / 1000)}:F> — ${event.completed ? "COMPLETED" : event.skipped ? "SKIPPED" : event.started ? "STARTED" : "scheduled"}`
+    ).join("\n") || "No schedule generated.";
     return message.reply(
-      `🛠️ **BIG GAME ADMIN STATUS**\nActive: **${data.bigGame.active}**\nWeek: **${data.bigGame.weekKey || "None"}**\n` +
+      `🛠️ **BIG GAME ADMIN STATUS**\nActive: **${data.bigGame.active}**\nWeek: **${data.bigGame.schedule?.weekKey || data.bigGame.weekKey || "None"}**\n` +
       `Started: ${data.bigGame.startedAt ? `<t:${Math.floor(data.bigGame.startedAt / 1000)}:F>` : "None"}\n` +
-      `Ends: ${data.bigGame.endsAt ? `<t:${Math.floor(data.bigGame.endsAt / 1000)}:F>` : "None"}\nParticipants: **${getBigGameRanking(data).length}**\n\n${bigGameLeaderboardText(data, 10)}`
+      `Ends: ${data.bigGame.endsAt ? `<t:${Math.floor(data.bigGame.endsAt / 1000)}:F>` : "None"}\nParticipants: **${getBigGameRanking(data).length}**\n\n` +
+      `**This Week's Big Game Hunts**\n${scheduleText}\n\n${bigGameLeaderboardText(data, 10)}`
     );
   }
 
@@ -6588,12 +6863,17 @@ client.on("messageCreate", async (message) => {
     return;
   }
   if (command === "!merchantstatus") {
+    ensureMerchantWeeklySchedule(data); saveData(data);
     const merchant = data.merchant;
+    const visits = (data.merchantSchedule?.visits || []).map((visit, index) =>
+      `${index + 1}. <t:${Math.floor(visit.startAt / 1000)}:F> — ${visit.completed ? "COMPLETED" : visit.started ? "STARTED" : "scheduled"}`
+    ).join("\n") || "No weekly visits generated.";
     return message.reply(
       `🛠️ **MERCHANT ADMIN STATUS**\nActive: **${merchant.active}**\nType: **${merchant.type || "None"}**\n` +
-      `Arrival: ${merchant.arrivalAt ? `<t:${Math.floor(merchant.arrivalAt / 1000)}:F>` : "Not scheduled"}\n` +
-      `Departure: ${merchant.departureAt ? `<t:${Math.floor(merchant.departureAt / 1000)}:F>` : "Not scheduled"}\n` +
-      `Inventory Generated: **${merchant.inventory.length > 0}**\nOffers: **${merchant.inventory.length}**\nClearance: **${merchant.clearance}**`
+      `Arrival: ${merchant.arrivalAt ? `<t:${Math.floor(merchant.arrivalAt / 1000)}:F>` : "Not active"}\n` +
+      `Departure: ${merchant.departureAt ? `<t:${Math.floor(merchant.departureAt / 1000)}:F>` : "Not active"}\n` +
+      `Inventory Generated: **${merchant.inventory.length > 0}**\nOffers: **${merchant.inventory.length}**\nClearance: **${merchant.clearance}**\n\n` +
+      `**This Week's ${MERCHANT_VISITS_PER_WEEK} Visits**\n${visits}`
     );
   }
   if (command === "!restockmerchant") {
@@ -7251,9 +7531,9 @@ ${captureChoicesText(choices)}
     }
     if(sub==="schedule") {
       let target=0; const joined=args.join(" ").toLowerCase();
-      if(joined==="saturday 7pm" || joined==="sat 7pm") target=nextWorldShatterSaturday(Date.now());
+      if(joined==="saturday 8pm" || joined==="sat 8pm") target=nextWorldShatterSaturday(Date.now());
       else if(/^\d{10,13}$/.test(joined)) target=Number(joined.length===10?Number(joined)*1000:joined);
-      if(!target) return message.reply("Use `!worldshatter schedule saturday 7pm` or provide a Unix timestamp.");
+      if(!target) return message.reply("Use `!worldshatter schedule saturday 8pm` or provide a Unix timestamp.");
       ws.shatterScheduledAt=target; ws.shatterScheduleManual=true; ws.finalWarningStartedAt=ws.finalWarningStartedAt||Date.now(); ws.phase="final_warning"; ws.beats=buildFinalWarningBeats(ws.finalWarningStartedAt,target); ws.missedStart=false; saveData(fresh);
       return message.reply(`✅ World Shatter scheduled for <t:${Math.floor(target/1000)}:F> (<t:${Math.floor(target/1000)}:R>).`);
     }
@@ -7268,7 +7548,7 @@ ${captureChoicesText(choices)}
     }
     if(sub==="end") { if(!ws.event?.active) return message.reply("No World Shatter event is active."); const result=(args[0]||"victory").toLowerCase(); const success=result!=="failure"; await finishWorldShatter(fresh,success); return message.reply(`✅ World Shatter ended as a **${success?"victory":"failure"}**.`); }
     if(sub==="rematch") { if(ws.outcome!=="failure") return message.reply("A rematch is only available after an Architect failure."); if(ws.event?.active) return message.reply("A World Shatter event is already active."); await startArchitectRematch(fresh); return message.reply("✅ Architect rematch started."); }
-    return message.reply("World Shatter admin: `!worldshatter status`, `schedule saturday 7pm`, `delay 1d`, `start`, `stage stabilize|unmade|boss`, `end victory|failure`, `rematch`, `preview anomaly|final|shatter`.");
+    return message.reply("World Shatter admin: `!worldshatter status`, `schedule saturday 8pm`, `delay 1d`, `start`, `stage stabilize|unmade|boss`, `end victory|failure`, `rematch`, `preview anomaly|final|shatter`.");
   }
 
   if (command === "!shatterattack") {
@@ -8963,9 +9243,9 @@ ${captureChoicesText(choices)}
       `🎯 **Daily Progress**\n` +
       `Use \`!daily\`, \`!claimdaily\`, and \`!dailyreward\`.\n\n` +
       `🪙 **Big Game Hunt**\n` +
-      `Every Sunday from **12:00-2:00 PM Mountain Time**, the hunt cooldown becomes **30 minutes**. ` +
+      `Three times every week on different random days, a 2-hour Big Game Hunt begins between **3:30 PM and 8:00 PM Mountain Time** and the hunt cooldown becomes **30 minutes**. ` +
       `Successful catches award Hunt Tokens by rarity. The Top 3 earn **50 / 30 / 15 Hunter Points**, and everyone keeps their tokens.\n` +
-      `Traveling Merchants appear unpredictably afterward. Use \`!merchant\`, \`!buy\`, \`!tokens\`, and \`!merchantcollection\`.\n\n` +
+      `Traveling Merchants now make **3 random visits per week**. Use \`!merchant\`, \`!buy\`, \`!tokens\`, and \`!merchantcollection\`.\n\n` +
       `🏆 **Collections & Rewards**\n` +
       `Complete the Monster Dex, unlock achievements and titles, collect habitat pet sets, and climb the leaderboard.\n\n` +
       `Use \`!monstercommands\` for the complete command list.`
@@ -9220,8 +9500,9 @@ ${captureChoicesText(choices)}
     data.seasonMoments = [];
     data.seasonMomentFlags = {};
     data.nextSeasonMomentId = 1;
-    data.bigGame = { active: false, weekKey: null, startedAt: 0, endsAt: 0, scores: {}, reachedAt: {}, halftimeSent: false, resultsSent: false, lastCompletedWeek: null, history: [], reminders: {} };
-    data.merchant = { active: false, type: null, scheduledWeekKey: null, arrivalAt: 0, departureAt: 0, inventory: [], reminderSent: false, specialAt: 0, specialDone: false, clearance: false, lastVisitAt: 0, history: [] };
+    data.bigGame = { active: false, weekKey: null, eventId: null, startedAt: 0, endsAt: 0, scores: {}, reachedAt: {}, halftimeSent: false, resultsSent: false, lastCompletedWeek: null, history: [], completedEventIds: [], schedule: { weekKey: null, events: [] }, reminders: {} };
+    data.merchant = { active: false, type: null, scheduleId: null, scheduledWeekKey: null, arrivalAt: 0, departureAt: 0, inventory: [], reminderSent: false, specialAt: 0, specialDone: false, clearance: false, lastVisitAt: 0, history: [] };
+    data.merchantSchedule = { weekKey: null, visits: [] };
     data.tokenSurge = { active: false, startsAt: 0, endsAt: 0, announced: false, scheduledWeekKey: null };
 
     // Keep Dex-import records so the same old-bot export cannot be
