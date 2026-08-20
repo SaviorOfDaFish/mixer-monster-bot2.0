@@ -5071,7 +5071,7 @@ async function startWorldShatter(data, forced=false) {
   addSeasonMoment(data,{type:"world_shatter",icon:"💥",text:"The five World Relics shattered the seal and the World Shatter began.",uniqueKey:"world:shatter:start"});
   saveData(data);
   const channel=await getTextChannel(MONSTER_CHANNEL_ID);
-  await sendWorldEvent(channel,`@everyone\n\n# 💥 WORLD SHATTER\n\nThe sky fractures.\nInfernal flame pours through frozen ruins. Arcane oceans hang above spectral kingdoms while stars burn through daylight.\n\n**The five known planes are collapsing into ours.**\n\n⚡ \`!hunt\` cooldown: **10 minutes**\n🔄 Everyone can hunt **RIGHT NOW.**\n\nFor the next phase, creatures from every known Distortion can appear.\n\n**And something else is pushing through.**`,`distortion_critical.png`,true);
+  await sendWorldEvent(channel,`@everyone\n\n# 💥 WORLD SHATTER\n\nThe sky fractures.\nInfernal flame pours through frozen ruins. Arcane oceans hang above spectral kingdoms while stars burn through daylight.\n\n**The five known planes are collapsing into ours.**\n\n⚡ \`!hunt\` cooldown: **10 minutes**\n🔄 Everyone can hunt **RIGHT NOW.**\n\nFor the next phase, creatures from every known Distortion can appear.\n\n**And something else is pushing through.**`,`world_shatter.png`,true);
   return true;
 }
 
