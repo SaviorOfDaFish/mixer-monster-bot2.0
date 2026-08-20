@@ -457,40 +457,183 @@ const MERCHANT_TYPE_DEFINITIONS = {
 // rewriting the purchase command. "grant" sends supplies into the existing game
 // inventory; other items live in merchantCollection until used or traded later.
 const MERCHANT_ITEMS = {
-  hunter_berry: { name: "Hunter Berry", icon: "🍓", image: "hunter_berry.png", price: 3, unlimited: true, kind: "supply", grant: { captureItem: "berry", amount: 1 }, description: "+10% capture item." },
-  sticky_honey: { name: "Sticky Honey", icon: "🍯", image: "sticky_honey.png", price: 5, unlimited: true, kind: "supply", grant: { captureItem: "honey", amount: 1 }, description: "+20% capture item." },
-  enchanted_net: { name: "Enchanted Net", icon: "🕸️", image: "enchanted_net.png", price: 8, unlimited: true, kind: "supply", grant: { captureItem: "net", amount: 1 }, description: "+30% capture item." },
-  master_charm: { name: "Master Charm", icon: "🌟", image: "master_charm.png", price: 25, stock: 1, kind: "supply", grant: { captureItem: "masterCharm", amount: 1 }, description: "Guarantees one capture." },
-  rare_bait: { name: "Rare Bait", icon: "🔵", image: "rare_bait.png", price: 4, unlimited: true, kind: "supply", grant: { bait: "rare", amount: 1 }, description: "Improves the next hunt's Rare odds." },
-  epic_bait: { name: "Epic Bait", icon: "🟣", image: "epic_bait.png", price: 7, unlimited: true, kind: "supply", grant: { bait: "epic", amount: 1 }, description: "Improves the next hunt's Epic odds." },
-  legendary_bait: { name: "Legendary Bait", icon: "🟠", image: "legendary_bait.png", price: 12, stock: 4, kind: "supply", grant: { bait: "legendary", amount: 1 }, description: "Improves the next hunt's Legendary odds." },
-  hunters_compass: { name: "Hunter's Compass", icon: "🧭", image: "hunters_compass.png", price: 10, stock: 5, kind: "consumable", description: "Makes the next ordinary encounter Rare or better." },
-  golden_lure: { name: "Golden Lure", icon: "🟡", image: "golden_lure.png", price: 15, stock: 3, kind: "consumable", description: "Makes the next ordinary encounter Legendary." },
-  fresh_tracks: { name: "Fresh Tracks", icon: "🐾", image: "fresh_tracks.png", price: 8, stock: 5, kind: "consumable", description: "Immediately clears your normal hunt cooldown." },
-  mystery_sack: { name: "Mystery Sack", icon: "🎒", image: "mystery_sack.png", price: 8, stock: 7, kind: "consumable", description: "Contains an unknown reward." },
-  rusted_key: { name: "Rusted Key", icon: "🗝️", image: "rusted_key.png", price: 15, stock: 1, kind: "collectible", description: "Its lock and purpose are unknown." },
-  strange_map: { name: "Strange Map", icon: "🗺️", image: "strange_map.png", price: 18, stock: 2, kind: "consumable", description: "Leads toward an unusually strong trail." },
-  sealed_bottle: { name: "Sealed Bottle", icon: "🍾", image: "sealed_bottle.png", price: 12, stock: 3, kind: "consumable", description: "Something magical moves inside." },
-  monster_whistle: { name: "Monster Whistle", icon: "📯", image: "monster_whistle.png", price: 20, stock: 2, kind: "collectible", description: "A distant creature sometimes answers it." },
-  merchants_dice: { name: "Merchant's Dice", icon: "🎲", image: "merchants_dice.png", price: 10, stock: 4, kind: "consumable", description: "One die looks suspiciously weighted." },
-  do_not_open: { name: "DO NOT OPEN", icon: "⛓️", image: "do_not_open.png", price: 35, stock: 1, kind: "consumable", description: "Gribble strongly recommends that you do not open it." },
-  common_mystery_egg: { name: "Common Mystery Egg", icon: "🥚", image: "common_mystery_egg.png", price: 12, stock: 5, kind: "egg", description: "A friendly-looking unknown egg." },
-  rare_mystery_egg: { name: "Rare Mystery Egg", icon: "🔵🥚", image: "rare_mystery_egg.png", price: 25, stock: 3, kind: "egg", description: "A valuable egg covered in magical markings." },
-  ancient_egg: { name: "Ancient Egg", icon: "🗿🥚", image: "ancient_egg.png", price: 40, stock: 2, kind: "egg", description: "It feels impossibly old." },
-  merchants_egg: { name: "Merchant's Egg", icon: "🧳🥚", image: "merchants_egg.png", price: 50, stock: 1, kind: "egg", description: "Only a Traveling Merchant could have found this." },
-  monster_trophy: { name: "Monster Trophy", icon: "🏆", image: "monster_trophy.png", price: 22, stock: 3, kind: "collectible", description: "A prestigious hunter's achievement." },
-  golden_monster_trophy: { name: "Golden Monster Trophy", icon: "🥇", image: "golden_monster_trophy.png", price: 55, stock: 1, kind: "collectible", description: "Exceptionally prestigious and expensive." },
-  mystery_relic: { name: "Mystery Relic", icon: "🔮", image: "mystery_relic.png", price: 30, stock: 1, kind: "collectible", description: "Its original purpose is impossible to determine." },
-  black_egg: { name: "Black Egg", icon: "⚫🥚", image: "black_egg.png", price: 100, stock: 1, kind: "egg", description: "Its surface seems to absorb the surrounding light." },
-  impossible_key: { name: "Impossible Key", icon: "🗝️", image: "impossible_key.png", price: 75, stock: 1, kind: "collectible", description: "It could unlock something that should not have a door." },
-  torn_page: { name: "Torn Page", icon: "📜", image: "torn_page.png", price: 12, stock: 4, kind: "collectible", description: "The writing changes whenever you look away." },
-  watchers_eye: { name: "Watcher's Eye", icon: "👁️", image: "watchers_eye.png", price: 45, stock: 1, kind: "collectible", description: "It gives the impression that it is watching you." },
-  broken_compass: { name: "Broken Compass", icon: "🧭", image: "broken_compass.png", price: 28, stock: 2, kind: "collectible", description: "The floating needle points somewhere impossible." },
-  fractured_compass: { name: "Fractured Compass", icon: "💠🧭", image: "fractured_compass.png", price: 35, stock: 2, kind: "collectible", description: "Every needle points in a different direction." },
-  reality_anchor: { name: "Reality Anchor", icon: "⚓", image: "reality_anchor.png", price: 60, stock: 1, kind: "collectible", description: "Nearby reality feels unusually stable." },
-  unmarked_relic: { name: "Unmarked Relic", icon: "⬛", image: "unmarked_relic.png", price: 42, stock: 1, kind: "collectible", description: "It belongs to no recognizable culture." },
-  voidglass_shard: { name: "Voidglass Shard", icon: "🌌", image: "voidglass_shard.png", price: 50, stock: 1, kind: "collectible", description: "It reflects places that are not nearby." },
-  unidentified_object: { name: "Unidentified Object", icon: "❔", image: "unidentified_object.png", price: 80, stock: 1, kind: "collectible", description: "Its true shape cannot be determined." }
+  hunter_berry: {
+    name: "Hunter Berry", icon: "🍓", image: "hunter_berry.png", price: 3, unlimited: true, kind: "supply",
+    grant: { captureItem: "berry", amount: 1 },
+    description: "A sweet berry prized by patient hunters.",
+    effectDescription: "🎯 CAPTURE ITEM: Adds +10% to one capture attempt. Goes directly to your capture-item inventory."
+  },
+  sticky_honey: {
+    name: "Sticky Honey", icon: "🍯", image: "sticky_honey.png", price: 5, unlimited: true, kind: "supply",
+    grant: { captureItem: "honey", amount: 1 },
+    description: "Thick enchanted honey that even monsters struggle to ignore.",
+    effectDescription: "🎯 CAPTURE ITEM: Adds +20% to one capture attempt. Goes directly to your capture-item inventory."
+  },
+  enchanted_net: {
+    name: "Enchanted Net", icon: "🕸️", image: "enchanted_net.png", price: 8, unlimited: true, kind: "supply",
+    grant: { captureItem: "net", amount: 1 },
+    description: "A shimmering net woven with binding magic.",
+    effectDescription: "🎯 CAPTURE ITEM: Adds +30% to one capture attempt. Goes directly to your capture-item inventory."
+  },
+  master_charm: {
+    name: "Master Charm", icon: "🌟", image: "master_charm.png", price: 25, stock: 1, kind: "supply",
+    grant: { captureItem: "masterCharm", amount: 1 },
+    description: "A rare charm that seems to bend the odds completely in your favor.",
+    effectDescription: "🌟 GUARANTEED CAPTURE: Guarantees one capture attempt. Goes directly to your capture-item inventory."
+  },
+  rare_bait: {
+    name: "Rare Bait", icon: "🔵", image: "rare_bait.png", price: 4, unlimited: true, kind: "supply",
+    grant: { bait: "rare", amount: 1 },
+    description: "A scent mixture favored by uncommon creatures.",
+    effectDescription: "🎣 BAIT: Improves the Rare odds of your next normal hunt. Goes directly to your bait inventory."
+  },
+  epic_bait: {
+    name: "Epic Bait", icon: "🟣", image: "epic_bait.png", price: 7, unlimited: true, kind: "supply",
+    grant: { bait: "epic", amount: 1 },
+    description: "A potent lure that attracts dangerous magical creatures.",
+    effectDescription: "🎣 BAIT: Improves the Epic odds of your next normal hunt. Goes directly to your bait inventory."
+  },
+  legendary_bait: {
+    name: "Legendary Bait", icon: "🟠", image: "legendary_bait.png", price: 12, stock: 4, kind: "supply",
+    grant: { bait: "legendary", amount: 1 },
+    description: "A legendary hunter's lure reserved for the rarest trails.",
+    effectDescription: "🎣 BAIT: Improves the Legendary odds of your next normal hunt. Goes directly to your bait inventory."
+  },
+  hunters_compass: {
+    name: "Hunter's Compass", icon: "🧭", image: "hunters_compass.png", price: 10, stock: 5, kind: "consumable",
+    description: "Its needle ignores north and points toward stronger prey.",
+    effectDescription: "🎯 USE: Your next ordinary encounter is guaranteed to be Rare or better."
+  },
+  golden_lure: {
+    name: "Golden Lure", icon: "🟡", image: "golden_lure.png", price: 15, stock: 3, kind: "consumable",
+    description: "Golden light pulses from it like a beacon.",
+    effectDescription: "🎯 USE: Your next ordinary encounter is guaranteed to be Legendary."
+  },
+  fresh_tracks: {
+    name: "Fresh Tracks", icon: "🐾", image: "fresh_tracks.png", price: 8, stock: 5, kind: "consumable",
+    description: "A perfect trail appears where none existed moments ago.",
+    effectDescription: "⏱️ USE: Immediately clears your normal !hunt cooldown."
+  },
+  mystery_sack: {
+    name: "Mystery Sack", icon: "🎒", image: "mystery_sack.png", price: 8, stock: 7, kind: "consumable",
+    description: "The contents shift every time the sack moves.",
+    effectDescription: "🎁 USE: Opens for a random reward: capture items, Hunt Tokens, Epic Bait, or possibly a Master Charm."
+  },
+  rusted_key: {
+    name: "Rusted Key", icon: "🗝️", image: "rusted_key.png", price: 15, stock: 1, kind: "collectible",
+    description: "Its lock and purpose are unknown.",
+    effectDescription: "🧩 MYSTERIOUS COLLECTIBLE: Its purpose has not yet been discovered."
+  },
+  strange_map: {
+    name: "Strange Map", icon: "🗺️", image: "strange_map.png", price: 18, stock: 2, kind: "consumable",
+    description: "The route redraws itself whenever you stop looking.",
+    effectDescription: "🗺️ USE: Clears your normal !hunt cooldown and makes your next ordinary encounter Rare or better."
+  },
+  sealed_bottle: {
+    name: "Sealed Bottle", icon: "🍾", image: "sealed_bottle.png", price: 12, stock: 3, kind: "consumable",
+    description: "Something magical moves inside.",
+    effectDescription: "🎁 USE: Gives one random capture item: Hunter Berry, Sticky Honey, or Enchanted Net."
+  },
+  monster_whistle: {
+    name: "Monster Whistle", icon: "📯", image: "monster_whistle.png", price: 20, stock: 2, kind: "collectible",
+    description: "A distant creature sometimes answers it.",
+    effectDescription: "🧩 MYSTERIOUS COLLECTIBLE: Its full purpose has not yet been discovered."
+  },
+  merchants_dice: {
+    name: "Merchant's Dice", icon: "🎲", image: "merchants_dice.png", price: 10, stock: 4, kind: "consumable",
+    description: "One die looks suspiciously weighted.",
+    effectDescription: "🎲 USE: Roll for a random result: nothing, capture items, Hunt Tokens, or a Mystery Relic."
+  },
+  do_not_open: {
+    name: "DO NOT OPEN", icon: "⛓️", image: "do_not_open.png", price: 35, stock: 1, kind: "consumable",
+    description: "Gribble strongly recommends that you do not open it.",
+    effectDescription: "⚠️ USE: Opens for one powerful random reward: 20 Hunt Tokens, a Master Charm, +25 Hunter Points, or an Unidentified Object."
+  },
+  common_mystery_egg: {
+    name: "Common Mystery Egg", icon: "🥚", image: "common_mystery_egg.png", price: 12, stock: 5, kind: "egg",
+    description: "A friendly-looking unknown egg.",
+    effectDescription: "🥚 SEALED EGG: Stored in your Merchant Collection. Its contents are not currently ready to hatch."
+  },
+  rare_mystery_egg: {
+    name: "Rare Mystery Egg", icon: "🔵🥚", image: "rare_mystery_egg.png", price: 25, stock: 3, kind: "egg",
+    description: "A valuable egg covered in magical markings.",
+    effectDescription: "🥚 SEALED EGG: Stored in your Merchant Collection. Its contents are not currently ready to hatch."
+  },
+  ancient_egg: {
+    name: "Ancient Egg", icon: "🗿🥚", image: "ancient_egg.png", price: 40, stock: 2, kind: "egg",
+    description: "It feels impossibly old.",
+    effectDescription: "🥚 SEALED EGG: Stored in your Merchant Collection. Its contents are not currently ready to hatch."
+  },
+  merchants_egg: {
+    name: "Merchant's Egg", icon: "🧳🥚", image: "merchants_egg.png", price: 50, stock: 1, kind: "egg",
+    description: "Only a Traveling Merchant could have found this.",
+    effectDescription: "🥚 SEALED EGG: Stored in your Merchant Collection. Its contents are not currently ready to hatch."
+  },
+  monster_trophy: {
+    name: "Monster Trophy", icon: "🏆", image: "monster_trophy.png", price: 22, stock: 3, kind: "collectible",
+    description: "A prestigious hunter's achievement.",
+    effectDescription: "🏆 COLLECTIBLE: Stored permanently in your Merchant Collection."
+  },
+  golden_monster_trophy: {
+    name: "Golden Monster Trophy", icon: "🥇", image: "golden_monster_trophy.png", price: 55, stock: 1, kind: "collectible",
+    description: "Exceptionally prestigious and expensive.",
+    effectDescription: "🥇 RARE COLLECTIBLE: Stored permanently in your Merchant Collection."
+  },
+  mystery_relic: {
+    name: "Mystery Relic", icon: "🔮", image: "mystery_relic.png", price: 30, stock: 1, kind: "collectible",
+    description: "Its original purpose is impossible to determine.",
+    effectDescription: "🧩 MYSTERIOUS COLLECTIBLE: Its purpose has not yet been discovered."
+  },
+  black_egg: {
+    name: "Black Egg", icon: "⚫🥚", image: "black_egg.png", price: 100, stock: 1, kind: "egg",
+    description: "Its surface seems to absorb the surrounding light.",
+    effectDescription: "🥚 UNKNOWN SEALED EGG: Stored in your Merchant Collection. Whatever is inside is not currently ready to hatch."
+  },
+  impossible_key: {
+    name: "Impossible Key", icon: "🗝️", image: "impossible_key.png", price: 75, stock: 1, kind: "collectible",
+    description: "It could unlock something that should not have a door.",
+    effectDescription: "🧩 MYSTERIOUS COLLECTIBLE: Its purpose has not yet been discovered."
+  },
+  torn_page: {
+    name: "Torn Page", icon: "📜", image: "torn_page.png", price: 12, stock: 4, kind: "collectible",
+    description: "The writing changes whenever you look away.",
+    effectDescription: "🧩 MYSTERIOUS COLLECTIBLE: Its purpose has not yet been discovered."
+  },
+  watchers_eye: {
+    name: "Watcher's Eye", icon: "👁️", image: "watchers_eye.png", price: 45, stock: 1, kind: "collectible",
+    description: "It gives the impression that it is watching you.",
+    effectDescription: "🧩 MYSTERIOUS COLLECTIBLE: Its purpose has not yet been discovered."
+  },
+  broken_compass: {
+    name: "Broken Compass", icon: "🧭", image: "broken_compass.png", price: 28, stock: 2, kind: "collectible",
+    description: "The floating needle points somewhere impossible.",
+    effectDescription: "🧩 MYSTERIOUS COLLECTIBLE: Its purpose has not yet been discovered."
+  },
+  fractured_compass: {
+    name: "Fractured Compass", icon: "💠🧭", image: "fractured_compass.png", price: 35, stock: 2, kind: "collectible",
+    description: "Every needle points in a different direction.",
+    effectDescription: "🧩 MYSTERIOUS COLLECTIBLE: Its purpose has not yet been discovered."
+  },
+  reality_anchor: {
+    name: "Reality Anchor", icon: "⚓", image: "reality_anchor.png", price: 60, stock: 1, kind: "collectible",
+    description: "Nearby reality feels unusually stable.",
+    effectDescription: "🧩 MYSTERIOUS COLLECTIBLE: Its purpose has not yet been discovered."
+  },
+  unmarked_relic: {
+    name: "Unmarked Relic", icon: "⬛", image: "unmarked_relic.png", price: 42, stock: 1, kind: "collectible",
+    description: "It belongs to no recognizable culture.",
+    effectDescription: "🧩 MYSTERIOUS COLLECTIBLE: Its purpose has not yet been discovered."
+  },
+  voidglass_shard: {
+    name: "Voidglass Shard", icon: "🌌", image: "voidglass_shard.png", price: 50, stock: 1, kind: "collectible",
+    description: "It reflects places that are not nearby.",
+    effectDescription: "🧩 MYSTERIOUS COLLECTIBLE: Its purpose has not yet been discovered."
+  },
+  unidentified_object: {
+    name: "Unidentified Object", icon: "❔", image: "unidentified_object.png", price: 80, stock: 1, kind: "collectible",
+    description: "Its true shape cannot be determined.",
+    effectDescription: "❓ UNKNOWN: No one currently knows what this object does."
+  }
 };
 
 const MERCHANT_POOLS = {
@@ -5702,13 +5845,20 @@ function merchantInventoryText(data, userId = null) {
     const item = MERCHANT_ITEMS[offer.key];
     const price = offer.barter ? merchantBarterText(offer.barter) : `${offer.price} 🪙`;
     const stock = offer.stock === null ? "Unlimited" : offer.stock > 0 ? `${offer.stock} left` : "SOLD OUT";
-    return `${item.icon} **${item.name}** — ${price}\n↳ ${item.description} • ${stock}`;
+    return (
+      `${item.icon} **${item.name}** — ${price}\n` +
+      `↳ *${item.description}*\n` +
+      `↳ ${item.effectDescription || "Effect unknown."}\n` +
+      `• ${stock}`
+    );
   });
   return `${definition.icon} **${definition.name.toUpperCase()}'S WARES**\n\n` +
     `${player ? `🪙 Your Balance: **${player.huntTokens}**\n\n` : ""}` +
     `${lines.join("\n\n")}\n\n` +
     `Merchant leaves <t:${Math.floor(merchant.departureAt / 1000)}:R>.\n` +
-    `Buy with \`!buy item name\`.${merchant.type === "gribble" ? "\n🎲 Gribble is also accepting `!gamble`." : ""}`;
+    `Buy with \`!buy item name\`.\n` +
+    `View purchases with \`!merchantcollection\`. Use consumables with \`!use item name\`.` +
+    `${merchant.type === "gribble" ? "\n🎲 Gribble is also accepting `!gamble`." : ""}`;
 }
 
 function resolveMerchantOffer(data, query) {
@@ -6700,7 +6850,8 @@ client.on("messageCreate", async (message) => {
       const costText = offer.barter ? merchantBarterText(offer.barter) : `${offer.price} Hunt Tokens`;
       return sendRoleImageAnnouncement(message.channel,
         `${item.icon} **PURCHASE COMPLETE**\n\n${formatPlayerMention(data, message.author.id)} purchased **${item.name}**!\n` +
-        `Cost: **${costText}**\nRemaining Token Balance: **${player.huntTokens} 🪙**\n\n*${item.description}*`,
+        `Cost: **${costText}**\nRemaining Token Balance: **${player.huntTokens} 🪙**\n\n` +
+        `*${item.description}*\n${item.effectDescription || ""}`,
         item.image, false);
     } finally {
       merchantPurchaseLocks.delete(message.author.id);
@@ -6794,8 +6945,46 @@ client.on("messageCreate", async (message) => {
       `🥇 50 HP • 🥈 30 HP • 🥉 15 HP\n\nNext hunt: <t:${Math.floor(nextAt / 1000)}:F>.`, BIG_GAME_IMAGE, true);
   }
 
-  if (["!startbiggame", "!endbiggame", "!biggamestatus", "!merchantstatus", "!endmerchant", "!restockmerchant", "!starttokensurge", "!endtokensurge"].includes(command) || command.startsWith("!spawnmerchant") || command.startsWith("!testmerchant") || command.startsWith("!settokens ") || command.startsWith("!addtokens ") || command.startsWith("!removetokens ") || command.startsWith("!giveitem ") || command.startsWith("!removeitem ")) {
+  if (["!startbiggame", "!endbiggame", "!biggamestatus", "!merchantstatus", "!adminshop", "!endmerchant", "!restockmerchant", "!starttokensurge", "!endtokensurge"].includes(command) || command.startsWith("!spawnmerchant") || command.startsWith("!testmerchant") || command.startsWith("!settokens ") || command.startsWith("!addtokens ") || command.startsWith("!removetokens ") || command.startsWith("!giveitem ") || command.startsWith("!removeitem ")) {
     if (!message.member?.permissions.has(PermissionsBitField.Flags.Administrator)) return message.reply("Only admins can use that command.");
+  }
+
+  if (command === "!adminshop") {
+    const merchant = data.merchant;
+    if (!merchant?.active || Date.now() >= merchant.departureAt) {
+      return message.reply("🛠️ No merchant is currently active, so there is no live shop inventory to inspect.");
+    }
+
+    const definition = MERCHANT_TYPE_DEFINITIONS[merchant.type];
+    const embed = new EmbedBuilder()
+      .setTitle("🛠️ ADMIN — CURRENT MERCHANT SHOP")
+      .setDescription(
+        `${definition.icon} **${definition.name}**\n` +
+        `Type: \`${merchant.type}\`\n` +
+        `Leaves: <t:${Math.floor(merchant.departureAt / 1000)}:F> (<t:${Math.floor(merchant.departureAt / 1000)}:R>)\n` +
+        `Offers: **${merchant.inventory.length}**`
+      );
+
+    for (const offer of merchant.inventory) {
+      const item = MERCHANT_ITEMS[offer.key];
+      if (!item) continue;
+
+      const price = offer.barter ? merchantBarterText(offer.barter) : `${offer.price} Hunt Tokens`;
+      const stock = offer.stock === null ? "Unlimited" : offer.stock > 0 ? `${offer.stock} remaining` : "SOLD OUT";
+
+      embed.addFields({
+        name: `${item.icon} ${item.name}`,
+        value:
+          `**Key:** \`${offer.key}\`\n` +
+          `**Type:** ${item.kind}\n` +
+          `**Price:** ${price}\n` +
+          `**Stock:** ${stock}\n` +
+          `**Flavor:** ${item.description}\n` +
+          `**Effect:** ${item.effectDescription || "Unknown"}`
+      });
+    }
+
+    return message.reply({ embeds: [embed], allowedMentions: { parse: [] } });
   }
 
   if (command === "!startbiggame") {
