@@ -5861,9 +5861,9 @@ function merchantInventoryText(data, userId = null) {
     `${merchant.type === "gribble" ? "\n🎲 Gribble is also accepting `!gamble`." : ""}`;
 }
 
-// Discord rejects normal messages longer than 2,000 characters. Merchant
-// inventories can exceed that limit now that every offer includes its full
-// description and effect, so the live shop is displayed in paginated embeds.
+// Discord rejects normal messages longer than 2,000 characters. The live shop
+// uses one compact embed containing gameplay effects and stock, without the
+// optional flavor text that previously forced larger inventories onto page 2.
 function merchantInventoryEmbeds(data, userId = null) {
   const merchant = data.merchant;
   if (!merchant?.active || Date.now() >= merchant.departureAt) return [];
@@ -5873,7 +5873,7 @@ function merchantInventoryEmbeds(data, userId = null) {
 
   const player = userId ? getPlayer(data, userId) : null;
   const offers = Array.isArray(merchant.inventory) ? merchant.inventory : [];
-  const offersPerPage = 5;
+  const offersPerPage = Math.max(1, offers.length);
   const pageCount = Math.max(1, Math.ceil(offers.length / offersPerPage));
   const embeds = [];
 
@@ -5886,7 +5886,7 @@ function merchantInventoryEmbeds(data, userId = null) {
         `⏳ Merchant leaves <t:${Math.floor(merchant.departureAt / 1000)}:R>.\n\n` +
         `Buy with \`!buy item name\`.`
       )
-      .setFooter({ text: `Shop page ${page + 1} of ${pageCount} • ${offers.length} offers` });
+      .setFooter({ text: `${offers.length} shop offers` });
 
     for (const offer of pageOffers) {
       const item = MERCHANT_ITEMS[offer.key];
@@ -5896,7 +5896,6 @@ function merchantInventoryEmbeds(data, userId = null) {
       embed.addFields({
         name: `${item.icon} ${item.name} — ${price}`,
         value:
-          `*${item.description}*\n` +
           `${item.effectDescription || "Effect unknown."}\n` +
           `📦 **${stock}**`
       });
