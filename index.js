@@ -5861,6 +5861,63 @@ function merchantInventoryText(data, userId = null) {
     `${merchant.type === "gribble" ? "\n🎲 Gribble is also accepting `!gamble`." : ""}`;
 }
 
+// Discord rejects normal messages longer than 2,000 characters. Merchant
+// inventories can exceed that limit now that every offer includes its full
+// description and effect, so the live shop is displayed in paginated embeds.
+function merchantInventoryEmbeds(data, userId = null) {
+  const merchant = data.merchant;
+  if (!merchant?.active || Date.now() >= merchant.departureAt) return [];
+
+  const definition = MERCHANT_TYPE_DEFINITIONS[merchant.type];
+  if (!definition) return [];
+
+  const player = userId ? getPlayer(data, userId) : null;
+  const offers = Array.isArray(merchant.inventory) ? merchant.inventory : [];
+  const offersPerPage = 5;
+  const pageCount = Math.max(1, Math.ceil(offers.length / offersPerPage));
+  const embeds = [];
+
+  for (let page = 0; page < pageCount; page++) {
+    const pageOffers = offers.slice(page * offersPerPage, (page + 1) * offersPerPage);
+    const embed = new EmbedBuilder()
+      .setTitle(`${definition.icon} ${definition.name.toUpperCase()}'S WARES`)
+      .setDescription(
+        `${player ? `🪙 Your Balance: **${player.huntTokens} Hunt Tokens**\n` : ""}` +
+        `⏳ Merchant leaves <t:${Math.floor(merchant.departureAt / 1000)}:R>.\n\n` +
+        `Buy with \`!buy item name\`.`
+      )
+      .setFooter({ text: `Shop page ${page + 1} of ${pageCount} • ${offers.length} offers` });
+
+    for (const offer of pageOffers) {
+      const item = MERCHANT_ITEMS[offer.key];
+      if (!item) continue;
+      const price = offer.barter ? merchantBarterText(offer.barter) : `${offer.price} 🪙`;
+      const stock = offer.stock === null ? "Unlimited" : offer.stock > 0 ? `${offer.stock} left` : "SOLD OUT";
+      embed.addFields({
+        name: `${item.icon} ${item.name} — ${price}`,
+        value:
+          `*${item.description}*\n` +
+          `${item.effectDescription || "Effect unknown."}\n` +
+          `📦 **${stock}**`
+      });
+    }
+
+    if (merchant.type === "gribble" && page === pageCount - 1) {
+      embed.addFields({ name: "🎲 Gribble's Gamble", value: "Gribble is also accepting `!gamble`." });
+    }
+    if (page === pageCount - 1) {
+      embed.addFields({
+        name: "🎒 Your Purchases",
+        value: "Use `!merchantcollection` to view purchases and `!use item name` to use consumables."
+      });
+    }
+
+    embeds.push(embed);
+  }
+
+  return embeds;
+}
+
 function resolveMerchantOffer(data, query) {
   const wanted = String(query || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   return (data.merchant?.inventory || []).find(offer => {
@@ -6814,7 +6871,9 @@ client.on("messageCreate", async (message) => {
   }
 
   if (command === "!merchant") {
-    return message.reply(merchantInventoryText(data, message.author.id));
+    const embeds = merchantInventoryEmbeds(data, message.author.id);
+    if (!embeds.length) return message.reply("No merchant is currently visiting the hunting grounds.");
+    return message.reply({ embeds, allowedMentions: { parse: [] } });
   }
 
   if (command === "!merchantcollection" || command === "!collectibles") {
@@ -7075,7 +7134,9 @@ client.on("messageCreate", async (message) => {
     const input = content.slice("!testmerchant".length).trim().toLowerCase().replace(/[^a-z]/g, "_") || "aldric";
     const type = MERCHANT_TYPE_DEFINITIONS[input] ? input : "aldric";
     const preview = { merchant: { active: true, type, departureAt: Date.now() + 8 * 60 * 60 * 1000, inventory: generateMerchantInventory(type, false) }, players: data.players };
-    return message.reply(`🧪 **PRIVATE MERCHANT PREVIEW — NO DATA CHANGED**\n\n${merchantInventoryText(preview, message.author.id)}`);
+    const embeds = merchantInventoryEmbeds(preview, message.author.id);
+    if (embeds[0]) embeds[0].setAuthor({ name: "PRIVATE MERCHANT PREVIEW — NO DATA CHANGED" });
+    return message.reply({ embeds, allowedMentions: { parse: [] } });
   }
 
   if (command.startsWith("!giveitem ") || command.startsWith("!removeitem ")) {
